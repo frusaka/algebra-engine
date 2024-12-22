@@ -35,21 +35,20 @@ class Term(Base):
         res = ""
         if not isinstance(self.value, Number):
             if abs(self.coef) != 1:
-                if self.coef.denominator != 1:
-                    res += "(" + str(self.coef) + ")"
-                else:
-                    res += str(self.coef)
+                # if self.coef.denominator != 1:
+                #     res += "(" + str(self.coef) + ")"
+                # else:
+                res = str(self.coef)
             elif self.value == -1:
-                res += "-"
+                res = "-"
 
         res += str(self.value)
         if type(self.exp) is Number:
             if self.exp == 1:
                 return res
             if self.exp < 0:
-                return "{0}/{1}".format(
-                    self.coef, Term(value=self.value, exp=abs(self.exp))
-                )
+                # TODO: Pretify negative exponents
+                pass
             if self.exp.denominator != 1:
                 if self.coef != 1:
                     return "{0}({1})".format(
@@ -58,7 +57,7 @@ class Term(Base):
                     )
                 if self.exp.numerator != 1:
                     res = "{0}^{1}".format(res, self.exp.numerator)
-                return "({0}√{1})".format(self.exp.denominator, res)
+                return "{0}√{1}".format(self.exp.denominator, res)
         return "{0}^{1}".format(res, self.exp)
 
     @flatten
@@ -85,9 +84,9 @@ class Term(Base):
 
     @flatten
     def __truediv__(a, b):
-        return a * Term(Number(1) / b.coef, b.value, b.exp) ** -Term()
+        return a * b ** -Term()  # ** -Term()
 
-    @flatten
+    # @flatten
     def __pow__(a, b):
         if not a.exp.like(b.exp):
             return Term(a.coef, a.value, a.exp * b.exp)

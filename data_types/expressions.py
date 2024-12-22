@@ -1,6 +1,6 @@
-from utils.classes import expression, factor, number
+from utils.classes import expression, factor, number, variable
 from utils.utils import Proxy
-from .bases import Collection
+from .bases import Collection, Number
 from functools import singledispatchmethod
 
 
@@ -17,16 +17,18 @@ class Expression(Collection):
                 terms.add(term + b)
                 if len(terms) == 1:
                     return terms.pop()
-                return type(a)(value=terms)
+                return type(a)(value=Expression(terms))
 
     @add.register(expression)
     def _(_, b, a):
         b = b.value
         if a.like(b):
-            return type(a)(value=[*a.value, *b.value], exp=a.exp)
+            return type(a)(value=Expression([*a.value, *b.value]), exp=a.exp)
 
     @singledispatchmethod
     def mul(_, b, a):
+        if a.exp != 1:
+            return
         b = b.value
         return type(a)(value=Expression(term * b for term in a.value), exp=a.exp)
 
@@ -37,11 +39,8 @@ class Expression(Collection):
 
 # @dataclass
 class Factor(Collection):
-    def __hash__(self):
-        return hash((type(self), tuple(self)))
-
-    def __init__(self, terms, merge_action="mul"):
-        super().__init__(terms, merge_action)
+    def __init__(self, terms):
+        super().__init__(terms, "mul")
 
     def like(self, other):
         if not isinstance(other, Factor):
@@ -56,38 +55,38 @@ class Factor(Collection):
 
     @singledispatchmethod
     def mul(_, b, a):
-        b = b.value
-        if b.exp < 0:
-            c = a.coef * b.coef
-            ca, cb = _.simplify(type(a)(value=b.value, exp=-b.exp))
-            if not ca and not cb:
-                return type(a)()
-            if ca:
-                ca = type(a)(c, ca, a.exp)
-            if cb:
-                cb = type(a)(value=cb, exp=-b.exp)
+        pass
 
-            if not ca or not cb:
-                return ca or cb
-            return type(a)(value=Expression([ca, cb]), exp=a.exp)
-        return type(a)(
-            a.coef * b.coef,
-            Factor(list(a.value) + [type(a)(value=b.value, exp=b.exp)]),
-            a.exp,
-        )
+    @mul.register(factor)
+    def _(_, b, a):
+        b = b.value
+        c = a.coef * b.coef
+        if b.exp < 0:
+            ca, cb = _.simplify(type(a)(value=b.value, exp=-b.exp))
+            if ca and cb:
+                return type(a)(c, Factor([ca, cb]), a.exp)
+            if not ca and not cb:
+                return type(a)(value=c)
+            if ca:
+                return type(a)(c, ca, a.exp)
+            return type(a)(c, value=cb, exp=-b.exp)
+        return type(a)(c, Factor([*a.value, *b.value]), a.exp)
 
     @mul.register(number)
     def _(_, b, a):
         b = b.value
         return type(a)(a.coef * b.value, a.value, a.exp)
 
+    @mul.register(variable)
+    def _(_, b, a):
+        b = b.value
+        return type(a)(
+            a.coef * b.coef, Factor([*a.value, type(a)(value=b.value, exp=b.exp)])
+        )
+
     @mul.register(expression)
     def _(_, b, a):
         return b.value.mul(Proxy(a, factor), b.value)
-
-    @mul.register(factor)
-    def _(_, b, a):
-        return type(a)(a.coef * b.value.coef, Factor([*a.value, *b.value.value]))
 
     def simplify(a, b):
         terms = a.copy()
@@ -96,7 +95,7 @@ class Factor(Collection):
             if j in terms:
                 terms.remove(j)
                 rem.remove(j)
-
+        res = None
         if len(rem) == 1:
             rem = rem.pop()
         elif rem:

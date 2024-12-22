@@ -24,14 +24,8 @@ class Base:
     def pow(a: "Term", b: "Term"):  # type: ignore
         return a.value.pow(Proxy(b, globals().get(type(b.value).__name__.lower())), a)
 
-    @staticmethod
-    def register_term_operations(cls):
-        cls.mul.register(term_mult)
-        cls.add.register(term_add)
-        cls.pow.register(term_pow)
 
-
-class Variable(Base, str):
+class Variable(str, Base):
     @singledispatchmethod
     def add(_, b, a):
         b = b.value
@@ -40,9 +34,13 @@ class Variable(Base, str):
 
     @singledispatchmethod
     def mul(_, b, a):
+        pass
+
+    @mul.register(variable)
+    def _(_, b, a):
         b = b.value
         if a.like(b, 0):
-            return type(a)(a.coef * b.coef, a.value, b.exp + a.exp)
+            return type(a)(a.coef * b.coef, a.value, a.exp + b.exp)
 
     @mul.register(number)
     def _(_, b, a):
@@ -57,12 +55,12 @@ class Variable(Base, str):
     def pow(_, b, a):
         pass
 
-    @pow.register
-    def _(_, b: number, a):
-        return type(a)(a.coef, a.value, a.exp * b.value.value)
+    @pow.register(number)
+    def _(_, b, a):
+        return Collection.scalar_pow(_, b, a)
 
 
-class Number(Base, Fraction):
+class Number(Fraction, Base):
     @singledispatchmethod
     def add(_, b, a):
         b = b.value
@@ -92,7 +90,7 @@ class Number(Base, Fraction):
     def _(_, b, a):
         return type(a)(value=a.value**b.value.value, exp=a.exp)
 
-    def __stro__(self):
+    def __str__(self):
         if any(not self.denominator % i for i in (2, 5)) and self.denominator % 3:
             return str(self.numerator / self.denominator)
         return super().__str__()
@@ -122,7 +120,7 @@ class Number(Base, Fraction):
         return self
 
 
-class Collection(Base, set):
+class Collection(set, Base):
     def __init__(self, terms, merge_action="add"):
         res = []
         for term in terms:
@@ -139,6 +137,7 @@ class Collection(Base, set):
     def __str__(self):
         res = ""
         den = []
+        symb = SYMBOLS.get(self.action.upper())
         for idx, term in enumerate(standard_form(self)):
             rep = str(term)
             if not rep:
@@ -147,16 +146,17 @@ class Collection(Base, set):
                 if rep.startswith("-") and self.action == "add":
                     rep = rep[1:]
                     res += " - "
-                elif term.exp > 0:
-                    res += SYMBOLS.get(self.action.upper()).join("  ")
-            if term.exp < 0:
+                else:  # (5 *)(3x+1) issue
+                    res += symb.join("  ")
+            if term.exp < 0 and self.action == "mul":
                 den.append(type(term)(term.coef, value=term.value, exp=abs(term.exp)))
             else:
                 res += rep
         if len(res) > 1:
             res = res.join("()")
         if den:
-            return "/".join([res, str(Collection(den, "mul"))])
+            # TODO: Fix for expressions
+            return "/".join([res, str(Collection(den, self.action))])
         return res
 
     @singledispatchmethod
@@ -164,18 +164,21 @@ class Collection(Base, set):
         pass
 
     @pow.register(number)
-    def _(_, b, a):
+    def scalar_pow(_, b, a):
         b = b.value
         if b.value == 0:
             return b
         res = a
         for _ in range(abs(b.value.numerator) - 1):
-            res = res * a
+            res *= a
+        exp = Number(1, b.value.denominator)
         if b.value < 0:
-            return type(a)(value=res, exp=-Number(1, b.value.denominator))
-        if b.value.denominator == 1:
-            return res
-        return type(a)(value=res, exp=Number(1, b.value.denominator))
+            exp = -exp
+        return type(a)(
+            res.coef**exp,
+            res.value,
+            res.exp * exp,
+        )
 
     @staticmethod
     def merge(terms: list, action="add"):
@@ -184,7 +187,7 @@ class Collection(Base, set):
             term = terms.pop(0)
             found = 0
             for other in tuple(terms):
-                if term.like(other):
+                if term.like(other, action == "add"):
                     if (val := getattr(operator, action)(term, other)).coef != 0:
                         res.append(val)
                     terms.remove(other)
@@ -202,21 +205,3 @@ class Collection(Base, set):
 
     def like(self, other):
         return self == other
-
-
-def term_add(_, b: term, a):
-    return b.value.value.add(
-        Proxy(a, globals().get(a.value.__class__.__name__.lower())), b.value
-    )
-
-
-def term_mult(_, b: term, a):
-    return b.value.value.mul(
-        Proxy(a, globals().get(a.value.__class__.__name__.lower())), b.value
-    )
-
-
-def term_pow(_, b: term, a):
-    return b.value.value.pow(
-        Proxy(a, globals().get(a.value.__class__.__name__.lower())), b.value
-    )
