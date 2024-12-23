@@ -134,31 +134,6 @@ class Collection(set, Base):
     def __hash__(self):
         return hash((type(self), tuple(self)))
 
-    def __str__(self):
-        res = ""
-        den = []
-        symb = SYMBOLS.get(self.action.upper())
-        for idx, term in enumerate(standard_form(self)):
-            rep = str(term)
-            if not rep:
-                continue
-            if idx > 0 and res:
-                if rep.startswith("-") and self.action == "add":
-                    rep = rep[1:]
-                    res += " - "
-                else:  # (5 *)(3x+1) issue
-                    res += symb.join("  ")
-            if term.exp < 0 and self.action == "mul":
-                den.append(type(term)(term.coef, value=term.value, exp=abs(term.exp)))
-            else:
-                res += rep
-        if len(res) > 1:
-            res = res.join("()")
-        if den:
-            # TODO: Fix for expressions
-            return "/".join([res, str(Collection(den, self.action))])
-        return res
-
     @singledispatchmethod
     def pow(_, b, a):
         pass
@@ -167,18 +142,14 @@ class Collection(set, Base):
     def scalar_pow(_, b, a):
         b = b.value
         if b.value == 0:
-            return b
+            return type(a)()
         res = a
         for _ in range(abs(b.value.numerator) - 1):
             res *= a
         exp = Number(1, b.value.denominator)
         if b.value < 0:
             exp = -exp
-        return type(a)(
-            res.coef**exp,
-            res.value,
-            res.exp * exp,
-        )
+        return type(a)(res.coef**exp, res.value, res.exp * exp)
 
     @staticmethod
     def merge(terms: list, action="add"):

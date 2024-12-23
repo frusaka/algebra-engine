@@ -1,48 +1,34 @@
 from dataclasses import dataclass
 from .bases import *
 from .expressions import *
-from utils.utils import flatten
+from utils.utils import clean
 
 
-@dataclass(order=True)
+@dataclass(order=True, frozen=True)
 class Term(Base):
-    coef: Number
-    value: Base
-    exp: Base
-
-    def __init__(
-        self, coef: Number = Number(1), value: Base = Number(1), exp: Base = Number(1)
-    ):
-        self.coef = coef
-        self.value = value
-        self.exp = exp
-        if self.coef == 0:
-            self.value = Number(1)
-            self.exp = self.value
-        elif self.exp == 0:
-            self.value, self.exp = (Number(1),) * 2
-        super().__init__()
+    coef: Number = Number(1)
+    value: Base = Number(1)
+    exp: Base = Number(1)
 
     def __hash__(self):
         return hash((self.__class__, self.coef, self.value, self.exp))
 
     def __str__(self):
-        # if self.coef.denominator != 1:
-        #     return "{0}/{1}".format(
-        #         Term(Number(self.coef.numerator), self.value, self.exp),
-        #         self.coef.denominator,
-        #     )
         res = ""
         if not isinstance(self.value, Number):
             if abs(self.coef) != 1:
-                # if self.coef.denominator != 1:
-                #     res += "(" + str(self.coef) + ")"
-                # else:
                 res = str(self.coef)
-            elif self.value == -1:
+                if "/" in res:
+                    res = res.join("()")
+            elif self.coef == -1:
                 res = "-"
+        else:
+            res = str(self.value)
+            if "/" in res and self.exp != 1:
+                res = res.join("()")
+        if not isinstance(self.value, Number):
+            res += str(self.value)
 
-        res += str(self.value)
         if type(self.exp) is Number:
             if self.exp == 1:
                 return res
@@ -60,15 +46,19 @@ class Term(Base):
                 return "{0}√{1}".format(self.exp.denominator, res)
         return "{0}^{1}".format(res, self.exp)
 
-    @flatten
+    @clean
     def __add__(a, b):
+        if a.value == 0:
+            return b
+        if b.value == 0:
+            return a
         return Base.add(a, b) or Term(value=Expression([a, b]))
 
-    @flatten
+    @clean
     def __sub__(a, b):
-        return -b + a
+        return a + -b
 
-    @flatten
+    @clean
     def __mul__(a, b):
         c = a.coef * b.coef
         ta = Term(value=a.value, exp=a.exp)
@@ -82,11 +72,11 @@ class Term(Base):
 
         return Base.mul(a, b) or Term(c, value=Factor([ta, tb]))
 
-    @flatten
+    @clean
     def __truediv__(a, b):
-        return a * b ** -Term()  # ** -Term()
+        return a * b ** -Term()
 
-    # @flatten
+    @clean
     def __pow__(a, b):
         if not a.exp.like(b.exp):
             return Term(a.coef, a.value, a.exp * b.exp)
@@ -99,17 +89,14 @@ class Term(Base):
         return self
 
     def __neg__(self):
-        if isinstance(self.value, Expression):
-            return Term(value=Expression(-term for term in self.value), exp=self.exp)
-        if isinstance(self.value, Number):
-            return Term(value=-self.value, exp=self.exp)
-        return Term(-self.coef, self.value, self.exp)
+        return self * Term(value=Number(-1))
 
     def like(self, other, exp=1):
 
         if (
-            # not isinstance(other, type(self))
-            not isinstance(other.value, type(self.value))
+            not isinstance(other, Term)
+            or not self.exp.like(other.exp)
+            or not isinstance(other.value, type(self.value))
             or (exp and self.exp != other.exp)
         ):
             return 0
