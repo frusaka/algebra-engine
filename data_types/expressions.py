@@ -21,34 +21,13 @@ class Expression(Collection):
 
     @singledispatchmethod
     def add(_, b, a):
-        b = b.value
-        if a.exp != b.exp:
-            return
-        for term in a.value:
-            if term.like(b):
-                terms = a.value.copy()
-                terms.remove(term)
-                terms.add(term + b)
-                if len(terms) == 1:
-                    return terms.pop()
-                return type(a)(value=Expression(terms))
-
-    @add.register(expression)
-    def _(_, b, a):
-        b = b.value
-        if a.like(b):
-            return type(a)(value=Expression([*a.value, *b.value]), exp=a.exp)
+        pass
 
     @singledispatchmethod
     def mul(_, b, a):
         if a.exp != 1:
             return
-        b = b.value
-        return type(a)(value=Expression(term * b for term in a.value), exp=a.exp)
-
-    @mul.register(factor)
-    def _(_, b, a):
-        return _.mul(b, a) * type(a)(value=b.value.coef)
+        return type(a)(value=Expression(term * b.value for term in a.value))
 
 
 class Factor(Collection):
@@ -93,27 +72,24 @@ class Factor(Collection):
     def _(_, b, a):
         b = b.value
         c = a.coef * b.coef
+        if not isinstance(a.exp, Number) or not isinstance(b.exp, Number):
+            return
 
-        if a.exp < 0:
-            # TODO: Fix fraction logic
-            # Both sides can be fractions, so can't simply reverse the input
-            pass
+        if (a.exp < 0 and b.exp < 0) or (a.exp > 0 and b.exp > 0):
+            if not isinstance(b.value, Factor):
+                b = [type(a)(value=b.value, exp=abs(b.exp))]
+            else:
+                b = b.value
+            return type(a)(c, Factor([*a.value, *b]), a.exp)
 
-        if b.exp < 0:
-            ca, cb = _.simplify(a.value, type(a)(value=b.value, exp=-b.exp))
-            if ca and cb:
-                return type(a)(c, Factor([*ca, *cb]))
-            if not ca and not cb:
-                return type(a)(value=c)
-            if ca:
-                return type(a)(c, ca.pop() if len(ca) == 1 else Factor(ca), a.exp)
-            return type(a)(c, cb.pop() if len(cb) == 1 else Factor(cb), -b.exp)
-
-        if not isinstance(b.value, Factor):
-            b = [b]
-        else:
-            b = b.value
-        return type(a)(c, Factor([*a.value, *b]))
+        ca, cb = _.simplify(a.value, type(a)(value=b.value, exp=abs(b.exp)))
+        if ca and cb:
+            return type(a)(c, Factor([*ca, *cb]))
+        if not ca and not cb:
+            return type(a)(value=c)
+        if ca:
+            return type(a)(c, ca.pop() if len(ca) == 1 else Factor(ca), a.exp)
+        return type(a)(c, cb.pop() if len(cb) == 1 else Factor(cb), b.exp)
 
     @mul.register(number)
     def _(_, b, a):
@@ -122,7 +98,7 @@ class Factor(Collection):
 
     @mul.register(expression)
     def _(_, b, a):
-        return b.value.mul(Proxy(a, factor), b.value)
+        return Expression.mul(_, Proxy(a, factor), b.value)
 
     @staticmethod
     def simplify(a, b):
