@@ -29,12 +29,14 @@ class Term(Base):
         if not isinstance(self.value, Number):
             res += str(self.value)
 
-        if type(self.exp) is Number:
+        if isinstance(self.exp, Number):
             if self.exp == 1:
                 return res
             if self.exp < 0:
-                # TODO: Pretify negative exponents
-                pass
+                return "{0}/{1}".format(
+                    self.coef.numerator,
+                    Term(Number(self.coef.denominator), self.value, abs(self.exp)),
+                )
             if self.exp.denominator != 1:
                 if self.coef != 1:
                     return "{0}({1})".format(
