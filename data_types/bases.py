@@ -63,14 +63,16 @@ class Variable(str, Base):
 class Number(Fraction, Base):
     @singledispatchmethod
     def add(_, b, a):
-        b = b.value
-        if a.like(b):
-            return type(a)(value=a.value + b.value, exp=b.exp)
+        type(a)(value=a.value + b.value.value)
 
     @singledispatchmethod
     def mul(_, b, a):
+        pass
+
+    @mul.register(number)
+    def _(_, b, a):
         b = b.value
-        if a.like(b, 0):
+        if a.exp.like(b.exp):
             return type(a)(value=a.value * b.value, exp=b.exp)
 
     @mul.register(variable)

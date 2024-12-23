@@ -52,7 +52,9 @@ class Term(Base):
             return b
         if b.value == 0:
             return a
-        return Base.add(a, b) or Term(value=Expression([a, b]))
+        if not a.like(b):
+            return Term(value=Expression([a, b]))
+        return Base.add(a, b)
 
     @clean
     def __sub__(a, b):
@@ -60,17 +62,10 @@ class Term(Base):
 
     @clean
     def __mul__(a, b):
-        c = a.coef * b.coef
-        ta = Term(value=a.value, exp=a.exp)
-        tb = Term(value=b.value, exp=b.exp)
-        if (
-            not a.exp.like(b.exp)
-            or isinstance(a.exp, Number)
-            and a.exp.denominator != 1
-        ):
-            return Term(c, Factor([ta, tb]), a.exp)
-
-        return Base.mul(a, b) or Term(c, value=Factor([ta, tb]))
+        return Base.mul(a, b) or Term(
+            a.coef * b.coef,
+            Factor([Term(value=a.value, exp=a.exp), Term(value=b.value, exp=b.exp)]),
+        )
 
     @clean
     def __truediv__(a, b):
@@ -97,7 +92,12 @@ class Term(Base):
             not isinstance(other, Term)
             or not self.exp.like(other.exp)
             or not isinstance(other.value, type(self.value))
-            or (exp and self.exp != other.exp)
+            or (exp)
+            and (
+                self.exp != other.exp
+                or isinstance(other.value, Number)
+                and (self.exp != 1 or other.exp != 1)
+            )
         ):
             return 0
         if not isinstance(other.value, Number):

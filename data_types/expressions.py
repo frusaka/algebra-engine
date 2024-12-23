@@ -62,12 +62,12 @@ class Factor(Collection):
                 den.append(str(type(term)(value=term.value, exp=abs(term.exp))))
             else:
                 num.append(str(term))
-        # a, b = " • ".join(num), " • ".join(den)
-        a, b = "".join(num), "".join(den)
-        # if len(num) > 1:
-        #     a = a.join("()")
-        # if len(den) > 1:
-        #     b = b.join("()")
+        a, b = " • ".join(num), " • ".join(den)
+        # a, b = "".join(num), "".join(den)
+        if len(num) > 1:
+            a = a.join("()")
+        if len(den) > 1:
+            b = b.join("()")
         if not num:
             return f"1/{b}".join("()")
         if den:
