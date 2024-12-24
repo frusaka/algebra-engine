@@ -55,7 +55,7 @@ class Term(Base):
         if b.value == 0:
             return a
         if not a.like(b):
-            return Term(value=Expression([a, b]))
+            return Term(value=Polynomial([a, b]))
         return Base.add(a, b)
 
     @clean

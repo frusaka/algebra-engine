@@ -3,7 +3,7 @@ from .bases import Collection, Number
 from utils import *
 
 
-class Expression(Collection):
+class Polynomial(Collection):
     def __str__(self):
         res = ""
         for idx, term in enumerate(standard_form(self)):
@@ -27,7 +27,7 @@ class Expression(Collection):
     def mul(_, b, a):
         if a.exp != 1:
             return
-        return type(a)(value=Expression(term * b.value for term in a.value))
+        return type(a)(value=Polynomial(term * b.value for term in a.value))
 
 
 class Factor(Collection):
@@ -96,9 +96,9 @@ class Factor(Collection):
         b = b.value
         return type(a)(a.coef * b.value, a.value, a.exp)
 
-    @mul.register(expression)
+    @mul.register(Polynomial)
     def _(_, b, a):
-        return Expression.mul(_, Proxy(a, factor), b.value)
+        return Polynomial.mul(_, Proxy(a, factor), b.value)
 
     @staticmethod
     def simplify(a, b):

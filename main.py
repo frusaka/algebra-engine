@@ -1,5 +1,7 @@
 from processing import *
 
+# TODO: Watch out for exponents
+
 comp = Interpreter()
 while True:
     try:

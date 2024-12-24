@@ -47,7 +47,7 @@ class Variable(str, Base):
         b = b.value
         return type(a)(a.coef * b.value, a.value, a.exp)
 
-    @mul.register(expression | factor)
+    @mul.register(polynomial | factor)
     def _(_, b, a):
         return b.value.value.mul(Proxy(a, variable), b.value)
 
@@ -79,12 +79,7 @@ class Number(Fraction, Base):
         if a.exp.like(b.exp):
             return type(a)(value=a.value * b.value, exp=b.exp)
 
-    @mul.register(variable)
-    def _(_, b, a):
-        b = b.value
-        return b.value.mul(Proxy(a, number), b)
-
-    @mul.register(expression | factor)
+    @mul.register(variable | polynomial | factor)
     def _(_, b, a):
         return b.value.value.mul(Proxy(a, number), b.value)
 

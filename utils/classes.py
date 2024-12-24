@@ -14,7 +14,7 @@ class factor:
     pass
 
 
-class expression:
+class polynomial:
     pass
 
 
