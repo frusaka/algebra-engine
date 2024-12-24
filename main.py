@@ -1,6 +1,6 @@
 from processing import *
 
-# TODO: Watch out for exponents
+# TODO: Implement special case for Polynomial divisions
 
 comp = Interpreter()
 while True:
