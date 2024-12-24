@@ -62,7 +62,7 @@ class Factor(Collection):
     def add(_, b, a):
         b = b.value
         if a.like(b):
-            return type(a)(a.coef + b.coef, a, a.exp)
+            return type(a)(a.coef + b.coef, a.value, a.exp)
 
     @singledispatchmethod
     def mul(_, b, a):
