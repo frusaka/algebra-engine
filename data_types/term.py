@@ -64,10 +64,15 @@ class Term(Base):
 
     @clean
     def __mul__(a, b):
-        return Base.mul(a, b) or Term(
-            a.coef * b.coef,
-            Factor([Term(value=a.value, exp=a.exp), Term(value=b.value, exp=b.exp)]),
-        )
+        if v := Base.mul(a, b):
+            return v
+        if a.exp.like(b.exp):
+            return Term(
+                a.coef * b.coef,
+                Factor(
+                    [Term(value=a.value, exp=a.exp), Term(value=b.value, exp=b.exp)]
+                ),
+            )
 
     @clean
     def __truediv__(a, b):

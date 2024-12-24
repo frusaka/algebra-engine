@@ -93,10 +93,11 @@ class Factor(Collection):
 
     @mul.register(number)
     def _(_, b, a):
-        b = b.value
-        return type(a)(a.coef * b.value, a.value, a.exp)
+        if b.value.exp != 1:
+            return
+        return type(a)(a.coef * b.value.value, a.value, a.exp)
 
-    @mul.register(Polynomial)
+    @mul.register(polynomial)
     def _(_, b, a):
         return Polynomial.mul(_, Proxy(a, factor), b.value)
 
@@ -112,6 +113,6 @@ class Factor(Collection):
                     terms.remove(i)
                     rem.remove(j)
                     i /= j
-                    if i.value != 1:
+                    if not isinstance(i.value, Number):
                         terms.add(i)
         return terms, rem

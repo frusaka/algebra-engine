@@ -1,4 +1,5 @@
 from fractions import Fraction
+import itertools
 import operator
 from utils import *
 from functools import singledispatchmethod
@@ -28,9 +29,11 @@ class Base:
 class Variable(str, Base):
     @singledispatchmethod
     def add(_, b, a):
-        b = b.value
-        if a.like(b):
-            return type(a)(a.coef + b.coef, a.value, b.exp)
+        pass
+
+    @add.register(variable)
+    def _(_, b, a):
+        return type(a)(a.coef + b.value.coef, a.value, a.exp)
 
     @singledispatchmethod
     def mul(_, b, a):
@@ -38,14 +41,14 @@ class Variable(str, Base):
 
     @mul.register(variable)
     def _(_, b, a):
-        b = b.value
-        if a.like(b, 0):
-            return type(a)(a.coef * b.coef, a.value, a.exp + b.exp)
+        if a.like(b.value, 0):
+            return type(a)(a.coef * b.value.coef, a.value, a.exp + b.value.exp)
 
     @mul.register(number)
     def _(_, b, a):
-        b = b.value
-        return type(a)(a.coef * b.value, a.value, a.exp)
+        if b.value.exp != 1:
+            return
+        return type(a)(a.coef * b.value.value, a.value, a.exp)
 
     @mul.register(polynomial | factor)
     def _(_, b, a):
@@ -75,9 +78,8 @@ class Number(Fraction, Base):
 
     @mul.register(number)
     def _(_, b, a):
-        b = b.value
-        if a.exp.like(b.exp):
-            return type(a)(value=a.value * b.value, exp=b.exp)
+        if a.exp.like(b.value.exp):
+            return type(a)(value=a.value * b.value.value, exp=a.exp)
 
     @mul.register(variable | polynomial | factor)
     def _(_, b, a):
@@ -89,6 +91,8 @@ class Number(Fraction, Base):
 
     @pow.register(number)
     def _(_, b, a):
+        if a.exp != 1:
+            return
         return type(a)(value=a.value**b.value.value, exp=a.exp)
 
     def __str__(self):
@@ -123,13 +127,9 @@ class Number(Fraction, Base):
 
 class Collection(set, Base):
     def __init__(self, terms, merge_action="add"):
-        res = []
-        for term in terms:
-            if isinstance(term.value, type(self)) and term.exp == 1:
-                res.extend(self.flatten(term.value))
-            else:
-                res.append(term)
-        super().__init__(self.merge(res, merge_action))
+        super().__init__(
+            self.merge(itertools.chain(*map(self.flatten, terms)), merge_action)
+        )
         self.action = merge_action
 
     def __hash__(self):
@@ -153,7 +153,8 @@ class Collection(set, Base):
         return type(a)(res.coef**exp, res.value, res.exp * exp)
 
     @staticmethod
-    def merge(terms: list, action="add"):
+    def merge(terms, action="add"):
+        terms = list(terms)
         res = []
         while terms:
             term = terms.pop(0)
@@ -168,12 +169,13 @@ class Collection(set, Base):
                 res.append(term)
         return res
 
-    def flatten(self, terms):
-        for term in terms:
-            if issubclass(type(term), Collection):
-                yield from self.flatten(term.value)
-            else:
-                yield term
+    def flatten(self, term):
+        if term.exp != 1 or not isinstance(term.value, type(self)):
+            yield term
+            return
+
+        for i in term.value:
+            yield from self.flatten(i)
 
     def like(self, other):
         return self == other
