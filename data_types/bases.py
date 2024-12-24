@@ -126,12 +126,6 @@ class Number(Fraction, Base):
 
 
 class Collection(set, Base):
-    def __init__(self, terms, merge_action="add"):
-        super().__init__(
-            self.merge(itertools.chain(*map(self.flatten, terms)), merge_action)
-        )
-        self.action = merge_action
-
     def __hash__(self):
         return hash((type(self), tuple(self)))
 
@@ -151,23 +145,6 @@ class Collection(set, Base):
         if b.value < 0:
             exp = -exp
         return type(a)(res.coef**exp, res.value, res.exp * exp)
-
-    @staticmethod
-    def merge(terms, action="add"):
-        terms = list(terms)
-        res = []
-        while terms:
-            term = terms.pop(0)
-            found = 0
-            for other in tuple(terms):
-                if term.like(other, action == "add"):
-                    if (val := getattr(operator, action)(term, other)).coef != 0:
-                        res.append(val)
-                    terms.remove(other)
-                    found = 1
-            if not found:
-                res.append(term)
-        return res
 
     def flatten(self, term):
         if term.exp != 1 or not isinstance(term.value, type(self)):

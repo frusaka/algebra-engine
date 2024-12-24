@@ -1,9 +1,13 @@
 from functools import singledispatchmethod
 from .bases import Collection, Number
 from utils import *
+import itertools
 
 
 class Polynomial(Collection):
+    def __init__(self, terms):
+        super().__init__(self.merge(itertools.chain(*map(self.flatten, terms))))
+
     def __str__(self):
         res = ""
         for idx, term in enumerate(standard_form(self)):
@@ -29,15 +33,30 @@ class Polynomial(Collection):
             return
         return type(a)(value=Polynomial(term * b.value for term in a.value))
 
+    @staticmethod
+    def merge(terms):
+        terms = list(terms)
+        res = []
+        while terms:
+            term = terms.pop(0)
+            found = 0
+            for other in tuple(terms):
+                if term.like(other):
+                    if (val := (term + other)).coef != 0:
+                        res.append(val)
+                    terms.remove(other)
+                    found = 1
+            if not found:
+                res.append(term)
+        return res
+
 
 class Factor(Collection):
-    def __init__(self, terms):
-        super().__init__(terms, "mul")
-
     def __str__(self):
         num, den = [], []
         for term in reversed(standard_form(self)):
-            if isinstance(term.exp, Number) and term.exp < 0:
+            exp = term.exp if isinstance(term.exp, Number) else term.exp.coef
+            if exp < 0:
                 den.append(str(type(term)(value=term.value, exp=abs(term.exp))))
             else:
                 num.append(str(term))
@@ -71,25 +90,13 @@ class Factor(Collection):
     @mul.register(factor | variable)
     def _(_, b, a):
         b = b.value
-        c = a.coef * b.coef
         if not isinstance(a.exp, Number) or not isinstance(b.exp, Number):
             return
-
-        if (a.exp < 0 and b.exp < 0) or (a.exp > 0 and b.exp > 0):
-            if not isinstance(b.value, Factor):
-                b = [type(a)(value=b.value, exp=abs(b.exp))]
-            else:
-                b = b.value
-            return type(a)(c, Factor([*a.value, *b]), a.exp)
-
-        ca, cb = _.simplify(a.value, type(a)(value=b.value, exp=abs(b.exp)))
-        if ca and cb:
-            return type(a)(c, Factor([*ca, *cb]))
-        if not ca and not cb:
-            return type(a)(value=c)
-        if ca:
-            return type(a)(c, ca.pop() if len(ca) == 1 else Factor(ca), a.exp)
-        return type(a)(c, cb.pop() if len(cb) == 1 else Factor(cb), b.exp)
+        c = a.coef * b.coef
+        res = Factor.simplify(a.value, type(a)(value=b.value, exp=b.exp))
+        if res:
+            return type(a)(c, res.pop() if len(res) == 1 else Factor(res))
+        return type(a)(value=c)
 
     @mul.register(number)
     def _(_, b, a):
@@ -100,6 +107,15 @@ class Factor(Collection):
     @mul.register(polynomial)
     def _(_, b, a):
         return Polynomial.mul(_, Proxy(a, factor), b.value)
+
+    @singledispatchmethod
+    def pow(_, b, a):
+        val = Factor(i**b.value for i in a.value)
+        if not isinstance(b.value.value, Number) or not isinstance(b.value.exp, Number):
+            if a.coef != 1:
+                set.add(val, type(a)(value=a.coef, exp=b.value))
+            return type(a)(value=Factor(val))
+        return type(a)(a.coef**b.value.value, val)
 
     @staticmethod
     def simplify(a, b):
@@ -112,7 +128,7 @@ class Factor(Collection):
                 if i.like(j, 0):
                     terms.remove(i)
                     rem.remove(j)
-                    i /= j
+                    i *= j
                     if not isinstance(i.value, Number):
                         terms.add(i)
-        return terms, rem
+        return terms.union(rem)

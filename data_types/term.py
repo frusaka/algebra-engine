@@ -15,6 +15,7 @@ class Term(Base):
 
     def __str__(self):
         res = ""
+        exp = str(self.exp)
         if not isinstance(self.value, Number):
             if abs(self.coef) != 1:
                 res = str(self.coef)
@@ -33,6 +34,7 @@ class Term(Base):
             if self.exp == 1:
                 return res
             if self.exp < 0:
+                # TODO: Add similar support for negative Term exponents
                 return "{0}/{1}".format(
                     self.coef.numerator,
                     Term(Number(self.coef.denominator), self.value, abs(self.exp)),
@@ -46,7 +48,9 @@ class Term(Base):
                 if self.exp.numerator != 1:
                     res = "{0}^{1}".format(res, self.exp.numerator)
                 return "{0}√{1}".format(self.exp.denominator, res)
-        return "{0}^{1}".format(res, self.exp)
+        elif self.exp.coef != 1:
+            exp = exp.join("()")
+        return "{0}^{1}".format(res, exp)
 
     @clean
     def __add__(a, b):
@@ -92,6 +96,11 @@ class Term(Base):
 
     def __neg__(self):
         return self * Term(value=Number(-1))
+
+    def __abs__(self):
+        if not isinstance(self.value, Number):
+            return Term(abs(self.coef), self.value, self.exp)
+        return Term(value=abs(self.value), exp=self.exp)
 
     def like(self, other, exp=1):
 
