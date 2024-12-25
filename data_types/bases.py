@@ -1,8 +1,6 @@
-from fractions import Fraction
-import itertools
-import operator
-from utils import *
 from functools import singledispatchmethod
+from fractions import Fraction
+from utils import *
 
 
 class Base:

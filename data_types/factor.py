@@ -1,7 +1,7 @@
 from functools import singledispatchmethod
 from .bases import Collection, Number
-from utils import *
 from .polynomial import Polynomial
+from utils import *
 
 
 class Factor(Collection):
