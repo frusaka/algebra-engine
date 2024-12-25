@@ -1,6 +1,7 @@
 from processing import *
 
 # TODO: Implement special case for Polynomial divisions
+# TODO: Generalize base cases for operations on non-like Terms
 
 comp = Interpreter()
 while True:

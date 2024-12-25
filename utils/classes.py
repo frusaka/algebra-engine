@@ -14,9 +14,9 @@ class term: ...
 
 
 class Proxy:
-    def __init__(self, value, fake):
+    def __init__(self, value):
         self.value = value
-        self._fake = fake
+        self._fake = eval(type(value.value).__name__.lower())
 
     @property
     def __class__(self):

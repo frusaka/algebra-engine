@@ -59,9 +59,7 @@ class Term(Base):
             return b
         if b.value == 0:
             return a
-        if not a.like(b):
-            return Term(value=Polynomial([a, b]))
-        return Base.add(a, b)
+        return Base.add(a, b) or Term(value=Polynomial([a, b]))
 
     @clean
     def __sub__(a, b):
@@ -69,15 +67,9 @@ class Term(Base):
 
     @clean
     def __mul__(a, b):
-        if v := Base.mul(a, b):
-            return v
-        if a.exp.like(b.exp):
-            return Term(
-                a.coef * b.coef,
-                Factor(
-                    [Term(value=a.value, exp=a.exp), Term(value=b.value, exp=b.exp)]
-                ),
-            )
+        return Base.mul(a, b) or Factor.mul(
+            Proxy(b), Term(a.coef, Factor([Term(value=a.value)]), exp=a.exp)
+        )
 
     @clean
     def __truediv__(a, b):

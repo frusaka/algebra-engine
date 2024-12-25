@@ -11,8 +11,6 @@ class Polynomial(Collection):
     def __str__(self):
         res = ""
         for idx, term in enumerate(standard_form(self)):
-            if term.value == 0:
-                continue
             rep = str(term)
             if idx > 0 and res:
                 if rep.startswith("-"):
@@ -24,11 +22,16 @@ class Polynomial(Collection):
         return res.join("()")
 
     @singledispatchmethod
-    def add(_, b, a):
-        pass
+    @staticmethod
+    def add(b, a):
+        val = Polynomial([b.value, a])
+        if len(val) == 1:
+            return val.pop()
+        return type(a)(value=val)
 
     @singledispatchmethod
-    def mul(_, b, a):
+    @staticmethod
+    def mul(b, a):
         if a.exp != 1:
             return
         return type(a)(value=Polynomial(term * b.value for term in a.value))
@@ -42,7 +45,7 @@ class Polynomial(Collection):
             found = 0
             for other in tuple(terms):
                 if term.like(other):
-                    if (val := (term + other)).coef != 0:
+                    if (val := (term + other)).value != 0:
                         res.append(val)
                     terms.remove(other)
                     found = 1

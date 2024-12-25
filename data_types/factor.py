@@ -31,20 +31,23 @@ class Factor(Collection):
         return super(self) == other
 
     @singledispatchmethod
-    def add(_, b, a):
+    @staticmethod
+    def add(b, a):
         b = b.value
         if a.like(b):
             return type(a)(a.coef + b.coef, a.value, a.exp)
 
     @singledispatchmethod
-    def mul(_, b, a):
+    @staticmethod
+    def mul(b, a):
         pass
 
     @mul.register(factor | variable)
-    def _(_, b, a):
+    @staticmethod
+    def _(b, a):
         b = b.value
         if not isinstance(a.exp, Number) or not isinstance(b.exp, Number):
-            return
+            return type(a)(value=Factor([a, b]))
         c = a.coef * b.coef
         res = Factor.simplify(a.value, type(a)(value=b.value, exp=b.exp))
         if res:
@@ -52,17 +55,20 @@ class Factor(Collection):
         return type(a)(value=c)
 
     @mul.register(number)
-    def _(_, b, a):
+    @staticmethod
+    def _(b, a):
         if b.value.exp != 1:
             return
         return type(a)(a.coef * b.value.value, a.value, a.exp)
 
     @mul.register(polynomial)
-    def _(_, b, a):
-        return Polynomial.mul(_, Proxy(a, factor), b.value)
+    @staticmethod
+    def _(b, a):
+        return Polynomial.mul(Proxy(a), b.value)
 
     @singledispatchmethod
-    def pow(_, b, a):
+    @staticmethod
+    def pow(b, a):
         val = Factor(i**b.value for i in a.value)
         if not isinstance(b.value.value, Number) or not isinstance(b.value.exp, Number):
             if a.coef != 1:

@@ -12,83 +12,99 @@ class Base:
         return self == other
 
     @staticmethod
-    def add(a: "Term", b: "Term"):  # type: ignore
-        return a.value.add(Proxy(b, globals().get(type(b.value).__name__.lower())), a)
+    def add(a, b):
+        return a.value.add(Proxy(b), a)
 
     @staticmethod
-    def mul(a: "Term", b: "Term"):  # type: ignore
-        return a.value.mul(Proxy(b, globals().get(type(b.value).__name__.lower())), a)
+    def mul(a, b):
+        return a.value.mul(Proxy(b), a)
 
     @staticmethod
-    def pow(a: "Term", b: "Term"):  # type: ignore
-        return a.value.pow(Proxy(b, globals().get(type(b.value).__name__.lower())), a)
+    def pow(a, b):
+        return a.value.pow(Proxy(b), a)
 
 
 class Variable(str, Base):
     @singledispatchmethod
-    def add(_, b, a):
+    @staticmethod
+    def add(b, a):
         pass
 
     @add.register(variable)
-    def _(_, b, a):
-        return type(a)(a.coef + b.value.coef, a.value, a.exp)
+    @staticmethod
+    def _(b, a):
+        if a.like(b.value):
+            return type(a)(a.coef + b.value.coef, a.value, a.exp)
 
     @singledispatchmethod
-    def mul(_, b, a):
+    @staticmethod
+    def mul(b, a):
         pass
 
     @mul.register(variable)
-    def _(_, b, a):
+    @staticmethod
+    def _(b, a):
         if a.like(b.value, 0):
             return type(a)(a.coef * b.value.coef, a.value, a.exp + b.value.exp)
 
     @mul.register(number)
-    def _(_, b, a):
-        if b.value.exp != 1:
-            return
-        return type(a)(a.coef * b.value.value, a.value, a.exp)
+    @staticmethod
+    def _(b, a):
+        if b.value.exp == 1:
+            return type(a)(a.coef * b.value.value, a.value, a.exp)
 
     @mul.register(polynomial | factor)
-    def _(_, b, a):
-        return b.value.value.mul(Proxy(a, variable), b.value)
+    @staticmethod
+    def _(b, a):
+        return b.value.value.mul(Proxy(a), b.value)
 
     @singledispatchmethod
-    def pow(_, b, a):
+    @staticmethod
+    def pow(b, a):
         pass
 
     @pow.register(number)
-    def _(_, b, a):
-        return Collection.scalar_pow(_, b, a)
+    @staticmethod
+    def _(b, a):
+        return Collection.scalar_pow(b, a)
 
 
 class Number(Fraction, Base):
     @singledispatchmethod
-    def add(_, b, a):
+    @staticmethod
+    def add(b, a):
         pass
 
     @add.register(number)
-    def _(_, b, a):
-        return type(a)(value=a.value + b.value.value)
+    @staticmethod
+    def _(b, a):
+        if a.like(b.value):
+            return type(a)(value=a.value + b.value.value)
 
     @singledispatchmethod
-    def mul(_, b, a):
+    @staticmethod
+    def mul(b, a):
         pass
 
     @mul.register(number)
-    def _(_, b, a):
-        if a.exp.like(b.value.exp):
+    @staticmethod
+    def _(b, a):
+        if a.like(b.value, 0):
             return type(a)(value=a.value * b.value.value, exp=a.exp)
 
     @mul.register(variable | polynomial | factor)
-    def _(_, b, a):
-        return b.value.value.mul(Proxy(a, number), b.value)
+    @staticmethod
+    def _(b, a):
+        return b.value.value.mul(Proxy(a), b.value)
 
     @singledispatchmethod
-    def pow(_, b, a):
+    @staticmethod
+    def pow(b, a):
         pass
 
     @pow.register(number)
-    def _(_, b, a):
+    @staticmethod
+    def _(b, a):
         if a.exp != 1:
             return
         return type(a)(value=a.value**b.value.value, exp=a.exp)
@@ -128,11 +144,13 @@ class Collection(set, Base):
         return hash((type(self), tuple(self)))
 
     @singledispatchmethod
-    def pow(_, b, a):
+    @staticmethod
+    def pow(b, a):
         pass
 
     @pow.register(number)
-    def scalar_pow(_, b, a):
+    @staticmethod
+    def scalar_pow(b, a):
         b = b.value
         if b.value == 0:
             return type(a)()
