@@ -1,25 +1,16 @@
-class number:
-    pass
+class number: ...
 
 
-class variable:
-    pass
+class variable: ...
 
 
-class fraction:
-    pass
+class factor: ...
 
 
-class factor:
-    pass
+class polynomial: ...
 
 
-class polynomial:
-    pass
-
-
-class term:
-    pass
+class term: ...
 
 
 class Proxy:

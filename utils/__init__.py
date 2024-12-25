@@ -1,6 +1,7 @@
 from .classes import *
 from .constants import SYMBOLS
 
+
 def _clean(args):
     args = list(args)
     from data_types.term import Term, Number
