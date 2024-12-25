@@ -1,3 +1,4 @@
 from .bases import *
 from .term import Term
-from .expressions import *
+from .polynomial import Polynomial
+from .factor import Factor

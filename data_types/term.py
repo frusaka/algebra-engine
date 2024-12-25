@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from .bases import *
-from .expressions import *
+from .factor import Factor
+from .polynomial import Polynomial
 from utils.utils import clean
 
 
