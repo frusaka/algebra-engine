@@ -51,12 +51,15 @@ class Polynomial(Collection):
         res = []
         while a.value:
             # Remainder
-            if not isinstance(a.value, Polynomial):
+            if not isinstance(a.value, Polynomial) or leading_b.exp > (
+                (
+                    leading_a := max(
+                        a.value, key=lambda x: x.exp * (not isinstance(x.value, Number))
+                    )
+                ).exp
+            ):
                 res.append(Term(value=Factor([a, b ** -Term()])))
                 break
-            leading_a = max(
-                a.value, key=lambda x: x.exp * (not isinstance(x.value, Number))
-            )
             fac = leading_a / leading_b
             res.append(fac)
             a -= fac * b
