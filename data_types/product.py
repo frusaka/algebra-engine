@@ -4,7 +4,7 @@ from .polynomial import Polynomial
 from utils import *
 
 
-class Factor(Collection):
+class Product(Collection):
     def __str__(self):
         num, den = [], []
         for term in reversed(standard_form(self)):
@@ -26,7 +26,7 @@ class Factor(Collection):
         return a
 
     def like(self, other):
-        if not isinstance(other, Factor):
+        if not isinstance(other, Product):
             return 0
         return super(self) == other
 
@@ -42,16 +42,16 @@ class Factor(Collection):
     def mul(b, a):
         pass
 
-    @mul.register(factor | variable)
+    @mul.register(product | variable)
     @staticmethod
     def _(b, a):
         b = b.value
         if not isinstance(a.exp, Number) or not isinstance(b.exp, Number):
-            return type(a)(value=Factor([a, b]))
+            return type(a)(value=Product([a, b]))
         c = a.coef * b.coef
-        res = Factor.simplify(a.value, type(a)(value=b.value, exp=b.exp))
+        res = Product.simplify(a.value, type(a)(value=b.value, exp=b.exp))
         if res:
-            return type(a)(c, res.pop() if len(res) == 1 else Factor(res))
+            return type(a)(c, res.pop() if len(res) == 1 else Product(res))
         return type(a)(value=c)
 
     @mul.register(number)
@@ -69,17 +69,17 @@ class Factor(Collection):
     @singledispatchmethod
     @staticmethod
     def pow(b, a):
-        val = Factor(i**b.value for i in a.value)
+        val = Product(i**b.value for i in a.value)
         if not isinstance(b.value.value, Number) or not isinstance(b.value.exp, Number):
             if a.coef != 1:
                 set.add(val, type(a)(value=a.coef, exp=b.value))
-            return type(a)(value=Factor(val))
+            return type(a)(value=Product(val))
         return type(a)(a.coef**b.value.value, val)
 
     @staticmethod
     def simplify(a, b):
         terms = a.copy()
-        rem = (b.value if isinstance(b.value, Factor) else {b}).copy()
+        rem = (b.value if isinstance(b.value, Product) else {b}).copy()
         for i in tuple(terms):
             for j in tuple(rem):
                 if not terms:

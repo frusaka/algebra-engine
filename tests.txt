@@ -1,4 +1,4 @@
-# Nailed Factor operations
+# Nailed Product operations
 Expression > 3ab/6ac
 (((3 • a) • b) ÷ ((6 • a) • c))
 0.5(b/c)

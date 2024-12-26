@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from .bases import *
-from .factor import Factor
+from .product import Product
 from .polynomial import Polynomial
 from utils import clean
 
@@ -67,8 +67,8 @@ class Term(Base):
 
     @clean
     def __mul__(a, b):
-        return Base.mul(a, b) or Factor.mul(
-            Proxy(b), Term(a.coef, Factor([Term(value=a.value)]), exp=a.exp)
+        return Base.mul(a, b) or Product.mul(
+            Proxy(b), Term(a.coef, Product([Term(value=a.value, exp=a.exp)]))
         )
 
     @clean

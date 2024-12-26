@@ -1,7 +1,9 @@
 from processing import *
 
+# TODO: Refactor and Document the project
 # TODO: Make Polynomial divisions robust
 # TODO: Generalize base cases for operations on non-like Terms
+# NOTE: For polynomials, a * b^-1 does not yield the same result as a/b
 
 comp = Interpreter()
 while True:

@@ -55,7 +55,7 @@ class Lexer:
                 was_num = 0
             elif self.curr in self.OPERS:
                 if was_num and self.curr == "(":
-                    # Implicit multiplication - Factor
+                    # Implicit multiplication - Product
                     yield self.OPERS["*"]
                 yield self.OPERS[self.curr]
                 was_num = self.curr == ")"

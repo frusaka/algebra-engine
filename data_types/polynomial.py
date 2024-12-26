@@ -32,35 +32,38 @@ class Polynomial(Collection):
     @singledispatchmethod
     @staticmethod
     def mul(b, a):
-        if a.exp != 1:
-            return
-        return type(a)(value=Polynomial(term * b.value for term in a.value))
+        if a.exp == 1 and b.value.exp == 1:
+            return type(a)(value=Polynomial(term * b.value for term in a.value))
+        # Prevent circular reference with Product and Polynomial
+        from .product import Product
+
+        return type(a)(value=Product([a, b.value]))
+
+    @property
+    def leading(self):
+        return max(self, key=lambda x: x.exp * (not isinstance(x.value, Number)))
 
     @staticmethod
     def long_division(a, b):
         # Only works with univariate Polynomials
         # Needs to check if it is divisible in the first place
-        from .factor import Factor
+        from .product import Product
         from .term import Term
 
-        if b.exp != 1 or a.exp != 1:
-            return
-        leading_b = max(
-            b.value, key=lambda x: x.exp * (not isinstance(x.value, Number))
-        )
+        if a.exp != 1 or b.exp != 1:
+            return type(a)(value=Product([a, b ** -Term()]))
+        leading_b = b.value.leading
         res = []
         while a.value:
             # Remainder
-            if not isinstance(a.value, Polynomial) or leading_b.exp > (
-                (
-                    leading_a := max(
-                        a.value, key=lambda x: x.exp * (not isinstance(x.value, Number))
-                    )
-                ).exp
+            if not isinstance(a.value, Polynomial) or (
+                leading_b.exp > (leading_a := a.value.leading).exp
             ):
-                res.append(Term(value=Factor([a, b ** -Term()])))
+                res.append(Term(value=Product([a, b ** -Term()])))
                 break
             fac = leading_a / leading_b
+            if isinstance(fac.value, Product):
+                raise ArithmeticError("Input Polynomials out of expected domain")
             res.append(fac)
             a -= fac * b
         return Term(value=Polynomial(res))
