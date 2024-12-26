@@ -1,6 +1,6 @@
 from processing import *
 
-# TODO: Implement special case for Polynomial divisions
+# TODO: Make Polynomial divisions robust
 # TODO: Generalize base cases for operations on non-like Terms
 
 comp = Interpreter()
@@ -13,4 +13,4 @@ while True:
         print(comp.eval(tree))
     except Exception as e:
         # raise e
-        print("\033[91m" + str(e) + "\033[0m")
+        print(repr(e).join(("\033[91m", "\033[0m")))

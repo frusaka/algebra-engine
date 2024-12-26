@@ -14,7 +14,8 @@ def _clean(args):
             value = Number(0)
             exp = Number(1)
         elif exp == 0:
-            value, exp = (Number(1),) * 2
+            value = coef
+            exp = coef = Number(1)
         args[idx] = Term(coef, value, exp)
     return args
 
@@ -29,13 +30,14 @@ def clean(func):
 def standard_form(collection):
     from data_types.bases import Number, Variable
 
+    B = max(collection, key=lambda x: x.coef).coef
+
     def key(v):
         res = 0
         if isinstance(v.exp, Number):
             res = v.exp * 100 * (not isinstance(v.value, Number))
         if isinstance(v.value, Variable):
             res += ord(v.value) / 50
-        res += min(v.coef, 10)
-        return res + (not isinstance(v.exp, Number))
+        return res + (v.coef - 0.8) / (B - 0.8) * 3.2 + 0.8
 
     return sorted(collection, key=key, reverse=1)

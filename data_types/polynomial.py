@@ -1,6 +1,6 @@
 from functools import singledispatchmethod
 from itertools import chain
-from .bases import Collection
+from .bases import Collection, Number
 from utils import standard_form
 
 
@@ -35,6 +35,32 @@ class Polynomial(Collection):
         if a.exp != 1:
             return
         return type(a)(value=Polynomial(term * b.value for term in a.value))
+
+    @staticmethod
+    def long_division(a, b):
+        # Only works with univariate Polynomials
+        # Needs to check if it is divisible in the first place
+        from .factor import Factor
+        from .term import Term
+
+        if b.exp != 1 or a.exp != 1:
+            return
+        leading_b = max(
+            b.value, key=lambda x: x.exp * (not isinstance(x.value, Number))
+        )
+        res = []
+        while a.value:
+            # Remainder
+            if not isinstance(a.value, Polynomial):
+                res.append(Term(value=Factor([a, b ** -Term()])))
+                break
+            leading_a = max(
+                a.value, key=lambda x: x.exp * (not isinstance(x.value, Number))
+            )
+            fac = leading_a / leading_b
+            res.append(fac)
+            a -= fac * b
+        return Term(value=Polynomial(res))
 
     @staticmethod
     def merge(terms):

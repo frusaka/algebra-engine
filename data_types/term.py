@@ -73,6 +73,8 @@ class Term(Base):
 
     @clean
     def __truediv__(a, b):
+        if isinstance(a.value, Polynomial) and isinstance(b.value, Polynomial):
+            return Polynomial.long_division(a, b)
         return a * b ** -Term()
 
     @clean
