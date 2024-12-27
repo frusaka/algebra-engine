@@ -1,4 +1,3 @@
-from functools import singledispatchmethod
 from .bases import Collection, Number
 from .polynomial import Polynomial
 from utils import *
@@ -13,8 +12,7 @@ class Product(Collection):
                 den.append(str(type(term)(value=term.value, exp=abs(term.exp))))
             else:
                 num.append(str(term))
-        a, b = " • ".join(num), " • ".join(den)
-        # a, b = "".join(num), "".join(den)
+        a, b = "•".join(num), "•".join(den)
         if len(num) > 1:
             a = a.join("()")
         if len(den) > 1:
@@ -25,25 +23,11 @@ class Product(Collection):
             return f"{a}/{b}".join("()")
         return a
 
-    def like(self, other):
-        if not isinstance(other, Product):
-            return 0
-        return super(self) == other
-
-    @singledispatchmethod
-    @staticmethod
-    def add(b, a):
-        b = b.value
-        if a.like(b):
-            return type(a)(a.coef + b.coef, a.value, a.exp)
-
-    @singledispatchmethod
-    @staticmethod
+    @dispatch
     def mul(b, a):
         pass
 
     @mul.register(product | variable)
-    @staticmethod
     def _(b, a):
         b = b.value
         if not isinstance(a.exp, Number) or not isinstance(b.exp, Number):
@@ -55,19 +39,16 @@ class Product(Collection):
         return type(a)(value=c)
 
     @mul.register(number)
-    @staticmethod
     def _(b, a):
         if b.value.exp != 1:
             return
         return type(a)(a.coef * b.value.value, a.value, a.exp)
 
     @mul.register(polynomial)
-    @staticmethod
     def _(b, a):
         return Polynomial.mul(Proxy(a), b.value)
 
-    @singledispatchmethod
-    @staticmethod
+    @dispatch
     def pow(b, a):
         val = Product(i**b.value for i in a.value)
         if not isinstance(b.value.value, Number) or not isinstance(b.value.exp, Number):

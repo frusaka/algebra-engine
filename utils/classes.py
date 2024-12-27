@@ -1,3 +1,6 @@
+from functools import singledispatchmethod
+
+
 class number: ...
 
 
@@ -11,6 +14,17 @@ class polynomial: ...
 
 
 class term: ...
+
+
+class dispatch(singledispatchmethod):
+    def __init__(self, method):
+        return super().__init__(staticmethod(method))
+
+    def register(self, cls):
+        def wrapper(method):
+            return self.dispatcher.register(cls, staticmethod(method))
+
+        return wrapper
 
 
 class Proxy:

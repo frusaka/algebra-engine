@@ -6,7 +6,7 @@ from utils import clean
 
 
 @dataclass(order=True, frozen=True)
-class Term(Base):
+class Term:
     coef: Number = Number(1)
     value: Base = Number(1)
     exp: Base = Number(1)
@@ -55,11 +55,9 @@ class Term(Base):
 
     @clean
     def __add__(a, b):
-        if a.value == 0:
-            return b
-        if b.value == 0:
-            return a
-        return Base.add(a, b) or Term(value=Polynomial([a, b]))
+        if not a.like(b):
+            return Polynomial.add(Proxy(b), a)
+        return a.value.add(Proxy(b), a)
 
     @clean
     def __sub__(a, b):
@@ -67,7 +65,7 @@ class Term(Base):
 
     @clean
     def __mul__(a, b):
-        return Base.mul(a, b) or Product.mul(
+        return a.value.mul(Proxy(b), a) or Product.mul(
             Proxy(b), Term(a.coef, Product([Term(value=a.value, exp=a.exp)]))
         )
 
@@ -79,12 +77,11 @@ class Term(Base):
 
     @clean
     def __pow__(a, b):
-        if not a.exp.like(b.exp):
-            return Term(a.coef, a.value, a.exp * b.exp)
-        c = a.exp
-        if not isinstance(a.exp, Term):
-            c = Term(value=a.exp)
-        return Base.pow(a, b) or Term(a.coef, a.value, b * c)
+        if not isinstance(a.value, Product) and (
+            isinstance(a.exp, Term) or (not isinstance(b.value, Number) or b.exp != 1)
+        ):
+            return Term(a.coef, a.value, b * Term(value=a.exp))
+        return a.value.pow(Proxy(b), a)
 
     def __pos__(self):
         return self
@@ -114,15 +111,3 @@ class Term(Base):
         if not isinstance(other.value, Number):
             return self.value == other.value
         return 1
-
-    @singledispatchmethod
-    def add(self, b, a):
-        pass
-
-    @singledispatchmethod
-    def mul(self, b, a):
-        pass
-
-    @singledispatchmethod
-    def pow(self, b, a):
-        pass

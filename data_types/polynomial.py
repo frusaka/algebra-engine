@@ -1,7 +1,6 @@
-from functools import singledispatchmethod
 from itertools import chain
 from .bases import Collection, Number
-from utils import standard_form
+from utils import standard_form, dispatch
 
 
 class Polynomial(Collection):
@@ -21,16 +20,14 @@ class Polynomial(Collection):
             res += rep
         return res.join("()")
 
-    @singledispatchmethod
-    @staticmethod
+    @dispatch
     def add(b, a):
         val = Polynomial([b.value, a])
         if len(val) == 1:
             return val.pop()
         return type(a)(value=val)
 
-    @singledispatchmethod
-    @staticmethod
+    @dispatch
     def mul(b, a):
         if a.exp == 1 and b.value.exp == 1:
             return type(a)(value=Polynomial(term * b.value for term in a.value))
@@ -74,6 +71,8 @@ class Polynomial(Collection):
         res = []
         while terms:
             term = terms.pop(0)
+            if term.value == 0:
+                continue
             found = 0
             for other in tuple(terms):
                 if term.like(other):
@@ -84,3 +83,11 @@ class Polynomial(Collection):
             if not found:
                 res.append(term)
         return res
+
+    def flatten(self, term):
+        if term.exp != 1 or not isinstance(term.value, type(self)):
+            yield term
+            return
+
+        for i in term.value:
+            yield from self.flatten(i)
