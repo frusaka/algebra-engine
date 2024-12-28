@@ -12,5 +12,5 @@ while True:
         print(tree)
         print(comp.eval(tree))
     except Exception as e:
-        raise e
+        # raise e
         print(repr(e).join(("\033[91m", "\033[0m")))
