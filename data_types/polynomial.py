@@ -23,18 +23,16 @@ class Polynomial(Collection):
     @dispatch
     def add(b, a):
         val = Polynomial([b.value, a])
+        if not val:
+            return type(a)(value=Number(0))
         if len(val) == 1:
             return val.pop()
         return type(a)(value=val)
 
     @dispatch
     def mul(b, a):
-        if a.exp == 1 and b.value.exp == 1:
+        if a.exp == 1:
             return type(a)(value=Polynomial(term * b.value for term in a.value))
-        # Prevent circular reference with Product and Polynomial
-        from .product import Product
-
-        return type(a)(value=Product([a, b.value]))
 
     @property
     def leading(self):
@@ -43,7 +41,6 @@ class Polynomial(Collection):
     @staticmethod
     def long_division(a, b):
         # Only works with univariate Polynomials
-        # Needs to check if it is divisible in the first place
         from .product import Product
         from .term import Term
 
@@ -68,24 +65,21 @@ class Polynomial(Collection):
     @staticmethod
     def merge(terms):
         terms = list(terms)
-        res = []
         while terms:
-            term = terms.pop(0)
-            if term.value == 0:
+            a = terms.pop(0)
+            if a.value == 0:
                 continue
-            found = 0
-            for other in tuple(terms):
-                if term.like(other):
-                    if (val := (term + other)).value != 0:
-                        res.append(val)
-                    terms.remove(other)
-                    found = 1
-            if not found:
-                res.append(term)
-        return res
+            for b in tuple(terms):
+                if a.like(b):
+                    if (val := (a + b)).value != 0:
+                        yield val
+                    terms.remove(b)
+                    break
+            else:
+                yield a
 
     def flatten(self, term):
-        if term.exp != 1 or not isinstance(term.value, type(self)):
+        if term.exp != 1 or not isinstance(term.value, Polynomial):
             yield term
             return
 

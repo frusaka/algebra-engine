@@ -1,5 +1,4 @@
 from .classes import *
-from .constants import SYMBOLS
 
 
 def _clean(args):
@@ -16,6 +15,9 @@ def _clean(args):
         elif exp == 0:
             value = coef
             exp = coef = Number(1)
+        # 1^n = 1 for any value of n
+        elif value == 1:
+            exp = value
         args[idx] = Term(coef, value, exp)
     return args
 

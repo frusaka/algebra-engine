@@ -21,7 +21,19 @@ class Product(Collection):
             return f"1/{b}".join("()")
         if den:
             return f"{a}/{b}".join("()")
+        if len(self) == 1:
+            return a.join("()")
         return a
+
+    @dispatch
+    def add(b, a):
+        if a.like(b.value):
+            return type(a)(a.coef + b.value.coef, a.value)
+
+    @add.register(number)
+    def _(b, a):
+        if len(a.value) == 1 and b.value in a.value:
+            return type(a)(a.coef + 1, a.value)
 
     @dispatch
     def mul(b, a):
@@ -41,7 +53,10 @@ class Product(Collection):
     @mul.register(number)
     def _(b, a):
         if b.value.exp != 1:
-            return
+            rem = Product.simplify(a.value, b.value)
+            if not rem:
+                return type(a)(value=a.coef)
+            return type(a)(a.coef, Product(rem))
         return type(a)(a.coef * b.value.value, a.value, a.exp)
 
     @mul.register(polynomial)
@@ -61,14 +76,14 @@ class Product(Collection):
     def simplify(a, b):
         terms = a.copy()
         rem = (b.value if isinstance(b.value, Product) else {b}).copy()
-        for i in tuple(terms):
-            for j in tuple(rem):
+        for a in tuple(terms):
+            for b in tuple(rem):
                 if not terms:
                     break
-                if i.like(j, 0):
-                    terms.remove(i)
-                    rem.remove(j)
-                    i *= j
-                    if not isinstance(i.value, Number):
-                        terms.add(i)
+                if a.like(b, 0):
+                    terms.remove(a)
+                    rem.remove(b)
+                    a *= b
+                    if a.value != 1:
+                        terms.add(a)
         return terms.union(rem)

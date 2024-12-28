@@ -10,12 +10,13 @@ class Base:
             return 1
         return self == other
 
-    @dispatch
-    def add(b, a):
-        return type(a)(a.coef + b.value.coef, a.value, a.exp)
-
 
 class Variable(str, Base):
+    @dispatch
+    def add(b, a):
+        if a.like(b.value):
+            return type(a)(a.coef + b.value.coef, a.value, a.exp)
+
     @dispatch
     def mul(b, a):
         pass
@@ -46,7 +47,17 @@ class Variable(str, Base):
 class Number(Fraction, Base):
     @dispatch
     def add(b, a):
-        type(a)(value=a.value + b.value.value)
+        pass
+
+    @add.register(number)
+    def _(b, a):
+        b = b.value
+        if a.exp == b.exp == 1:
+            return type(a)(value=a.value + b.value)
+        if a == b:
+            return a * type(a)(value=Number(2))
+        if abs(a) == abs(b):
+            return type(a)(value=Number(0))
 
     @dispatch
     def mul(b, a):
@@ -56,6 +67,12 @@ class Number(Fraction, Base):
     def _(b, a):
         if a.like(b.value, 0):
             return type(a)(value=a.value * b.value.value, exp=a.exp)
+        from data_types import Product
+
+        if a.exp == 1:
+            return type(a)(a.value, Product([b.value]))
+        if b.value.exp == 1:
+            return type(a)(b.value.value, Product([a]))
 
     @mul.register(variable | polynomial | product)
     def _(b, a):
@@ -110,8 +127,6 @@ class Collection(set, Base):
     @pow.register(number)
     def scalar_pow(b, a):
         b = b.value
-        if b.value == 0:
-            return type(a)()
         res = a
         for _ in range(abs(b.value.numerator) - 1):
             res *= a

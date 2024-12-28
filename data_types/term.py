@@ -55,9 +55,7 @@ class Term:
 
     @clean
     def __add__(a, b):
-        if not a.like(b):
-            return Polynomial.add(Proxy(b), a)
-        return a.value.add(Proxy(b), a)
+        return a.value.add(Proxy(b), a) or Term(value=Polynomial([a, b]))
 
     @clean
     def __sub__(a, b):
@@ -77,10 +75,20 @@ class Term:
 
     @clean
     def __pow__(a, b):
+        if a.value == 1:
+            return a
+        if b.value == 0:
+            return Term()
         if not isinstance(a.value, Product) and (
             isinstance(a.exp, Term) or (not isinstance(b.value, Number) or b.exp != 1)
         ):
-            return Term(a.coef, a.value, b * Term(value=a.exp))
+            res = Term(a.coef, a.value) ** b.tovalue()
+            c = Term(res.coef, res.value, Term(value=a.exp) * (b / b.tovalue()))
+            if abs(b.tovalue().value) != 1:
+                print(
+                    f"WARNING: {a}^{b} = {c} only if {(b / b.tovalue())} is a real integer"
+                )
+            return Term(res.coef, res.value, Term(value=a.exp) * (b / b.tovalue()))
         return a.value.pow(Proxy(b), a)
 
     def __pos__(self):
@@ -93,6 +101,11 @@ class Term:
         if not isinstance(self.value, Number):
             return Term(abs(self.coef), self.value, self.exp)
         return Term(value=abs(self.value), exp=self.exp)
+
+    def tovalue(self):
+        if isinstance(self.value, Number):
+            return Term(value=self.value)
+        return Term(value=self.coef)
 
     def like(self, other, exp=1):
 
