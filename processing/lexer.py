@@ -12,7 +12,7 @@ class Lexer:
         "≤": Token(TokenType.LE),
         "+": (Token(TokenType.ADD), Token(TokenType.POS)),
         "-": (Token(TokenType.SUB), Token(TokenType.NEG)),
-        "*": Token(TokenType.MUL),
+        "*": (Token(TokenType.MUL), Token(TokenType.MUL, iscoef=True)),
         "/": Token(TokenType.TRUEDIV),
         "^": Token(TokenType.POW),
         "√": Token(TokenType.ROOT),
@@ -40,24 +40,24 @@ class Lexer:
                 # Can be toggled off to experiment with other notations (prefix & postfix)
                 if was_num:
                     # Implicit multiplication - Parenthesis or consecutive numbers numbers
-                    yield self.OPERS["*"]
+                    yield self.OPERS["*"][was_num - 1]
                 yield self.generate_number()
-                was_num = 1
+                was_num = 2
                 continue
             if self.curr.isalpha():
                 if was_num:
                     # Implicit multiplication - Variable Coefficient
-                    yield self.OPERS["*"]
+                    yield self.OPERS["*"][was_num - 1]
                 yield Token(TokenType.VAR, Variable(self.curr))
-                was_num = 1
+                was_num = 2
             elif self.curr in "+-":
                 yield self.OPERS[self.curr][not was_num]
                 was_num = 0
             elif self.curr in self.OPERS:
                 if was_num and self.curr == "(":
                     # Implicit multiplication - Product
-                    yield self.OPERS["*"]
-                yield self.OPERS[self.curr]
+                    yield self.OPERS["*"][1]
+                yield self.OPERS[self.curr] if self.curr != "*" else self.OPERS["*"][0]
                 was_num = self.curr == ")"
             else:
                 raise TypeError(f"illegal token '{self.curr}'")
@@ -104,7 +104,10 @@ class Lexer:
                 if not stack:
                     self.paren_error()
                 if token.type is TokenType.POW:
-                    while token.priority <= stack[-1].priority:
+                    while (
+                        token.priority <= stack[-1].priority
+                        or stack[-1].type is TokenType.NEG
+                    ):
                         yield stack.pop()
                 else:
                     while token.priority < stack[-1].priority:

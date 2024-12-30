@@ -21,19 +21,12 @@ class Product(Collection):
             return f"1/{b}".join("()")
         if den:
             return f"{a}/{b}".join("()")
-        if len(self) == 1:
-            return a.join("()")
         return a
 
     @dispatch
     def add(b, a):
         if a.like(b.value):
             return type(a)(a.coef + b.value.coef, a.value)
-
-    @add.register(number)
-    def _(b, a):
-        if len(a.value) == 1 and b.value in a.value:
-            return type(a)(a.coef + 1, a.value)
 
     @dispatch
     def mul(b, a):
@@ -42,12 +35,13 @@ class Product(Collection):
     @mul.register(product | variable)
     def _(b, a):
         b = b.value
-        if not isinstance(a.exp, Number) or not isinstance(b.exp, Number):
-            return type(a)(value=Product([a, b]))
         c = a.coef * b.coef
         res = Product.simplify(a.value, type(a)(value=b.value, exp=b.exp))
         if res:
-            return type(a)(c, res.pop() if len(res) == 1 else Product(res))
+            if len(res) == 1:
+                res = res.pop()
+                return type(a)(c, res.value, res.exp)
+            return type(a)(c, Product(res))
         return type(a)(value=c)
 
     @mul.register(number)
@@ -71,6 +65,13 @@ class Product(Collection):
                 set.add(val, type(a)(value=a.coef, exp=b.value))
             return type(a)(value=Product(val))
         return type(a)(a.coef**b.value.value, val)
+
+    @staticmethod
+    def resolve(a, b):
+        c = a.coef * b.coef
+        a = type(a)(value=a.value, exp=a.exp)
+        b = type(a)(value=b.value, exp=b.exp)
+        return type(a)(c, Product([a, b]))
 
     @staticmethod
     def simplify(a, b):

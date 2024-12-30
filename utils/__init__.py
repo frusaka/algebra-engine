@@ -1,34 +1,6 @@
 from .classes import *
 
 
-def _clean(args):
-    args = list(args)
-    from data_types.term import Term, Number
-
-    for idx, term in enumerate(args):
-        coef, value, exp = term.coef, term.value, term.exp
-        while isinstance(value, Term) and exp == 1:
-            coef, value, exp = coef * value.coef, value.value, value.exp
-        if coef == 0:
-            value = Number(0)
-            exp = Number(1)
-        elif exp == 0:
-            value = coef
-            exp = coef = Number(1)
-        # 1^n = 1 for any value of n
-        elif value == 1:
-            exp = value
-        args[idx] = Term(coef, value, exp)
-    return args
-
-
-def clean(func):
-    def cleaned(*args):
-        return _clean([func(*_clean(args))]).pop()
-
-    return cleaned
-
-
 def standard_form(collection):
     from data_types.bases import Number, Variable
 

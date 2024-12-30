@@ -4,39 +4,26 @@ from typing import Any
 
 
 class TokenType(Enum):
-    EQ = 0
-    NE = 0.2
-    GT = 0.4
-    GE = 0.6
-    LT = 0.8
-    LE = 1
+    EQ, NE, GT, GE, LT, LE = 0, 0.2, 0.4, 0.6, 0.8, 0.9
 
-    NUMBER = 2
-    VAR = 3
-    SUB = 4
-    ADD = 5
-    TRUEDIV = 6
-    MUL = 8  # For the cases of variables (4x/5y should be (4 * x) / (5 * y), not ((4 * x) / 5) * y)
-    POW = 10
-    ROOT = 11
-    NEG = 12
-    POS = 13
-    LPAREN = -11
-    RPAREN = -12
+    NUMBER, VAR = 1, 1.2
+    ADD, SUB = 2, 2.2
+    MUL, TRUEDIV = 3, 3.2
+    POW, ROOT = 5, 5.2
+    POS, NEG = 4, 4.2
+
+    LPAREN, RPAREN = -6, -6.2
 
 
 @dataclass
 class Token:
     type: TokenType
     value: Any = None
+    iscoef: bool = False
 
     def __repr__(self):
         return self.type.name + (f": {self.value}" if self.value is not None else "")
 
     @property
     def priority(self):
-        return max(0, self.type.value // 2)
-
-    @property
-    def is_operator(self):
-        return self.type.value >= 4
+        return self.type.value // 1 + self.iscoef * 0.2

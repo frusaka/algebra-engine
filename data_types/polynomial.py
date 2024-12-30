@@ -1,6 +1,6 @@
 from itertools import chain
 from .bases import Collection, Number
-from utils import standard_form, dispatch
+from utils import standard_form, dispatch, polynomial
 
 
 class Polynomial(Collection):
@@ -29,10 +29,19 @@ class Polynomial(Collection):
             return val.pop()
         return type(a)(value=val)
 
+    @add.register(polynomial)
+    def _(b, a):
+        if a.like(b.value) and a.exp != 1:
+            return type(a)(a.coef + b.value.coef, a.value, a.exp)
+        return Polynomial.add(b, a)
+
     @dispatch
     def mul(b, a):
+        b = b.value
         if a.exp == 1:
-            return type(a)(value=Polynomial(term * b.value for term in a.value))
+            return type(a)(value=Polynomial(term * b for term in a.value))
+        if isinstance(b.value, Number) and b.exp == 1:
+            return type(a)(b.value * a.coef, a.value, a.exp)
 
     @property
     def leading(self):
@@ -57,7 +66,7 @@ class Polynomial(Collection):
                 break
             fac = leading_a / leading_b
             if isinstance(fac.value, Product):
-                raise ArithmeticError("Input Polynomials out of expected domain")
+                raise NotImplementedError("Input Polynomials out of expected domain")
             res.append(fac)
             a -= fac * b
         return Term(value=Polynomial(res))
