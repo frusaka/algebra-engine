@@ -66,6 +66,7 @@ def test_unary_vs_binary():
 
 
 def test_PEMDAS():
+    # Basic operations
     assert AST("3+5*2") == Binary(
         Token(TokenType.ADD),
         Number(3),
@@ -86,6 +87,8 @@ def test_PEMDAS():
         Binary(Token(TokenType.MUL), Number(3), Number(5)),
         Number(2),
     )
+
+    # Exponentiation
     assert AST("3^5*2") == Binary(
         Token(TokenType.MUL),
         Binary(Token(TokenType.POW), Number(3), Number(5)),
@@ -105,12 +108,37 @@ def test_PEMDAS():
         Number(3),
         Unary(Token(TokenType.NEG), Number(5)),
     )
+
+    # Parentheses
     assert AST("(3+5)*2") == Binary(
         Token(TokenType.MUL),
         Binary(Token(TokenType.ADD), Number(3), Number(5)),
         Number(2),
     )
+    assert AST("3*(5+2)-8/4") == Binary(
+        Token(TokenType.SUB),
+        Binary(
+            Token(TokenType.MUL),
+            Number(3),
+            Binary(Token(TokenType.ADD), Number(5), Number(2)),
+        ),
+        Binary(Token(TokenType.TRUEDIV), Number(8), Number(4)),
+    )
+    assert AST("3+(5*2-8)/4") == Binary(
+        Token(TokenType.ADD),
+        Number(3),
+        Binary(
+            Token(TokenType.TRUEDIV),
+            Binary(
+                Token(TokenType.SUB),
+                Binary(Token(TokenType.MUL), Number(5), Number(2)),
+                Number(8),
+            ),
+            Number(4),
+        ),
+    )
 
+    # Variables and coefficients
     assert AST("3x+5*2") == Binary(
         Token(TokenType.ADD),
         Binary(Token(TokenType.MUL, iscoef=True), Number(3), Variable("x")),
@@ -124,6 +152,19 @@ def test_PEMDAS():
             Binary(Token(TokenType.ADD), Variable("x"), Number(5)),
         ),
         Number(2),
+    )
+    assert AST("2x^2 + 3x + 1") == Binary(
+        Token(TokenType.ADD),
+        Binary(
+            Token(TokenType.ADD),
+            Binary(
+                Token(TokenType.MUL, iscoef=True),
+                Number(2),
+                Binary(Token(TokenType.POW), Variable("x"), Number(2)),
+            ),
+            Binary(Token(TokenType.MUL, iscoef=True), Number(3), Variable("x")),
+        ),
+        Number(1),
     )
 
 
@@ -142,4 +183,18 @@ def test_monomial_special():
         Token(TokenType.MUL),
         Binary(Token(TokenType.TRUEDIV), Number(6), Number(8)),
         Variable("b"),
+    )
+    assert AST("6a/8") == Binary(
+        Token(TokenType.TRUEDIV),
+        Binary(Token(TokenType.MUL, iscoef=True), Number(6), Variable("a")),
+        Number(8),
+    )
+    assert AST("6a/8b^2") == Binary(
+        Token(TokenType.TRUEDIV),
+        Binary(Token(TokenType.MUL, iscoef=True), Number(6), Variable("a")),
+        Binary(
+            Token(TokenType.MUL, iscoef=True),
+            Number(8),
+            Binary(Token(TokenType.POW), Variable("b"), Number(2)),
+        ),
     )
