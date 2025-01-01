@@ -1,5 +1,4 @@
 import pytest
-from string import ascii_letters
 from processing import Lexer, Token, TokenType
 from data_types import Number, Variable
 
@@ -47,10 +46,21 @@ def test_number():
 
 
 def test_variable():
-    for i in ascii_letters:
-        assert list(Lexer(i).generate_tokens())[1:-1] == [
-            Token(TokenType.VAR, Variable(i))
-        ]
+    assert list(Lexer("x").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x"))
+    ]
+    assert list(Lexer("b").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("b"))
+    ]
+    assert list(Lexer("H").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("H"))
+    ]
+    assert list(Lexer("J").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("J"))
+    ]
+    assert list(Lexer("J").generate_tokens())[1:-1] != [
+        Token(TokenType.VAR, Variable("j"))
+    ]
 
 
 def test_parentheses():
@@ -106,7 +116,7 @@ def test_unary():
     ]
 
 
-def test_unary_binary():
+def test_unary_vs_binary():
     assert list(Lexer("3+-5").generate_tokens())[1:-1] == [
         Token(TokenType.NUMBER, Number(3)),
         Token(TokenType.ADD),

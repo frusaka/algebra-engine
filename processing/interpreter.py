@@ -1,5 +1,5 @@
 import operator
-from data_types import Term, Number
+from data_types import Term, Number, Variable
 from processing.operators import Unary
 
 
@@ -7,8 +7,8 @@ class Interpreter:
     def eval(self, node):
         if not node:
             return
-        if isinstance(node, Term):
-            return node
+        if isinstance(node, (Number, Variable)):
+            return Term(value=node)
 
         oper = node.oper.type.name.lower()
 
@@ -18,6 +18,6 @@ class Interpreter:
         left, right = self.eval(node.left), self.eval(node.right)
 
         if oper == "root":
-            return operator.pow(right, Term(Number(1)) / left)
+            return operator.pow(right, Term() / left)
 
         return getattr(operator, oper)(left, right)

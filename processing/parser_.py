@@ -1,6 +1,5 @@
 from processing.tokens import TokenType
 from processing.operators import SYMBOLS, Unary, Binary
-from data_types import Term
 
 
 class Parser:
@@ -27,7 +26,7 @@ class Parser:
         if self.curr is None:
             return
         if self.curr.type in (TokenType.VAR, TokenType.NUMBER):
-            return Term(value=self.curr.value)
+            return self.curr.value
         oper = self.curr
         left = self.parse()
         if not left:
