@@ -5,7 +5,7 @@ from processing.operators import Unary
 
 class Interpreter:
     def eval(self, node):
-        if not node:
+        if node is None:
             return
         if isinstance(node, (Number, Variable)):
             return Term(value=node)

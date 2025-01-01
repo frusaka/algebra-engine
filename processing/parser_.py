@@ -29,12 +29,12 @@ class Parser:
             return self.curr.value
         oper = self.curr
         left = self.parse()
-        if not left:
+        if left is None:
             self.operator_error(oper)
         if oper.type in (TokenType.NEG, TokenType.POS):
             return Unary(oper, left)
         right = self.parse()
-        if not right:
+        if right is None:
             self.operator_error(oper)
         return Binary(oper, left, right)
 
