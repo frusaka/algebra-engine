@@ -1,9 +1,28 @@
+import pytest
 from string import ascii_letters
 from processing import Lexer, Token, TokenType
 from data_types import Number, Variable
 
 
+def test_unknown():
+    with pytest.raises(SyntaxError):
+        list(Lexer("?").generate_tokens())
+    with pytest.raises(SyntaxError):
+        list(Lexer("~").generate_tokens())
+    with pytest.raises(SyntaxError):
+        list(Lexer(":").generate_tokens())
+    with pytest.raises(SyntaxError):
+        list(Lexer("@").generate_tokens())
+
+
 def test_number():
+    with pytest.raises(SyntaxError):
+        list(Lexer(".").generate_tokens())
+    with pytest.raises(SyntaxError):
+        list(Lexer("0.1.1").generate_tokens())
+    with pytest.raises(SyntaxError):
+        list(Lexer("..").generate_tokens())
+
     assert list(Lexer("0").generate_tokens())[1:-1] == [
         Token(TokenType.NUMBER, Number(0))
     ]

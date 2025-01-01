@@ -20,7 +20,7 @@ class Lexer:
         ")": Token(TokenType.RPAREN),
     }
 
-    def __init__(self, expr):
+    def __init__(self, expr: str):
         self.expr = iter(expr.join("()"))
         self.advance()
 
@@ -60,7 +60,7 @@ class Lexer:
                 yield self.OPERS[self.curr] if self.curr != "*" else self.OPERS["*"][0]
                 was_num = self.curr == ")"
             else:
-                raise TypeError(f"illegal token '{self.curr}'")
+                raise SyntaxError(f"unexpected character '{self.curr}'")
             self.advance()
 
     def generate_number(self):
@@ -68,11 +68,11 @@ class Lexer:
         number_str = ""
         while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
             if self.curr == ".":
-                decimals += 1
-                if decimals > 1:
-                    break
+                if decimals:
+                    raise SyntaxError("only one decimal point is allowed in number")
+                decimals = 1
             number_str += self.curr
             self.advance()
         if number_str == ".":
-            raise ValueError("decimal point needs atlest one digit")
+            raise SyntaxError("decimal point needs atlest one digit")
         return Token(TokenType.NUMBER, Number(number_str))
