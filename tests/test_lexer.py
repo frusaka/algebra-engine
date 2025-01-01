@@ -34,6 +34,19 @@ def test_variable():
         ]
 
 
+def test_parentheses():
+    assert list(Lexer("(3)").generate_tokens())[1:-1] == [
+        Token(TokenType.LPAREN),
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.RPAREN),
+    ]
+    assert list(Lexer("(()").generate_tokens())[1:-1] == [
+        Token(TokenType.LPAREN),
+        Token(TokenType.LPAREN),
+        Token(TokenType.RPAREN),
+    ]
+
+
 def test_binary():
     assert list(Lexer("2+3").generate_tokens())[1:-1] == [
         Token(TokenType.NUMBER, Number(2)),
@@ -115,7 +128,7 @@ def test_unary_binary():
     ]
 
 
-def test_ignore_space():
+def test_ignore_spaces():
     assert list(Lexer("3 + -5").generate_tokens())[1:-1] == [
         Token(TokenType.NUMBER, Number(3)),
         Token(TokenType.ADD),
@@ -175,4 +188,28 @@ def test_multiple_operators():
         Token(TokenType.NUMBER, Number(5)),
         Token(TokenType.ADD),
         Token(TokenType.NUMBER, Number(2)),
+    ]
+
+
+def test_alt_syntax():
+    assert list(Lexer("3(4)").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL, iscoef=True),
+        Token(TokenType.LPAREN),
+        Token(TokenType.NUMBER, Number(4)),
+        Token(TokenType.RPAREN),
+    ]
+    assert list(Lexer("3y").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL, iscoef=True),
+        Token(TokenType.VAR, Variable("y")),
+    ]
+    assert list(Lexer("(y+2)3").generate_tokens())[1:-1] == [
+        Token(TokenType.LPAREN),
+        Token(TokenType.VAR, Variable("y")),
+        Token(TokenType.ADD),
+        Token(TokenType.NUMBER, Number(2)),
+        Token(TokenType.RPAREN),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(3)),
     ]
