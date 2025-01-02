@@ -1,11 +1,5 @@
-import pytest
-from processing import Interpreter, AST
-from data_types import Number, Variable, Polynomial, Term
-
-
-@pytest.fixture
-def interpreter():
-    return Interpreter()
+from processing import AST
+from data_types import Number, Variable, Term, Polynomial, Product
 
 
 def test_merge_like_terms(interpreter):
@@ -16,22 +10,24 @@ def test_merge_like_terms(interpreter):
 
 def test_divide_variables(interpreter):
     assert interpreter.eval(AST("x^2 / x")) == Term(Number(1), Variable("x"), Number(1))
-    assert interpreter.eval(AST("y^3 / y")) == Term(Number(1), Variable("y"), Number(2))
     assert interpreter.eval(AST("z^4 / z^2")) == Term(
         Number(1), Variable("z"), Number(2)
     )
+    assert interpreter.eval(AST("x^2 / y^2")) == Term(
+        value=Product(
+            [
+                Term(value=Variable("x"), exp=Number(2)),
+                Term(value=Variable("y"), exp=Number(-2)),
+            ]
+        )
+    )
 
 
-def test_simplify_constants(interpreter):
-    assert interpreter.eval(AST("10 + 5 - 3")) == Term(Number(12))
-    assert interpreter.eval(AST("20 - 4 + 2")) == Term(Number(18))
-    assert interpreter.eval(AST("2 * 3 + 4")) == Term(Number(10))
-    assert interpreter.eval(AST("10 / 2 + 5")) == Term(Number(10))
-    assert interpreter.eval(AST("2^3 + 1")) == Term(Number(9))
-    assert interpreter.eval(AST("(2 + 3) * 4")) == Term(Number(20))
-    assert interpreter.eval(AST("10 / (2 + 3)")) == Term(Number(2))
-    assert interpreter.eval(AST("2 * (3 + 4)")) == Term(Number(14))
-    assert interpreter.eval(AST("(2 + 3) * (4 + 1)")) == Term(Number(25))
+def test_multiply_variables(interpreter):
+    assert interpreter.eval(AST("2x * 3x")) == Term(Number(6), Variable("x"), Number(2))
+    assert interpreter.eval(AST("4y * 8z")) == Term(
+        Number(32), Product([Term(value=Variable("y")), Term(value=Variable("z"))])
+    )
 
 
 def test_handle_exponents(interpreter):

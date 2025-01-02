@@ -1,26 +1,30 @@
-import pytest
-from processing import Interpreter, AST
+from processing import AST
 from data_types import Number, Variable, Polynomial, Term
 
 
-@pytest.fixture
-def interpreter():
-    return Interpreter()
-
-
 def test_divide_univariate_polynomials(interpreter):
-    assert interpreter.eval(AST("(x^2 + 2x + 1) / (x + 1)")) == Term(
-        value=Polynomial([Term(Number(1), Variable("x"), Number(1)), Term()])
-    )
     assert interpreter.eval(AST("(x^2 - 1) / (x - 1)")) == Term(
         value=Polynomial([Term(Number(1), Variable("x"), Number(1)), Term()])
     )
-    assert interpreter.eval(AST("(x^3 + 3x^2 + 3x + 1) / (x + 1)")) == Term(
+    assert interpreter.eval(AST("(5.2x^3 + 7x^2 - 13.2x - 42) / (3.5+2.6x)")) == Term(
         value=Polynomial(
             [
-                Term(Number(1), Variable("x"), Number(2)),
-                Term(Number(2), Variable("x")),
-                Term(1),
+                Term(Number(2), Variable("x"), Number(2)),
+                Term(Number(-12)),
+            ]
+        )
+    )
+    # Remainder
+    assert interpreter.eval(AST("(-6x^2 + 2x + 20)/(2-2x)")) == Term(
+        value=Polynomial(
+            [
+                Term(Number(3), Variable("x")),
+                Term(Number(2)),
+                Term(
+                    Number(16),
+                    Polynomial([Term(Number(2)), Term(Number(-2), Variable("x"))]),
+                    Number(-1),
+                ),
             ]
         )
     )

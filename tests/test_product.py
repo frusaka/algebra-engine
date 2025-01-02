@@ -1,22 +1,8 @@
-import pytest
-from processing import Interpreter, AST
+from processing import AST
 from data_types import Number, Variable, Term, Product, Polynomial
 
 
-@pytest.fixture
-def interpreter():
-    return Interpreter()
-
-
-def test_divide_variables(interpreter):
-    assert interpreter.eval(AST("x^2 / y^2")) == Term(
-        value=Product(
-            [
-                Term(value=Variable("x"), exp=Number(2)),
-                Term(value=Variable("y"), exp=Number(-2)),
-            ]
-        )
-    )
+def test_divide_products(interpreter):
     assert interpreter.eval(AST("8x / 12x^2b")) == Term(
         Number(2, 3),
         Product(
@@ -40,7 +26,7 @@ def test_divide_variables(interpreter):
     assert interpreter.eval(AST("6ab / 8ab")) == Term(Number(3, 4))
 
 
-def test_multiply_variables(interpreter):
+def test_multiply_products(interpreter):
     assert interpreter.eval(AST("(2xy)^2")) == Term(
         Number(4),
         Product(
