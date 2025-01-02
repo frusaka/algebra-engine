@@ -11,7 +11,27 @@ class Base:
         return self == other
 
 
-class Variable(str, Base):
+class Unknown:
+    def __eq__(self, value):
+        return super().__eq__(value) and type(value) is type(self)
+
+    def __gt__(self, value):
+        return False
+
+    def __lt__(self, value):
+        return False
+
+    def __ge__(self, value):
+        return self == value
+
+    def __le__(self, value):
+        return self == value
+
+
+class Variable(Unknown, str, Base):
+    def __hash__(self):
+        return str.__hash__(self)
+
     @dispatch
     def add(b, a):
         return type(a)(a.coef + b.value.coef, a.value, a.exp)
@@ -113,9 +133,9 @@ class Number(Fraction, Base):
         return self
 
 
-class Collection(set, Base):
+class Collection(Unknown, set, Base):
     def __hash__(self):
-        return hash((type(self), tuple(self)))
+        return hash((type(self), tuple(standard_form(self))))
 
     @dispatch
     def pow(b, a):
