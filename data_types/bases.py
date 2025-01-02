@@ -99,7 +99,9 @@ class Number(Fraction, Base):
         return Number(super().__truediv__(other))
 
     def __pow__(self, other):
-        return Number(super().__pow__(other))
+        if (res := super().__pow__(other)).imag:
+            raise ValueError("Complex result")
+        return Number(res)
 
     def __abs__(self):
         return Number(super().__abs__())
