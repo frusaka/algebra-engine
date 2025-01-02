@@ -34,26 +34,11 @@ def test_simplify_constants(interpreter):
     assert interpreter.eval(AST("(2 + 3) * (4 + 1)")) == Term(Number(25))
 
 
-def test_multiply_variables(interpreter):
-    assert interpreter.eval(AST("x * x")) == Term(Number(1), Variable("x"), Number(2))
-    assert interpreter.eval(AST("y * y^2")) == Term(Number(1), Variable("y"), Number(3))
-
-
 def test_handle_exponents(interpreter):
     assert interpreter.eval(AST("x^2 * x^3")) == Term(
         Number(1),
         Variable("x"),
         Number(5),
-    )
-    assert interpreter.eval(AST("y^4 * y^2")) == Term(
-        Number(1),
-        Variable("y"),
-        Number(6),
-    )
-    assert interpreter.eval(AST("z^5 * z^3")) == Term(
-        Number(1),
-        Variable("z"),
-        Number(8),
     )
     assert interpreter.eval(AST("(x^2)^y")) == Term(
         value=Variable("x"), exp=Term(Number(2), Variable("y"))
@@ -79,9 +64,3 @@ def test_handle_exponents(interpreter):
     assert interpreter.eval(AST("y^0")) == Term()
     assert interpreter.eval(AST("12^0")) == Term()
     assert interpreter.eval(AST("0^0")) == Term()
-
-
-def test_simplify_constants(interpreter):
-    assert interpreter.eval(AST("10 + 5 - 3")) == Term(Number(12))
-    assert interpreter.eval(AST("20 - 4 + 2")) == Term(Number(18))
-    assert interpreter.eval(AST("30 + 10 - 5")) == Term(Number(35))

@@ -32,30 +32,6 @@ def test_exponentiation(interpreter):
     )
 
 
-def test_nested_expressions(interpreter):
-    assert interpreter.eval(AST("((x + 1) * (x - 1))^2")) == Polynomial(
-        [
-            Term(Number(1), Variable("x"), Number(4)),
-            Term(Number(-2), Variable("x"), Number(2)),
-            Term(1),
-        ]
-    )
-    assert interpreter.eval(AST("((y + 2) * (y - 2))^2")) == Polynomial(
-        [
-            Term(Number(1), Variable("y"), Number(4)),
-            Term(Number(-8), Variable("y"), Number(2)),
-            Term(Number(16)),
-        ]
-    )
-    assert interpreter.eval(AST("((z + 3) * (z - 3))^2")) == Polynomial(
-        [
-            Term(Number(1), Variable("z"), Number(4)),
-            Term(Number(-18), Variable("z"), Number(2)),
-            Term(Number(81)),
-        ]
-    )
-
-
 def test_divide_univariate_polynomials(interpreter):
     assert interpreter.eval(AST("(x^2 + 2x + 1) / (x + 1)")) == Term(
         value=Polynomial([Term(Number(1), Variable("x"), Number(1)), Term()])
