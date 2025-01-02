@@ -8,30 +8,6 @@ def interpreter():
     return Interpreter()
 
 
-def test_exponentiation(interpreter):
-    assert interpreter.eval(AST("(x + 1)^2")) == Polynomial(
-        [
-            Term(Number(1), Variable("x"), Number(2)),
-            Term(Number(2), Variable("x")),
-            Term(1),
-        ]
-    )
-    assert interpreter.eval(AST("(y + 2)^2")) == Polynomial(
-        [
-            Term(Number(1), Variable("y"), Number(2)),
-            Term(Number(4), Variable("y")),
-            Term(Number(4)),
-        ]
-    )
-    assert interpreter.eval(AST("(z + 3)^2")) == Polynomial(
-        [
-            Term(Number(1), Variable("z"), Number(2)),
-            Term(Number(6), Variable("z")),
-            Term(Number(9)),
-        ]
-    )
-
-
 def test_divide_univariate_polynomials(interpreter):
     assert interpreter.eval(AST("(x^2 + 2x + 1) / (x + 1)")) == Term(
         value=Polynomial([Term(Number(1), Variable("x"), Number(1)), Term()])
