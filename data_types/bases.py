@@ -82,8 +82,11 @@ class Number(Fraction, Base):
     @mul.register(number)
     def _(b, a):
         b = b.value
-        if a.like(b, 0):
-            return type(a)(a.coef * b.coef, a.value * b.value, exp=a.exp)
+        if a.like(b, 0) and a.exp == b.exp:
+            if a.exp == 1:
+                return type(a)(a.coef * b.coef, a.value * b.value, a.exp)
+            # Imaginary numbers: i^2 = -1
+            return type(a)(-a.coef * b.coef)
         if a.exp == 1:
             return type(a)(a.value * b.coef, b.value, b.exp)
         if b.exp == 1:
@@ -99,7 +102,9 @@ class Number(Fraction, Base):
 
     @pow.register(number)
     def _(b, a):
-        return type(a)(value=a.value**b.value.value, exp=a.exp)
+        if a.exp == 1:
+            return type(a)(a.coef, a.value**b.value.value, a.exp)
+        return Collection.scalar_pow(b, a)
 
     def __str__(self):
         if any(not self.denominator % i for i in (2, 5)) and self.denominator % 3:

@@ -8,6 +8,8 @@ class Interpreter:
         if node is None:
             return
         if isinstance(node, (Number, Variable)):
+            if isinstance(node, Variable) and str(node) == "i":
+                return Term(value=Number(-1), exp=Number(1, 2))
             return Term(value=node)
 
         oper = node.oper.type.name.lower()

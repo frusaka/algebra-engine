@@ -43,7 +43,12 @@ class Polynomial(Collection):
     def mul(b, a):
         b = b.value
         if a.exp == 1:
-            return type(a)(value=Polynomial(term * b for term in a.value))
+            res = Polynomial(term * b for term in a.value)
+            if not res:
+                return type(a)(value=Number(0))
+            if len(res) == 1:
+                return res.pop()
+            return type(a)(value=res)
         if a.like(b, 0):
             return type(a)(a.coef * b.coef, a.value, a.exp + b.exp)
         if isinstance(b.value, Number) and b.exp == 1:

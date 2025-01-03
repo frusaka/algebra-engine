@@ -7,8 +7,8 @@ from .polynomial import Polynomial
 @dataclass(order=True)
 class Term:
     coef: Number
-    value: Base
-    exp: Base
+    value: Number | Variable | Polynomial | Product
+    exp: Number | Variable | Polynomial | Product
 
     def __init__(self, coef=Number(1), value=Number(1), exp=Number(1)):
         if coef == 0:
@@ -30,7 +30,7 @@ class Term:
 
     def __str__(self):
         if self.coef != 1 and isinstance(self.value, Number):
-            return str(self.coef) + f"({self.value}^{self.exp})"
+            return "{0}({1})".format(self.coef, Term(value=self.value, exp=self.exp))
         res = ""
         if abs(self.coef) != 1:
             res = str(self.coef)
