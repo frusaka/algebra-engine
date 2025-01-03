@@ -20,8 +20,8 @@ class Polynomial(Collection):
             res += rep
         return res.join("()")
 
-    @dispatch
-    def add(b, a):
+    @staticmethod
+    def resolve(b, a):
         val = Polynomial([b.value, a])
         if not val:
             return type(a)(value=Number(0))
@@ -29,17 +29,23 @@ class Polynomial(Collection):
             return val.pop()
         return type(a)(value=val)
 
+    @dispatch
+    def add(b, a):
+        return Polynomial.resolve(b, a)
+
     @add.register(polynomial)
     def _(b, a):
         if a.like(b.value) and a.exp != 1:
             return type(a)(a.coef + b.value.coef, a.value, a.exp)
-        return Polynomial.add(b, a)
+        return Polynomial.resolve(b, a)
 
     @dispatch
     def mul(b, a):
         b = b.value
         if a.exp == 1:
             return type(a)(value=Polynomial(term * b for term in a.value))
+        if a.like(b, 0):
+            return type(a)(a.coef * b.coef, a.value, a.exp + b.exp)
         if isinstance(b.value, Number) and b.exp == 1:
             return type(a)(b.value * a.coef, a.value, a.exp)
 
@@ -59,16 +65,22 @@ class Polynomial(Collection):
         res = []
         while a.value:
             # Remainder
-            if not isinstance(a.value, Polynomial) or (
-                leading_b.exp > (leading_a := a.value.leading).exp
+            if (
+                not isinstance(a.value, Polynomial)
+                or leading_b.exp > (leading_a := a.value.leading).exp
             ):
-                res.append(Term(value=Product([a, b ** -Term()])))
+                res.append(a * b ** -Term())
                 break
             fac = leading_a / leading_b
-            if isinstance(fac.value, Product):
+            if isinstance(fac.value, Product) and (
+                not isinstance(leading_a.value, Product)
+                or len(fac.value) > len(leading_a.value)
+            ):
                 raise NotImplementedError("Input Polynomials out of expected domain")
             res.append(fac)
             a -= fac * b
+        if len(res) == 1:
+            return res.pop()
         return Term(value=Polynomial(res))
 
     @staticmethod

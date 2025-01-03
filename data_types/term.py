@@ -64,7 +64,7 @@ class Term:
     def __add__(a, b):
         if a.like(b):
             return a.value.add(Proxy(b), a)
-        return Term(value=Polynomial([a, b]))
+        return Polynomial.resolve(Proxy(b), a)
 
     def __sub__(a, b):
         return a + -b
