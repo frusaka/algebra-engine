@@ -83,6 +83,8 @@ class Term:
     def __truediv__(a, b):
         if isinstance(a.value, Polynomial) and isinstance(b.value, Polynomial):
             return Polynomial.long_division(a, b)
+        if isinstance(a.value, Number) and a.like(b):
+            return Number.divide(a, b)
         return a * b ** -Term()
 
     def __pow__(a, b):
