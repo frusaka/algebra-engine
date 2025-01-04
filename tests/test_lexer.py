@@ -4,24 +4,17 @@ from data_types import Number, Variable
 
 
 def test_unknown():
-    with pytest.raises(SyntaxError):
-        list(Lexer("?").generate_tokens())
-    with pytest.raises(SyntaxError):
-        list(Lexer("~").generate_tokens())
-    with pytest.raises(SyntaxError):
-        list(Lexer(":").generate_tokens())
-    with pytest.raises(SyntaxError):
-        list(Lexer("@").generate_tokens())
+    assert list(Lexer("?").generate_tokens())[1].type is TokenType.ERROR
+    assert list(Lexer("~").generate_tokens())[1].type is TokenType.ERROR
+    assert list(Lexer(":").generate_tokens())[1].type is TokenType.ERROR
+    assert list(Lexer("@").generate_tokens())[1].type is TokenType.ERROR
+    
 
 
 def test_number():
-    with pytest.raises(SyntaxError):
-        list(Lexer(".").generate_tokens())
-    with pytest.raises(SyntaxError):
-        list(Lexer("0.1.1").generate_tokens())
-    with pytest.raises(SyntaxError):
-        list(Lexer("..").generate_tokens())
-
+    assert list(Lexer(".").generate_tokens())[1].type is TokenType.ERROR
+    assert list(Lexer("0.1.1").generate_tokens())[1].type is TokenType.ERROR
+    assert list(Lexer("..").generate_tokens())[1].type is TokenType.ERROR
     assert list(Lexer("0").generate_tokens())[1:-1] == [
         Token(TokenType.NUMBER, Number(0))
     ]

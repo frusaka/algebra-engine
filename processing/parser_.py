@@ -42,6 +42,8 @@ class Parser:
         stack = []
         # NOTE: Reversing the tokens reverses the parentheses
         for token in reversed(list(tokens)):
+            if token.type is TokenType.ERROR:
+                raise token.value
             if token.type in (TokenType.NUMBER, TokenType.VAR):
                 yield token
             # Opening parenthesis

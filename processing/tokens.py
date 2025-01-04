@@ -13,6 +13,7 @@ class TokenType(Enum):
     POS, NEG = 4, 4.2
 
     LPAREN, RPAREN = -6, -6.2
+    ERROR = -7
 
 
 @dataclass

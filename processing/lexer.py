@@ -39,15 +39,20 @@ class Lexer:
             if self.curr == "." or self.curr.isdigit():
                 # Can be toggled off to experiment with other notations (prefix & postfix)
                 if was_num:
+                    if was_num == 3:
+                        yield Token(
+                            TokenType.ERROR, SyntaxError("No operator between numbers")
+                        )
+                        return
                     # Implicit multiplication - Parenthesis or consecutive numbers numbers
-                    yield self.OPERS["*"][was_num - 1]
+                    yield self.OPERS["*"][was_num >> 1]
                 yield self.generate_number()
-                was_num = 2
+                was_num = 3
                 continue
             if self.curr.isalpha():
                 if was_num:
                     # Implicit multiplication - Variable Coefficient
-                    yield self.OPERS["*"][was_num - 1]
+                    yield self.OPERS["*"][was_num >> 1]
                 yield Token(TokenType.VAR, Variable(self.curr))
                 was_num = 2
             elif self.curr in "+-":
@@ -60,7 +65,10 @@ class Lexer:
                 yield self.OPERS[self.curr] if self.curr != "*" else self.OPERS["*"][0]
                 was_num = self.curr == ")"
             else:
-                raise SyntaxError(f"unexpected character '{self.curr}'")
+                yield Token(
+                    TokenType.ERROR, SyntaxError(f"unexpected character: '{self.curr}'")
+                )
+                return
             self.advance()
 
     def generate_number(self):
@@ -69,10 +77,15 @@ class Lexer:
         while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
             if self.curr == ".":
                 if decimals:
-                    raise SyntaxError("only one decimal point is allowed in number")
+                    return Token(
+                        TokenType.ERROR,
+                        SyntaxError("only one decimal point is allowed in number"),
+                    )
                 decimals = 1
             number_str += self.curr
             self.advance()
         if number_str == ".":
-            raise SyntaxError("decimal point needs atlest one digit")
+            return Token(
+                TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
+            )
         return Token(TokenType.NUMBER, Number(number_str))

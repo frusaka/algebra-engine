@@ -75,7 +75,9 @@ class Number(Base):
         if self.imag:
             i = print_frac(self.imag)
             if i == "1":
-                i = i[1:]
+                i = ""
+            elif i == "-1":
+                i = "-"
             i += "i"
             if self.real:
                 op = "+"
@@ -111,18 +113,13 @@ class Number(Base):
         return Number(real, imag)
 
     def __pow__(self, other):
-        if self.imag:
-            if other.real.denominator != 1:
-                raise NotImplementedError("Cannot root complex base")
-            if other.real.numerator < 0:
-                raise NotImplementedError("Cannot inverse complex number")
-        else:
-            res = self.real**other.real
-            return Number(res.real, res.imag)
-        res = self
-        for _ in range(other.real.numerator - 1):
-            res *= self
-        return res
+        # Trying to keep the precision of the Fraction class
+        if other == 1:
+            return self
+        if not other.imag and other.real.numerator < 0:
+            return Number(1) / self ** abs(other.real)
+        res = complex(self.real, self.imag) ** complex(other.real, other.imag)
+        return Number(res.real, res.imag)
 
     def __abs__(self):
         return Number((self.real**2 + self.imag**2) ** 0.5)
@@ -217,11 +214,6 @@ class Number(Base):
     @mul.register(variable | polynomial | product)
     def _(b, a):
         return b.value.value.mul(Proxy(a), b.value)
-
-    @staticmethod
-    def divide(a, b):
-        # Exponent and coeffecient edge cases not yet in check
-        return type(a)(a.value / b.value)
 
     @dispatch
     def pow(b, a):

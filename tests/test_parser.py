@@ -9,10 +9,10 @@ def test_invalid(expr):
         AST(expr)
 
 
-@pytest.mark.skip(reason="Case not in check")
-def test_spaced_numbers():
+@pytest.mark.parametrize("expr", ["3 4", "2 3y", "3 4+5","3/4 5x"])
+def test_spaced_numbers(expr):
     with pytest.raises(SyntaxError):
-        AST("12 0.4")
+        AST(expr)
 
 
 def test_unary():
