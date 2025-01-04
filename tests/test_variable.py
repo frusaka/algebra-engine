@@ -54,7 +54,7 @@ def test_handle_exponents(interpreter):
         ),
     )
     assert interpreter.eval(AST("z^(6/8)")) == Term(
-        Number(1), Variable("z"), Number(3, 4)
+        Number(1), Variable("z"), Number("3/4")
     )
     assert interpreter.eval(AST("x^-2")) == Term(Number(1), Variable("x"), Number(-2))
     assert interpreter.eval(AST("y^0")) == Term()

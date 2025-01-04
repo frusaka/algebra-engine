@@ -9,7 +9,7 @@ class Interpreter:
             return
         if isinstance(node, (Number, Variable)):
             if isinstance(node, Variable) and str(node) == "i":
-                return Term(value=Number(-1), exp=Number(1, 2))
+                return Term(value=Number(imag=1))
             return Term(value=node)
 
         oper = node.oper.type.name.lower()

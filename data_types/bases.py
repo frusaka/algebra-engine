@@ -63,7 +63,52 @@ class Variable(Unknown, str, Base):
         return Collection.scalar_pow(b, a)
 
 
-class Number(Fraction, Base):
+class Number(Base):
+    def __init__(self, real=0, imag=0):
+        self.real = Fraction(real)
+        self.imag = Fraction(imag)
+
+    def __hash__(self):
+        return hash((Number, self.real, self.imag))
+
+    def __eq__(self, value):
+        return self.real == value.real and self.imag == value.imag
+
+    def __ne__(self, value):
+        return not self == value
+
+    def __gt__(self, value):
+        if self.imag or value.imag:
+            return False
+        return self.real > value.real
+
+    def __ge__(self, value):
+        if self.imag or value.imag:
+            return False
+        return self.real >= value.real
+
+    def __lt__(self, value):
+        if self.imag or value.imag:
+            return False
+        return self.real < value.real
+
+    def __le__(self, value):
+        if self.imag or value.imag:
+            return False
+        return self.real <= value.real
+
+    @property
+    def numerator(self):
+        if not self.imag:
+            return self.real.numerator
+        return self
+
+    @property
+    def denominator(self):
+        if not self.imag:
+            return self.real.denominator
+        return 1
+
     @dispatch
     def add(b, a):
         pass
@@ -82,11 +127,8 @@ class Number(Fraction, Base):
     @mul.register(number)
     def _(b, a):
         b = b.value
-        if a.like(b, 0) and a.exp == b.exp:
-            if a.exp == 1:
-                return type(a)(a.coef * b.coef, a.value * b.value, a.exp)
-            # Imaginary numbers: i^2 = -1
-            return type(a)(-a.coef * b.coef)
+        if a.like(b, 0):
+            return type(a)(a.coef * b.coef, a.value * b.value, a.exp)
         if a.exp == 1:
             return type(a)(a.value * b.coef, b.value, b.exp)
         if b.exp == 1:
@@ -107,32 +149,53 @@ class Number(Fraction, Base):
         return Collection.scalar_pow(b, a)
 
     def __str__(self):
-        if any(not self.denominator % i for i in (2, 5)) and self.denominator % 3:
-            return str(self.numerator / self.denominator)
-        return super().__str__()
+        if self.imag:
+            i = print_frac(self.imag)
+            if i == "1":
+                i = i[1:]
+            i += "i"
+            if self.real:
+                op = "+"
+                if i.startswith("-"):
+                    op = "-"
+                    i = i[1:]
+                return op.join((print_frac(self.real), i))
+            return i
+        return print_frac(self.real)
 
     def __add__(self, other):
-        return Number(super().__add__(other))
+        return Number(self.real + other.real, self.imag + other.imag)
 
     def __sub__(self, other):
-        return Number(super().__sub__(other))
+        return Number(self.real - other.real, self.imag - other.imag)
 
     def __mul__(self, other):
-        return Number(super().__mul__(other))
+        real = self.real * other.real - self.imag * other.imag
+        imag = self.real * other.imag + self.imag * other.real
+        return Number(real, imag)
 
     def __truediv__(self, other):
-        return Number(super().__truediv__(other))
+        return self * other ** Number(-1)
 
     def __pow__(self, other):
-        if (res := super().__pow__(other)).imag:
-            raise ValueError("Complex result")
-        return Number(res)
+        if self.imag:
+            if other.real.denominator != 1:
+                raise NotImplementedError("Cannot root complex base")
+            if other.real.numerator < 0:
+                raise NotImplementedError("Cannot inverse complex number")
+        else:
+            res = self.real**other.real
+            return Number(res.real, res.imag)
+        res = self
+        for _ in range(other.real.numerator - 1):
+            res *= self
+        return res
 
     def __abs__(self):
-        return Number(super().__abs__())
+        return Number((self.real**2 + self.imag**2) ** 0.5)
 
     def __neg__(self):
-        return Number(super().__neg__())
+        return Number(-self.real, -self.imag)
 
     def __pos__(self):
         return self
@@ -150,11 +213,11 @@ class Collection(Unknown, set, Base):
     def scalar_pow(b, a):
         if not isinstance(a.exp, Number):
             return
-        b = b.value
+        b = b.value.value.real
         res = a
-        for _ in range(abs(b.value.numerator) - 1):
+        for _ in range(abs(b.numerator) - 1):
             res *= a
-        exp = Number(1, b.value.denominator)
-        if b.value < 0:
+        exp = Fraction(1, b.denominator)
+        if b < 0:
             exp = -exp
         return type(a)(res.coef**exp, res.value, res.exp * exp)

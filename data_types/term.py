@@ -7,8 +7,8 @@ from .polynomial import Polynomial
 @dataclass(order=True)
 class Term:
     coef: Number
-    value: Number | Variable | Polynomial | Product
-    exp: Number | Variable | Polynomial | Product
+    value: Base
+    exp: Base
 
     def __init__(self, coef=Number(1), value=Number(1), exp=Number(1)):
         if coef == 0:
@@ -34,7 +34,7 @@ class Term:
         res = ""
         if abs(self.coef) != 1:
             res = str(self.coef)
-            if "/" in res:
+            if self.coef.imag:
                 res = res.join("()")
         elif self.coef == -1:
             res = "-"
@@ -97,6 +97,9 @@ class Term:
             # NOTE: a^(nm) = (a^n)^m only if m is a real integer
             res = Term(a.coef, a.value) ** b.tovalue()
             return Term(res.coef, res.value, a_exp * (b / b.tovalue()))
+        if isinstance(b.value, Number) and b.value.imag:
+            raise ValueError("Complex exponent")
+
         if v := a.value.pow(Proxy(b), a):
             return v
         if isinstance(a.exp, Term):

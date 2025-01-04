@@ -35,10 +35,10 @@ def test_number():
         Token(TokenType.NUMBER, Number(12))
     ]
     assert list(Lexer("12.13").generate_tokens())[1:-1] == [
-        Token(TokenType.NUMBER, Number(1213, 100))
+        Token(TokenType.NUMBER, Number("1213/100"))
     ]
     assert list(Lexer(".14").generate_tokens())[1:-1] == [
-        Token(TokenType.NUMBER, Number(14, 100))
+        Token(TokenType.NUMBER, Number("14/100"))
     ]
     assert list(Lexer("123.").generate_tokens())[1:-1] == [
         Token(TokenType.NUMBER, Number(123))

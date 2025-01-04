@@ -15,3 +15,11 @@ def standard_form(collection):
         return res + (v.coef - 0.8) / (B - 0.8) * 3.2 + 0.8
 
     return sorted(collection, key=key, reverse=1)
+
+
+def print_frac(frac):
+    if any(not frac.denominator % i for i in (2, 5)) and frac.denominator % 3:
+        return str(frac.numerator / frac.denominator)
+    if frac.denominator == 1:
+        return str(frac.numerator)
+    return str(frac).join("()")
