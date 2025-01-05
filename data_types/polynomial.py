@@ -4,13 +4,13 @@ from utils import standard_form, dispatch, polynomial
 
 
 class Polynomial(Collection):
-    def __init__(self, terms):
-        super().__init__(self.merge(chain(*map(self.flatten, terms))))
+    def __init__(self, algebraobjects):
+        super().__init__(self.merge(chain(*map(self.flatten, algebraobjects))))
 
     def __str__(self):
         res = ""
-        for idx, term in enumerate(standard_form(self)):
-            rep = str(term)
+        for idx, algebraobject in enumerate(standard_form(self)):
+            rep = str(algebraobject)
             if idx > 0 and res:
                 if rep.startswith("-"):
                     rep = rep[1:]
@@ -43,7 +43,7 @@ class Polynomial(Collection):
     def mul(b, a):
         b = b.value
         if a.exp == 1:
-            res = Polynomial(term * b for term in a.value)
+            res = Polynomial(algebraobject * b for algebraobject in a.value)
             if not res:
                 return type(a)(value=Number(0))
             if len(res) == 1:
@@ -62,10 +62,10 @@ class Polynomial(Collection):
     def long_division(a, b):
         # Only works with univariate Polynomials
         from .product import Product
-        from .term import Term
+        from .algebraobject import AlgebraObject
 
         if a.exp != 1 or b.exp != 1:
-            return type(a)(value=Product([a, b ** -Term()]))
+            return AlgebraObject(value=Product([a, b ** -AlgebraObject()]))
         leading_b = b.value.leading
         res = []
         while a.value:
@@ -74,7 +74,7 @@ class Polynomial(Collection):
                 not isinstance(a.value, Polynomial)
                 or leading_b.exp > (leading_a := a.value.leading).exp
             ):
-                res.append(a * b ** -Term())
+                res.append(a * b ** -AlgebraObject())
                 break
             fac = leading_a / leading_b
             if isinstance(fac.value, Product) and (
@@ -86,28 +86,28 @@ class Polynomial(Collection):
             a -= fac * b
         if len(res) == 1:
             return res.pop()
-        return Term(value=Polynomial(res))
+        return AlgebraObject(value=Polynomial(res))
 
     @staticmethod
-    def merge(terms):
-        terms = list(terms)
-        while terms:
-            a = terms.pop(0)
+    def merge(algebraobjects):
+        algebraobjects = list(algebraobjects)
+        while algebraobjects:
+            a = algebraobjects.pop(0)
             if a.value == 0:
                 continue
-            for b in tuple(terms):
+            for b in tuple(algebraobjects):
                 if a.like(b):
                     if (val := (a + b)).value != 0:
                         yield val
-                    terms.remove(b)
+                    algebraobjects.remove(b)
                     break
             else:
                 yield a
 
-    def flatten(self, term):
-        if term.exp != 1 or not isinstance(term.value, Polynomial):
-            yield term
+    def flatten(self, algebraobject):
+        if algebraobject.exp != 1 or not isinstance(algebraobject.value, Polynomial):
+            yield algebraobject
             return
 
-        for i in term.value:
+        for i in algebraobject.value:
             yield from self.flatten(i)

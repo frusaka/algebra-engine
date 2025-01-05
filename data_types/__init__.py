@@ -1,4 +1,4 @@
 from .bases import *
-from .term import Term
+from .algebraobject import AlgebraObject
 from .polynomial import Polynomial
 from .product import Product

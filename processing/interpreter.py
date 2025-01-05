@@ -1,5 +1,5 @@
 import operator
-from data_types import Term, Number, Variable
+from data_types import AlgebraObject, Number, Variable
 from processing.operators import Unary
 
 
@@ -9,8 +9,8 @@ class Interpreter:
             return
         if isinstance(node, (Number, Variable)):
             if isinstance(node, Variable) and str(node) == "i":
-                return Term(value=Number(imag=1))
-            return Term(value=node)
+                return AlgebraObject(value=Number(imag=1))
+            return AlgebraObject(value=node)
 
         oper = node.oper.type.name.lower()
 
@@ -20,6 +20,6 @@ class Interpreter:
         left, right = self.eval(node.left), self.eval(node.right)
 
         if oper == "root":
-            return operator.pow(right, Term() / left)
+            return operator.pow(right, AlgebraObject() / left)
 
         return getattr(operator, oper)(left, right)

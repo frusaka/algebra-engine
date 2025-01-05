@@ -13,9 +13,6 @@ class product: ...
 class polynomial: ...
 
 
-class term: ...
-
-
 class dispatch(singledispatchmethod):
     def __init__(self, method):
         return super().__init__(staticmethod(method))

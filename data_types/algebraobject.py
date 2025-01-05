@@ -5,7 +5,7 @@ from .polynomial import Polynomial
 
 
 @dataclass(order=True)
-class Term:
+class AlgebraObject:
     coef: Number
     value: Base
     exp: Base
@@ -30,7 +30,9 @@ class Term:
 
     def __str__(self):
         if self.coef != 1 and isinstance(self.value, Number):
-            return "{0}({1})".format(self.coef, Term(value=self.value, exp=self.exp))
+            return "{0}({1})".format(
+                self.coef, AlgebraObject(value=self.value, exp=self.exp)
+            )
         res = ""
         if self.coef != 1:
             res = str(self.coef)
@@ -45,19 +47,21 @@ class Term:
         if exp < 0:
             return "{0}/{1}".format(
                 self.coef.numerator,
-                Term(Number(self.coef.denominator), self.value, -self.exp),
+                AlgebraObject(Number(self.coef.denominator), self.value, -self.exp),
             )
         if exp.denominator != 1:
             if self.coef != 1:
                 return "{0}({1})".format(
                     "-" if self.coef == -1 else self.coef,
-                    Term(value=self.value, exp=self.exp),
+                    AlgebraObject(value=self.value, exp=self.exp),
                 )
             if exp.numerator != 1:
                 res = "{0}^{1}".format(res, exp.numerator)
             return "{0}√{1}".format(exp.denominator, res)
         exp = str(self.exp)
-        if isinstance(self.exp, Term) and (self.exp.coef != 1 or self.exp.exp != 1):
+        if isinstance(self.exp, AlgebraObject) and (
+            self.exp.coef != 1 or self.exp.exp != 1
+        ):
             exp = exp.join("()")
         return "{0}^{1}".format(res, exp)
 
@@ -74,58 +78,63 @@ class Term:
             return v
         # Like Bases
         if a.value == b.value:
-            exp_a = a.exp if isinstance(a.exp, Term) else Term(value=a.exp)
-            exp_b = b.exp if isinstance(b.exp, Term) else Term(value=b.exp)
-            return Term(a.coef * b.coef, a.value, exp_a + exp_b)
+            exp_a, exp_b = a.exp, b.exp
+            if not isinstance(exp_a, AlgebraObject):
+                exp_a = AlgebraObject(value=exp_a)
+            if not isinstance(exp_b, AlgebraObject):
+                exp_b = AlgebraObject(value=exp_b)
+            return AlgebraObject(a.coef * b.coef, a.value, exp_a + exp_b)
 
         return Product.resolve(a, b)
 
     def __truediv__(a, b):
         if isinstance(a.value, Polynomial) and isinstance(b.value, Polynomial):
             return Polynomial.long_division(a, b)
-        return a * b ** -Term()
+        return a * b ** -AlgebraObject()
 
     def __pow__(a, b):
         if a.value == 1:
             return a
         if b.value == 0:
-            return Term()
-        a_exp = a.exp if isinstance(a.exp, Term) else Term(value=a.exp)
+            return AlgebraObject()
+        a_exp = (
+            a.exp if isinstance(a.exp, AlgebraObject) else AlgebraObject(value=a.exp)
+        )
         if isinstance(a.value, Number) and (
             not isinstance(b.value, Number) or b.exp != 1
         ):
             # NOTE: a^(nm) = (a^n)^m only if m is a real integer
-            res = Term(a.coef, a.value) ** b.tovalue()
-            return Term(res.coef, res.value, a_exp * (b / b.tovalue()))
+            res = AlgebraObject(a.coef, a.value) ** b.tovalue()
+            return AlgebraObject(res.coef, res.value, a_exp * (b / b.tovalue()))
         if isinstance(b.value, Number) and b.value.imag:
             raise ValueError("Complex exponent")
 
         if v := a.value.pow(Proxy(b), a):
             return v
-        if isinstance(a.exp, Term):
-            return Term(a.coef, a.value, a.exp * b)
-        return Term(a.coef, a.value, a_exp * b)
+        if isinstance(a.exp, AlgebraObject):
+            return AlgebraObject(a.coef, a.value, a.exp * b)
+        return AlgebraObject(a.coef, a.value, a_exp * b)
 
     def __pos__(self):
         return self
 
     def __neg__(self):
-        return self * Term(value=Number(-1))
+        return self * AlgebraObject(value=Number(-1))
 
     def __abs__(self):
         if not isinstance(self.value, Number):
-            return Term(abs(self.coef), self.value, self.exp)
-        return Term(value=abs(self.value), exp=self.exp)
+            return AlgebraObject(abs(self.coef), self.value, self.exp)
+        return AlgebraObject(value=abs(self.value), exp=self.exp)
 
     def tovalue(self):
         if isinstance(self.value, Number) and self.exp == 1:
-            return Term(value=self.value)
-        return Term(value=self.coef)
+            return AlgebraObject(value=self.value)
+        return AlgebraObject(value=self.coef)
 
     def like(self, other, exp=1):
 
         if (
-            not isinstance(other, Term)
+            not isinstance(other, AlgebraObject)
             or not self.exp.like(other.exp)
             or not isinstance(other.value, type(self.value))
             or (exp)
