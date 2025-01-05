@@ -93,27 +93,12 @@ class AlgebraObject:
         return a * b ** -AlgebraObject()
 
     def __pow__(a, b):
-        if a.value == 1:
-            return a
         if b.value == 0:
             return AlgebraObject()
         a_exp = (
             a.exp if isinstance(a.exp, AlgebraObject) else AlgebraObject(value=a.exp)
         )
-        if isinstance(a.value, Number) and (
-            not isinstance(b.value, Number) or b.exp != 1
-        ):
-            # NOTE: a^(nm) = (a^n)^m only if m is a real integer
-            res = AlgebraObject(a.coef, a.value) ** b.tovalue()
-            return AlgebraObject(res.coef, res.value, a_exp * (b / b.tovalue()))
-        if isinstance(b.value, Number) and b.value.imag:
-            raise ValueError("Complex exponent")
-
-        if v := a.value.pow(Proxy(b), a):
-            return v
-        if isinstance(a.exp, AlgebraObject):
-            return AlgebraObject(a.coef, a.value, a.exp * b)
-        return AlgebraObject(a.coef, a.value, a_exp * b)
+        return a.value.pow(Proxy(b), a) or AlgebraObject(a.coef, a.value, a_exp * b)
 
     def __pos__(self):
         return self

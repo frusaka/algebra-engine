@@ -215,14 +215,22 @@ class Number(Base):
     def _(b, a):
         return b.value.value.mul(Proxy(a), b.value)
 
+    @staticmethod
+    def resolve_pow(a, b):
+        a_exp = a.exp if isinstance(a.exp, type(a)) else type(a)(value=a.exp)
+        # NOTE: a^(nm) = (a^n)^m only if m is a real integer
+        res = type(a)(a.coef, a.value) ** b.tovalue()
+        return type(a)(res.coef, res.value, a_exp * (b / b.tovalue()))
+
     @dispatch
     def pow(b, a):
-        pass
+        return Number.resolve_pow(a, b.value)
 
     @pow.register(number)
     def _(b, a):
-        if a.exp == 1:
+        if a.exp == b.value.exp == 1:
             return type(a)(a.coef, a.value**b.value.value, a.exp)
+        return Number.resolve_pow(a, b.value)
 
 
 class Collection(Unknown, set, Base):
@@ -237,7 +245,10 @@ class Collection(Unknown, set, Base):
     def scalar_pow(b, a):
         if not isinstance(a.exp, Number):
             return
-        b = b.value.value.real
+        b = b.value.value
+        if b.imag:
+            raise ValueError("Complex exponent")
+        b = b.real
         res = a
         for _ in range(abs(b.numerator) - 1):
             res *= a
