@@ -21,7 +21,9 @@ class Lexer:
     }
 
     def __init__(self, expr: str):
-        self.expr = iter(expr.join("()"))
+        self.expr = iter(
+            expr.replace("!=", "≠").replace(">=", "≥").replace("<=", "≤").join("()")
+        )
         self.advance()
 
     def advance(self):

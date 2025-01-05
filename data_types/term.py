@@ -32,11 +32,11 @@ class Term:
         if self.coef != 1 and isinstance(self.value, Number):
             return "{0}({1})".format(self.coef, Term(value=self.value, exp=self.exp))
         res = ""
-        if abs(self.coef) != 1:
+        if self.coef != 1:
             res = str(self.coef)
             if self.coef.imag:
                 res = res.join("()")
-        elif self.coef == -1:
+        if self.coef == -1:
             res = "-"
         res += str(self.value)
         exp = self.exp if isinstance(self.exp, Number) else self.exp.coef
