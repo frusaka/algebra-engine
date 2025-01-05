@@ -2,7 +2,7 @@ from .classes import *
 
 
 def standard_form(collection):
-    from data_types.bases import Number, Variable
+    from data_types import Number, Variable
 
     def key(v):
         res = 0
