@@ -7,7 +7,6 @@ SYMBOLS = {
     "LE": "≤",
     "ADD": "+",
     "SUB": "-",
-    # "MUL": "×",
     "MUL": "•",
     "TRUEDIV": "÷",
     "POW": "^",

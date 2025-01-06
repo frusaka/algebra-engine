@@ -1,4 +1,5 @@
-from .bases import Collection, Number
+from .collection import Collection
+from .number import Number
 from .polynomial import Polynomial
 from utils import *
 
@@ -6,12 +7,22 @@ from utils import *
 class Product(Collection):
     def __str__(self):
         num, den = [], []
-        for term in reversed(standard_form(self)):
-            exp = term.exp if isinstance(term.exp, Number) else term.exp.coef
+        for algebraobject in reversed(standard_form(self)):
+            exp = (
+                algebraobject.exp
+                if isinstance(algebraobject.exp, Number)
+                else algebraobject.exp.coef
+            )
             if exp < 0:
-                den.append(str(type(term)(value=term.value, exp=abs(term.exp))))
+                den.append(
+                    str(
+                        type(algebraobject)(
+                            value=algebraobject.value, exp=abs(algebraobject.exp)
+                        )
+                    )
+                )
             else:
-                num.append(str(term))
+                num.append(str(algebraobject))
         a, b = "•".join(num), "•".join(den)
         if len(num) > 1:
             a = a.join("()")
@@ -59,12 +70,10 @@ class Product(Collection):
 
     @dispatch
     def pow(b, a):
-        val = Product(i**b.value for i in a.value)
-        if not isinstance(b.value.value, Number) or not isinstance(b.value.exp, Number):
-            if a.coef != 1:
-                set.add(val, type(a)(value=a.coef, exp=b.value))
-            return type(a)(value=Product(val))
-        return type(a)(a.coef**b.value.value, val)
+        res = type(a)()
+        for i in a.value:
+            res *= i**b.value
+        return res * type(a)(value=a.coef) ** b.value
 
     @staticmethod
     def resolve(a, b):
@@ -75,16 +84,16 @@ class Product(Collection):
 
     @staticmethod
     def simplify(a, b):
-        terms = a.copy()
+        algebraobjects = a.copy()
         rem = (b.value if isinstance(b.value, Product) else {b}).copy()
-        for a in tuple(terms):
+        for a in tuple(algebraobjects):
             for b in tuple(rem):
-                if not terms:
+                if not algebraobjects:
                     break
                 if a.like(b, 0):
-                    terms.remove(a)
+                    algebraobjects.remove(a)
                     rem.remove(b)
                     a *= b
                     if a.value != 1:
-                        terms.add(a)
-        return terms.union(rem)
+                        algebraobjects.add(a)
+        return algebraobjects.union(rem)
