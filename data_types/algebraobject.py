@@ -88,7 +88,9 @@ class AlgebraObject:
 
     def __mul__(a, b):
         if v := a.split_const_from_exp():
-            return b * v * (AlgebraObject(a.coef, a.value, a.exp - AlgebraObject()))
+            return b * v * AlgebraObject(a.coef, a.value, a.exp - AlgebraObject())
+        if v := b.split_const_from_exp():
+            return a * v * AlgebraObject(b.coef, b.value, b.exp - AlgebraObject())
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     def __truediv__(a, b):
