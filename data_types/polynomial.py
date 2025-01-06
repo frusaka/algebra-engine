@@ -1,5 +1,6 @@
 from itertools import chain
-from .bases import Collection, Number
+from .collection import Collection
+from .number import Number
 from utils import standard_form, dispatch, polynomial
 
 

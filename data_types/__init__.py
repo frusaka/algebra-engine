@@ -1,4 +1,6 @@
 from .bases import *
-from .algebraobject import AlgebraObject
+from .number import Number
+from .variable import Variable
 from .polynomial import Polynomial
 from .product import Product
+from .algebraobject import AlgebraObject

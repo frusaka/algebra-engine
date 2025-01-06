@@ -1,7 +1,10 @@
+from __future__ import annotations
 from dataclasses import dataclass
-from .bases import *
+from .bases import Base
+from .number import Number
 from .product import Product
 from .polynomial import Polynomial
+from utils import Proxy
 
 
 @dataclass(order=True)
@@ -11,6 +14,9 @@ class AlgebraObject:
     exp: Base
 
     def __init__(self, coef=Number(1), value=Number(1), exp=Number(1)):
+        if isinstance(value, AlgebraObject):
+            self.coef, self.value, self.exp = value.coef, value.value, value.exp
+            return
         if coef == 0:
             value = Number(0)
             coef = exp = Number(1)
@@ -23,6 +29,13 @@ class AlgebraObject:
         # 1^n = 1 for any value of n
         elif value == 1:
             exp = value
+        # Case when operations with exponents simplify to a constant
+        if (
+            isinstance(exp, AlgebraObject)
+            and isinstance(exp.value, Number)
+            and exp.exp == 1
+        ):
+            exp = exp.value
         self.coef, self.value, self.exp = coef, value, exp
 
     def __hash__(self):
@@ -95,10 +108,9 @@ class AlgebraObject:
     def __pow__(a, b):
         if b.value == 0:
             return AlgebraObject()
-        a_exp = (
-            a.exp if isinstance(a.exp, AlgebraObject) else AlgebraObject(value=a.exp)
+        return a.value.pow(Proxy(b), a) or AlgebraObject(
+            a.coef, a.value, type(a)(value=a.exp) * b
         )
-        return a.value.pow(Proxy(b), a) or AlgebraObject(a.coef, a.value, a_exp * b)
 
     def __pos__(self):
         return self
@@ -117,10 +129,14 @@ class AlgebraObject:
         return AlgebraObject(value=self.coef)
 
     def like(self, other, exp=1):
+        if not isinstance(other, AlgebraObject):
+            return 0
+        # Assumes in the case of multiplications, values with the same base are like terms
+        if not exp and self.value == other.value:
+            return 1
 
         if (
-            not isinstance(other, AlgebraObject)
-            or not self.exp.like(other.exp)
+            not self.exp.like(other.exp)
             or not isinstance(other.value, type(self.value))
             or (exp)
             and (

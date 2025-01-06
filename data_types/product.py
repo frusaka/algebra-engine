@@ -1,4 +1,5 @@
-from .bases import Collection, Number
+from .collection import Collection
+from .number import Number
 from .polynomial import Polynomial
 from utils import *
 
@@ -70,11 +71,10 @@ class Product(Collection):
     @dispatch
     def pow(b, a):
         val = Product(i**b.value for i in a.value)
-        if not isinstance(b.value.value, Number) or not isinstance(b.value.exp, Number):
-            if a.coef != 1:
-                set.add(val, type(a)(value=a.coef, exp=b.value))
-            return type(a)(value=Product(val))
-        return type(a)(a.coef**b.value.value, val)
+        coef = type(a)(value=a.coef) ** b.value
+        if coef.exp == 1:
+            return type(a)(coef.value, val)
+        return type(a)(value=Product(val.union([coef])))
 
     @staticmethod
     def resolve(a, b):

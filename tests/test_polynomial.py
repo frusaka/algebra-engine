@@ -1,7 +1,6 @@
 import pytest
-from data_types.product import Product
 from processing import AST
-from data_types import Number, Variable, Polynomial, AlgebraObject
+from data_types import Number, Variable, Polynomial, Product, AlgebraObject
 
 
 def test_divide_polynomials(interpreter):
