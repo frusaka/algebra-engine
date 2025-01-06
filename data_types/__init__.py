@@ -4,3 +4,4 @@ from .variable import Variable
 from .polynomial import Polynomial
 from .product import Product
 from .algebraobject import AlgebraObject
+from .equation import Equation
