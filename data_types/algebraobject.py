@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from .bases import Base
 from .number import Number
+from .variable import Variable
 from .product import Product
 from .polynomial import Polynomial
 from utils import Proxy
@@ -10,13 +10,20 @@ from utils import Proxy
 @dataclass(order=True)
 class AlgebraObject:
     coef: Number
-    value: Base
-    exp: Base
+    value: Number | Variable | Polynomial | Product
+    exp: Number | AlgebraObject
 
     def __init__(self, coef=Number(1), value=Number(1), exp=Number(1)):
         if isinstance(value, AlgebraObject):
             self.coef, self.value, self.exp = value.coef, value.value, value.exp
             return
+        # Cases when operations with exponents simplify to a constant
+        if (
+            isinstance(exp, AlgebraObject)
+            and isinstance(exp.value, Number)
+            and exp.exp == 1
+        ):
+            exp = exp.value
         if coef == 0:
             value = Number(0)
             coef = exp = Number(1)
@@ -29,13 +36,6 @@ class AlgebraObject:
         # 1^n = 1 for any value of n
         elif value == 1:
             exp = value
-        # Case when operations with exponents simplify to a constant
-        if (
-            isinstance(exp, AlgebraObject)
-            and isinstance(exp.value, Number)
-            and exp.exp == 1
-        ):
-            exp = exp.value
         self.coef, self.value, self.exp = coef, value, exp
 
     def __hash__(self):

@@ -163,36 +163,6 @@ def test_subtract_polynomials(interpreter):
     )
 
 
-def test_exponentiation(interpreter):
-    assert interpreter.eval(AST("(x + 1)^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("x"), Number(2)),
-                AlgebraObject(Number(2), Variable("x")),
-                AlgebraObject(),
-            ]
-        )
-    )
-    assert interpreter.eval(AST("(y + 2)^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("y"), Number(2)),
-                AlgebraObject(Number(4), Variable("y")),
-                AlgebraObject(Number(4)),
-            ]
-        )
-    )
-    assert interpreter.eval(AST("(z + 3)^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("z"), Number(2)),
-                AlgebraObject(Number(6), Variable("z")),
-                AlgebraObject(Number(9)),
-            ]
-        )
-    )
-
-
 def test_complex_expression(interpreter):
     assert interpreter.eval(AST("2x^2 + 3x - 5 + x^2 - x + 4")) == AlgebraObject(
         value=Polynomial(

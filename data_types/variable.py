@@ -37,18 +37,9 @@ class Variable(Unknown, str, Base):
 
     @dispatch
     def pow(b, a):
-        b = b.value
-        if a.coef == 1:
-            return type(a)(value=a.value, exp=type(a)(value=a.exp) * b)
-        c = b.coef
-        b = type(a)(value=b.value, exp=b.exp)
-        return type(a)(value=a.coef**c) ** b * type(a)(
-            value=a.value, exp=b * type(a)(value=a.exp)
+        return type(a)(a.coef) ** b.value * type(a)(
+            value=a.value, exp=type(a)(value=a.exp) * b.value
         )
-
-    @pow.register(number)
-    def _(b, a):
-        return Collection.scalar_pow(b, a)
 
     @pow.register(polynomial)
     def _(b, a):

@@ -70,11 +70,10 @@ class Product(Collection):
 
     @dispatch
     def pow(b, a):
-        val = Product(i**b.value for i in a.value)
-        coef = type(a)(value=a.coef) ** b.value
-        if coef.exp == 1:
-            return type(a)(coef.value, val)
-        return type(a)(value=Product(val.union([coef])))
+        res = type(a)()
+        for i in a.value:
+            res *= i**b.value
+        return res * type(a)(value=a.coef) ** b.value
 
     @staticmethod
     def resolve(a, b):
