@@ -19,7 +19,12 @@ class Collection(Unknown, set, Base):
     def scalar_pow(b, a):
         if a.exp != 1:
             return
-        b = b.value.value
+        b = b.value
+        if b.exp != 1:
+            if b.coef != 1:
+                return (a ** type(a)(b.coef)) ** type(a)(b.value, exp=b.exp)
+            return
+        b = b.value
         if b.imag:
             if isinstance(exp, type(a)):
                 exp = a.exp * type(a)(b.value)
