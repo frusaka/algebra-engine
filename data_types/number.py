@@ -169,6 +169,4 @@ class Number(Base):
             return type(a)(a.coef, a.value**b.value.value, a.exp)
         return Number.resolve_pow(a, b.value)
 
-    @pow.register(polynomial)
-    def _(b, a):
-        return Base.poly_pow(b.value, a)
+    pow.register(polynomial)(Base.poly_pow)

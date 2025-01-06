@@ -87,18 +87,9 @@ class AlgebraObject:
         return a + -b
 
     def __mul__(a, b):
-        if v := a.value.mul(Proxy(b), a):
-            return v
-        # Like Bases
-        if a.value == b.value:
-            exp_a, exp_b = a.exp, b.exp
-            if not isinstance(exp_a, AlgebraObject):
-                exp_a = AlgebraObject(value=exp_a)
-            if not isinstance(exp_b, AlgebraObject):
-                exp_b = AlgebraObject(value=exp_b)
-            return AlgebraObject(a.coef * b.coef, a.value, exp_a + exp_b)
-
-        return Product.resolve(a, b)
+        if v := a.split_const_from_exp():
+            return b * v * (AlgebraObject(a.coef, a.value, a.exp - AlgebraObject()))
+        return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     def __truediv__(a, b):
         if isinstance(a.value, Polynomial) and isinstance(b.value, Polynomial):
@@ -127,6 +118,14 @@ class AlgebraObject:
         if isinstance(self.value, Number) and self.exp == 1:
             return AlgebraObject(value=self.value)
         return AlgebraObject(value=self.coef)
+
+    def split_const_from_exp(self):
+        if isinstance(self.exp, Number):
+            return
+        if isinstance(self.exp.value, Polynomial) and self.exp.exp == 1:
+            for i in self.exp.value:
+                if i.value == 1:
+                    return AlgebraObject(self.coef, self.value)
 
     def like(self, other, exp=1):
         if not isinstance(other, AlgebraObject):

@@ -11,6 +11,7 @@ class Base:
 
     @staticmethod
     def poly_pow(b, a):
+        b = b.value
         if b.exp != 1:
             return
         res = type(a)()

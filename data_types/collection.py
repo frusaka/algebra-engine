@@ -8,7 +8,12 @@ class Collection(Unknown, set, Base):
 
     @dispatch
     def pow(b, a):
-        pass
+        res = a ** type(a)(value=b.value.coef)
+        return type(a)(
+            res.coef,
+            res.value,
+            type(a)(res.exp) * type(a)(value=b.value.value, exp=b.value.exp),
+        )
 
     @pow.register(number)
     def scalar_pow(b, a):
@@ -29,3 +34,5 @@ class Collection(Unknown, set, Base):
         if b < 0:
             exp = -exp
         return type(a)(res.coef**exp, res.value, res.exp * exp)
+
+    pow.register(polynomial)(Base.poly_pow)

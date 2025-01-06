@@ -51,9 +51,13 @@ class Polynomial(Collection):
                 return res.pop()
             return type(a)(value=res)
         if a.like(b, 0):
-            return type(a)(a.coef * b.coef, a.value, a.exp + b.exp)
+            return type(a)(
+                a.coef * b.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp)
+            )
         if isinstance(b.value, Number) and b.exp == 1:
             return type(a)(b.value * a.coef, a.value, a.exp)
+        if isinstance(b.value, Polynomial) and b.exp == 1:
+            return b * a
 
     @property
     def leading(self):

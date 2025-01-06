@@ -1,6 +1,4 @@
 from .bases import Unknown, Base
-from .collection import Collection
-
 from utils import *
 
 
@@ -41,6 +39,4 @@ class Variable(Unknown, str, Base):
             value=a.value, exp=type(a)(value=a.exp) * b.value
         )
 
-    @pow.register(polynomial)
-    def _(b, a):
-        return Base.poly_pow(b.value, a)
+    pow.register(polynomial)(Base.poly_pow)
