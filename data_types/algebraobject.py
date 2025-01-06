@@ -125,7 +125,7 @@ class AlgebraObject:
         if isinstance(self.exp.value, Polynomial) and self.exp.exp == 1:
             for i in self.exp.value:
                 if i.value == 1:
-                    return AlgebraObject(self.coef, self.value)
+                    return AlgebraObject(value=self.value)
 
     def like(self, other, exp=1):
         if not isinstance(other, AlgebraObject):
