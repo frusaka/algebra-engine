@@ -2,6 +2,14 @@ from data_types import Variable, Equation
 from processing import Interpreter, AST
 
 interpretter = Interpreter()
-eq = Equation(interpretter.eval(AST("2x+3y")), interpretter.eval(AST("5-3x")))
-print(eq)
-print(eq[Variable("x")])
+while True:
+    try:
+        left, right = input("Equation> ").split("=")
+        left = interpretter.eval(AST(left))
+        right = interpretter.eval(AST(right))
+        var = Variable(input("Variable> "))
+        eq = Equation(left, right)
+        print(eq)
+        print(eq[var])
+    except Exception as e:
+        print(repr(e).join(("\033[91m", "\033[0m")))

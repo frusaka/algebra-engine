@@ -12,7 +12,7 @@ class Collection(Unknown, set, Base):
         return type(a)(
             res.coef,
             res.value,
-            type(a)(res.exp) * type(a)(value=b.value.value, exp=b.value.exp),
+            type(a)(value=res.exp) * type(a)(value=b.value.value, exp=b.value.exp),
         )
 
     @pow.register(number)
