@@ -70,28 +70,29 @@ class Polynomial(Collection):
         from .algebraobject import AlgebraObject
 
         if a.exp != 1 or b.exp != 1:
-            return AlgebraObject(value=Product([a, b ** -AlgebraObject()]))
+            return a * b ** -AlgebraObject()
+        org = a
         leading_b = b.value.leading
-        res = []
+        res = AlgebraObject(Number(0))
         while a.value:
             # Remainder
             if (
                 not isinstance(a.value, Polynomial)
                 or leading_b.exp > (leading_a := a.value.leading).exp
             ):
-                res.append(a * b ** -AlgebraObject())
+                res += a * b ** -AlgebraObject()
                 break
             fac = leading_a / leading_b
+            # Polynomials are indivisible or due to algorithm not using lexicographic ordering
             if isinstance(fac.value, Product) and (
                 not isinstance(leading_a.value, Product)
                 or len(fac.value) > len(leading_a.value)
             ):
-                raise NotImplementedError("Input Polynomials out of expected domain")
-            res.append(fac)
+                # raise NotImplementedError("Input Polynomials out of expected domain")
+                return org * b ** -AlgebraObject()
+            res += fac
             a -= fac * b
-        if len(res) == 1:
-            return res.pop()
-        return AlgebraObject(value=Polynomial(res))
+        return res
 
     @staticmethod
     def merge(algebraobjects):

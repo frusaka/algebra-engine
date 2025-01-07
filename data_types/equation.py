@@ -30,6 +30,8 @@ class Equation(Base):
             self /= AlgebraObject(self.left.coef)
         if self.left.exp != 1:
             self **= AlgebraObject() / AlgebraObject(value=self.left.exp)
+
+        # Moving target terms to the left
         if isinstance(self.left.value, Polynomial):
             for t in self.left.value:
                 if not self.search(t, value):
@@ -42,10 +44,23 @@ class Equation(Base):
                             f"Error isolating term from Polynomial with an exponent of {self.right.exp}"
                         )
                     return (self - t)[value]
+
+        # Isolation by division
         if isinstance(self.left.value, Product):
             for t in self.left.value:
                 if not self.search(t, value):
                     return (self / t)[value]
+
+        # Isolation by factorization
+        if isinstance(self.left.value, Polynomial):
+            val = self.left / AlgebraObject(value=value)
+            if (
+                not isinstance(val.value, Polynomial)
+                # Try make sure long division was used
+                or val != self.left * val ** -AlgebraObject()
+            ) and not self.search(val, value):
+                return (self / val)[value]
+
         if not self.search(self.left, value):
             raise KeyError(f"Variable '{value}' not found")
         return self
