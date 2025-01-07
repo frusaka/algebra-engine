@@ -1,7 +1,7 @@
 from itertools import chain
 from .collection import Collection
 from .number import Number
-from utils import standard_form, dispatch, polynomial
+from utils import lexicographic_weight, standard_form, dispatch, polynomial
 
 
 class Polynomial(Collection):
@@ -61,7 +61,7 @@ class Polynomial(Collection):
 
     @property
     def leading(self):
-        return max(self, key=lambda x: x.exp * (not isinstance(x.value, Number)))
+        return max(self, key=lexicographic_weight)
 
     @staticmethod
     def long_division(a, b):

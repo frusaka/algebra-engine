@@ -1,18 +1,26 @@
 from .classes import *
 
 
-def standard_form(collection):
-    from data_types import Number, Variable
+def lexicographic_weight(alebgraobject):
+    from data_types import Number, Variable, Product
 
-    def key(v):
-        res = 0
-        if isinstance(v.exp, Number):
-            res = v.exp**3
-        if isinstance(v.value, Variable):
-            res += ord(v.value) / 100
+    if isinstance(alebgraobject.value, Number):
+        return Number(0)
+    res = Number(0)
+    if isinstance(alebgraobject.value, Product):
+        # Calling sum() does not work
+        for t in alebgraobject.value:
+            res += lexicographic_weight(t)
         return res
+    if isinstance(alebgraobject.exp, Number):
+        res = alebgraobject.exp
+    if isinstance(alebgraobject.value, Variable):
+        res += ord(alebgraobject.value) * 0.001
+    return res
 
-    return sorted(collection, key=key, reverse=1)
+
+def standard_form(collection):
+    return sorted(collection, key=lexicographic_weight, reverse=1)
 
 
 def print_frac(frac):

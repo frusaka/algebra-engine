@@ -54,9 +54,7 @@ def test_divide_polynomials(interpreter):
     )
 
 
-@pytest.mark.xfail(reason="Division of product polynomials is not yet fully supported")
 def test_divide_product_polynomials(interpreter):
-    # Divinding Product Polynomials
     assert interpreter.eval(
         AST("(-3.75c^2 + 18ab + 4.5abc - 15c)/(3+0.75c)")
     ) == AlgebraObject(
