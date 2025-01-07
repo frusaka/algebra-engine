@@ -66,20 +66,25 @@ def test_solve_medium(interpreter):
         Variable("x")
     ].right == AlgebraObject(Number("-11/3"))
 
+    assert Equation(interpreter.eval(AST("3x^2")), interpreter.eval(AST("9 + 2x^2")))[
+        Variable("x")
+    ].right == AlgebraObject(Number(3))
+    eq = Equation(interpreter.eval(AST("(3/x)y + 4")), AlgebraObject(Number(9)))
+    assert eq[Variable("x")].right == AlgebraObject(Number("0.6"), Variable("y"))
+    assert eq[Variable("y")].right == AlgebraObject(Number("5/3"), Variable("x"))
+
 
 def test_solve_factorization(interpreter):
-    left = interpreter.eval(AST("n(2-3b) + 2 -4b"))
-    right = AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(2), Variable("b")),
-                AlgebraObject(Number(-2)),
-            ]
-        )
+    eq = Equation(
+        interpreter.eval(AST("n(2-3b) + 2 - 4b")), interpreter.eval(AST("2b - 2"))
     )
-    eq = Equation(left, right)
     assert eq[Variable("n")].right == AlgebraObject(Number(-2))
     assert eq[Variable("b")].right == AlgebraObject(Number("2/3"))
+    eq = Equation(
+        interpreter.eval(AST("1.5y(3x-6) + 3x - 5")), interpreter.eval(AST("x - 1"))
+    )
+    assert eq[Variable("y")].right == AlgebraObject(Number("-4/9"))
+    assert eq[Variable("x")].right == AlgebraObject(Number(2))
 
 
 def test_solve_formulas(interpreter):

@@ -44,7 +44,7 @@ class Polynomial(Collection):
     def mul(b, a):
         b = b.value
         if a.exp == 1:
-            res = Polynomial(algebraobject * b for algebraobject in a.value)
+            res = Polynomial(t * b for t in a.value)
             if not res:
                 return type(a)(value=Number(0))
             if len(res) == 1:

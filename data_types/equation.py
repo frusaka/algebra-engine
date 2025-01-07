@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from .collection import Collection
 from .polynomial import Polynomial
 from .product import Product
 from .bases import Base
@@ -26,16 +25,8 @@ class Equation(Base):
         if value in self.right and not value in self.left:
             self = Equation(self.right, self.left)
             print(self)
-        if self.left.coef != 1:
-            self /= AlgebraObject(self.left.coef)
-        if self.left.exp != 1:
-            self **= AlgebraObject() / AlgebraObject(value=self.left.exp)
 
         # Moving target terms to the left
-        if isinstance(self.left.value, Polynomial):
-            for t in self.left.value:
-                if not value in t:
-                    return (self - t)[value]
         if isinstance(self.right.value, Polynomial):
             for t in self.right.value:
                 if value in t:
@@ -45,21 +36,30 @@ class Equation(Base):
                         )
                     return (self - t)[value]
 
+        if self.left.coef != 1:
+            self /= AlgebraObject(self.left.coef)
+        if self.left.exp != 1:
+            return (self ** (AlgebraObject() / AlgebraObject(value=self.left.exp)))[
+                value
+            ]
+
+        # Isolation by subtraction
+        if isinstance(self.left.value, Polynomial):
+            for t in self.left.value:
+                if not value in t:
+                    return (self - t)[value]
+
         # Isolation by division
         if isinstance(self.left.value, Product):
             for t in self.left.value:
-                if not value in t:
+                if not value in t or t.exp != 1:
                     return (self / t)[value]
 
         # Isolation by factorization
         if isinstance(self.left.value, Polynomial):
-            val = self.left / AlgebraObject(value=value)
-            if (
-                not isinstance(val.value, Polynomial)
-                # Try make sure long division was used
-                or val != self.left * val ** -AlgebraObject()
-            ) and not value in val:
-                return (self / val)[value]
+            t = self.left / AlgebraObject(value=value)
+            if not value in t:
+                return (self / t)[value]
 
         if not value in self.left:
             raise KeyError(f"Variable '{value}' not found")
