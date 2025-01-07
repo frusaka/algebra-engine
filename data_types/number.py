@@ -10,6 +10,9 @@ class Number(Base):
     def __hash__(self):
         return hash((Number, self.real, self.imag))
 
+    def __bool__(self):
+        return bool(self.real) or bool(self.imag)
+
     def __str__(self):
         if self.imag:
             i = print_frac(self.imag)

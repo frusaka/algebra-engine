@@ -2,18 +2,19 @@ from .classes import *
 
 
 def lexicographic_weight(alebgraobject):
-    from data_types import Number, Variable, Product
+    from data_types import Number, Variable, Collection
 
-    if isinstance(alebgraobject.value, Number):
+    if isinstance(alebgraobject.value, Number) or not isinstance(
+        alebgraobject.exp, Number
+    ):
         return Number(0)
-    res = Number(0)
-    if isinstance(alebgraobject.value, Product):
+    res = alebgraobject.exp
+
+    if isinstance(alebgraobject.value, Collection) and alebgraobject.exp == 1:
         # Calling sum() does not work
         for t in alebgraobject.value:
             res += lexicographic_weight(t)
         return res
-    if isinstance(alebgraobject.exp, Number):
-        res = alebgraobject.exp
     if isinstance(alebgraobject.value, Variable):
         res += ord(alebgraobject.value) * 0.001
     return res

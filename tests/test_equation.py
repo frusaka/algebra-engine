@@ -67,6 +67,21 @@ def test_solve_medium(interpreter):
     ].right == AlgebraObject(Number("-11/3"))
 
 
+def test_solve_factorization(interpreter):
+    left = interpreter.eval(AST("n(2-3b) + 2 -4b"))
+    right = AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(Number(2), Variable("b")),
+                AlgebraObject(Number(-2)),
+            ]
+        )
+    )
+    eq = Equation(left, right)
+    assert eq[Variable("n")].right == AlgebraObject(Number(-2))
+    assert eq[Variable("b")].right == AlgebraObject(Number("2/3"))
+
+
 def test_solve_formulas(interpreter):
     assert Equation(
         interpreter.eval(AST("a^2+b^2")),

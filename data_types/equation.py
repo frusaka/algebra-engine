@@ -23,7 +23,7 @@ class Equation(Base):
         This method will be called when solving for a variable
         """
         # Put the term being solved for on the left and everything else on the right
-        if self.search(self.right, value) and (not self.search(self.left, value)):
+        if value in self.right and not value in self.left:
             self = Equation(self.right, self.left)
             print(self)
         if self.left.coef != 1:
@@ -34,11 +34,11 @@ class Equation(Base):
         # Moving target terms to the left
         if isinstance(self.left.value, Polynomial):
             for t in self.left.value:
-                if not self.search(t, value):
+                if not value in t:
                     return (self - t)[value]
         if isinstance(self.right.value, Polynomial):
             for t in self.right.value:
-                if self.search(t, value):
+                if value in t:
                     if self.right.exp != 1:
                         raise NotImplementedError(
                             f"Error isolating term from Polynomial with an exponent of {self.right.exp}"
@@ -48,7 +48,7 @@ class Equation(Base):
         # Isolation by division
         if isinstance(self.left.value, Product):
             for t in self.left.value:
-                if not self.search(t, value):
+                if not value in t:
                     return (self / t)[value]
 
         # Isolation by factorization
@@ -58,10 +58,10 @@ class Equation(Base):
                 not isinstance(val.value, Polynomial)
                 # Try make sure long division was used
                 or val != self.left * val ** -AlgebraObject()
-            ) and not self.search(val, value):
+            ) and not value in val:
                 return (self / val)[value]
 
-        if not self.search(self.left, value):
+        if not value in self.left:
             raise KeyError(f"Variable '{value}' not found")
         return self
 
@@ -94,12 +94,3 @@ class Equation(Base):
     def show_operation(self, operator: str, value: AlgebraObject):
         print(self)
         print(" " * str(self).index("="), operator + " ", value, sep="")
-
-    def search(self, item: AlgebraObject, value: Variable):
-        if item.value == value:
-            return True
-        if isinstance(item.value, Collection):
-            return any(self.search(t, value) for t in item.value)
-        if isinstance(item.exp, AlgebraObject) and self.search(item.exp, value):
-            raise NotImplementedError("Cannot get variable from exponent")
-        return False

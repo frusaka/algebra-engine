@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from .number import Number
 from .variable import Variable
+from .collection import Collection
 from .product import Product
 from .polynomial import Polynomial
 from utils import Proxy
@@ -77,6 +78,15 @@ class AlgebraObject:
         ):
             exp = exp.join("()")
         return "{0}^{1}".format(res, exp)
+
+    def __contains__(self, value: Variable):
+        if isinstance(self.exp, AlgebraObject) and value in self.exp:
+            raise NotImplementedError("Cannot get variable from exponent")
+        if isinstance(self.value, Collection):
+            return any(value in t for t in self.value)
+        if self.value == value:
+            return True
+        return False
 
     def __add__(a, b):
         if a.like(b):
