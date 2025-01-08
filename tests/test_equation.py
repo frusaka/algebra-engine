@@ -74,6 +74,30 @@ def test_solve_medium(interpreter):
     assert eq[Variable("y")].right == AlgebraObject(Number("5/3"), Variable("x"))
 
 
+def test_solve_denominator(interpreter):
+    eq = Equation(interpreter.eval(AST("3/c + n/c")), interpreter.eval(AST("8")))
+    assert eq[Variable("c")].right == AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(Number("0.125"), Variable("n")),
+                AlgebraObject(Number("0.375")),
+            ]
+        )
+    )
+    assert eq[Variable("n")].right == AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(Number(8), Variable("c")),
+                AlgebraObject(Number(-3)),
+            ]
+        )
+    )
+    eq = Equation(
+        interpreter.eval(AST("4u - 5/j")), interpreter.eval(AST("u/j - 20"))
+    )
+    assert eq[Variable("j")].right == AlgebraObject(Number("0.25"))
+
+
 def test_solve_factorization(interpreter):
     eq = Equation(
         interpreter.eval(AST("n(2-3b) + 2 - 4b")), interpreter.eval(AST("2b - 2"))

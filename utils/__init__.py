@@ -8,13 +8,14 @@ def lexicographic_weight(alebgraobject):
         alebgraobject.exp, Number
     ):
         return Number(0)
-    res = alebgraobject.exp
+    res = Number(0)
 
     if isinstance(alebgraobject.value, Collection) and alebgraobject.exp == 1:
         # Calling sum() does not work
         for t in alebgraobject.value:
             res += lexicographic_weight(t)
         return res
+    res = alebgraobject.exp
     if isinstance(alebgraobject.value, Variable):
         res += ord(alebgraobject.value) * 0.001
     return res
