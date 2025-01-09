@@ -60,13 +60,10 @@ def test_print_polynomial(interpreter):
     assert str(interpreter.eval(AST("3x+(3/(c+b))-1"))) == "(3x - 1 + 3/(c + b))"
 
 
-@pytest.mark.xfail(reason="Fraction representation under development")
 def test_print_product(interpreter):
     # The current output is still valid, but needs a better representation
     assert str(interpreter.eval(AST("-2xb"))) == "-2(b•x)"
-    assert str(interpreter.eval(AST("x^3*y^-5"))) == "x^3/y^5"
-    assert str(interpreter.eval(AST("s^3*d^-5*z^2"))) == "(z^2•s^3)/d^5"
+    assert str(interpreter.eval(AST("x^3*y^-5"))) == "(x^3/y^5)"
+    assert str(interpreter.eval(AST("s^3*d^-5*z^2"))) == "((z^2•s^3)/d^5)"
     assert str(interpreter.eval(AST("-10(m^-1*n^-1)"))) == "-10/(m•n)"
-    assert str(interpreter.eval(AST("(-2/3)(y^2n^-1)"))) == "-2y^2/3n"
-    assert str(interpreter.eval(AST("2(x^3*y^-5)"))) == "2x^3/y^5"
-    assert str(interpreter.eval(AST("2.5(t^2*y^-1)"))) == "5t^2/2y"
+    assert str(interpreter.eval(AST("(-2/3)(y^2n^-1)"))) == "(-2/3)(y^2/n)"

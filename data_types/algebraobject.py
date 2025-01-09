@@ -54,9 +54,14 @@ class AlgebraObject:
                 res = res.join("()")
         if self.coef == -1:
             res = "-"
-        res += str(self.value)
+        if isinstance(self.value, Collection) and isinstance(
+            self.numerator.value, Number
+        ):
+            res += "/" + str(self.denominator.value)
+        else:
+            res += str(self.value)
         exp = self.exp if isinstance(self.exp, Number) else self.exp.coef
-        if exp == 1 and isinstance(self.exp, Number):
+        if self.exp == 1:
             return res
         if exp < 0:
             return "{0}/{1}".format(
@@ -125,6 +130,24 @@ class AlgebraObject:
         if not isinstance(self.value, Number):
             return AlgebraObject(abs(self.coef), self.value, self.exp)
         return AlgebraObject(value=abs(self.value), exp=self.exp)
+
+    @property
+    def numerator(self):
+        if isinstance(self.value, Product):
+            return self.value.numerator * AlgebraObject(Number(self.coef.numerator))
+        exp = self.exp if isinstance(self.exp, Number) else self.exp.coef
+        if exp > 0:
+            return AlgebraObject(Number(self.coef.numerator), self.value, self.exp)
+        return AlgebraObject(Number(self.coef.numerator))
+
+    @property
+    def denominator(self):
+        if isinstance(self.value, Product):
+            return self.value.denominator * AlgebraObject(Number(self.coef.denominator))
+        exp = self.exp if isinstance(self.exp, Number) else self.exp.coef
+        if exp < 0:
+            return AlgebraObject(Number(self.coef.denominator), self.value, -self.exp)
+        return AlgebraObject(Number(self.coef.denominator))
 
     def tovalue(self):
         if isinstance(self.value, Number) and self.exp == 1:

@@ -7,22 +7,12 @@ from utils import *
 class Product(Collection):
     def __str__(self):
         num, den = [], []
-        for algebraobject in reversed(standard_form(self)):
-            exp = (
-                algebraobject.exp
-                if isinstance(algebraobject.exp, Number)
-                else algebraobject.exp.coef
-            )
+        for t in reversed(standard_form(self)):
+            exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
             if exp < 0:
-                den.append(
-                    str(
-                        type(algebraobject)(
-                            value=algebraobject.value, exp=abs(algebraobject.exp)
-                        )
-                    )
-                )
+                den.append(str(type(t)(value=t.value, exp=abs(t.exp))))
             else:
-                num.append(str(algebraobject))
+                num.append(str(t))
         a, b = "•".join(num), "•".join(den)
         if len(num) > 1:
             a = a.join("()")
@@ -34,6 +24,28 @@ class Product(Collection):
             return f"{a}/{b}".join("()")
         return a
 
+    @property
+    def numerator(self):
+        from .algebraobject import AlgebraObject
+
+        res = AlgebraObject()
+        for t in self:
+            exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
+            if exp > 0:
+                res *= t
+        return res
+
+    @property
+    def denominator(self):
+        from .algebraobject import AlgebraObject
+
+        res = AlgebraObject()
+        for t in self:
+            exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
+            if exp < 0:
+                res *= t ** -AlgebraObject()
+        return res
+
     @dispatch
     def add(b, a):
         if a.like(b.value):
@@ -41,10 +53,6 @@ class Product(Collection):
 
     @dispatch
     def mul(b, a):
-        pass
-
-    @mul.register(product | variable)
-    def _(b, a):
         b = b.value
         c = a.coef * b.coef
         res = Product.simplify(a.value, type(a)(value=b.value, exp=b.exp))
@@ -77,6 +85,10 @@ class Product(Collection):
 
     @staticmethod
     def resolve(a, b):
+        if isinstance(b.value, Product):
+            # Current little trick
+            # Allowing values like (3-n)/m to not be split messes with operations
+            return type(a)(a.coef, Product([type(a)(value=a.value, exp=a.exp)])) * b
         c = a.coef * b.coef
         a = type(a)(value=a.value, exp=a.exp)
         b = type(a)(value=b.value, exp=b.exp)
@@ -84,7 +96,7 @@ class Product(Collection):
 
     @staticmethod
     def simplify(a, b):
-        algebraobjects = a.copy()
+        algebraobjects = a.copy() if isinstance(a, Product) else {a}
         rem = (b.value if isinstance(b.value, Product) else {b}).copy()
         for a in tuple(algebraobjects):
             for b in tuple(rem):

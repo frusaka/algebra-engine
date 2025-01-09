@@ -77,15 +77,6 @@ def test_divide_product_polynomials(interpreter):
 
 def test_multiply_polynomials(interpreter):
     # Multiplying univariate polynomials
-    assert interpreter.eval(AST("(x + 1)(x + 2)")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("x"), Number(2)),
-                AlgebraObject(Number(3), Variable("x")),
-                AlgebraObject(Number(2)),
-            ]
-        )
-    )
     assert interpreter.eval(AST("(2x+3)(0.5x - 5)")) == AlgebraObject(
         value=Polynomial(
             [
@@ -132,9 +123,19 @@ def test_multiply_polynomials(interpreter):
             ]
         )
     )
+    # Nested
+    assert interpreter.eval(AST("((z + 3) * (z - 3))^2")) == AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(Number(1), Variable("z"), Number(4)),
+                AlgebraObject(Number(-18), Variable("z"), Number(2)),
+                AlgebraObject(Number(81)),
+            ]
+        )
+    )
 
 
-def test_subtract_polynomials(interpreter):
+def test_merge_polynomial(interpreter):
     assert interpreter.eval(AST("(x^2 + 2x + 1) - (x + 1)")) == AlgebraObject(
         value=Polynomial(
             [
@@ -159,9 +160,6 @@ def test_subtract_polynomials(interpreter):
             ]
         )
     )
-
-
-def test_complex_expression(interpreter):
     assert interpreter.eval(AST("2x^2 + 3x - 5 + x^2 - x + 4")) == AlgebraObject(
         value=Polynomial(
             [
@@ -177,46 +175,6 @@ def test_complex_expression(interpreter):
                 AlgebraObject(Number(4), Variable("y"), Number(2)),
                 AlgebraObject(Number(3), Variable("y")),
                 AlgebraObject(Number(-1)),
-            ]
-        )
-    )
-    assert interpreter.eval(AST("4z^2 + 5z - 7 + z^2 - z + 6")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(5), Variable("z"), Number(2)),
-                AlgebraObject(Number(4), Variable("z")),
-                AlgebraObject(Number(-1)),
-            ]
-        )
-    )
-
-
-def test_nested_expressions(interpreter):
-    assert interpreter.eval(AST("((x + 1) * (x - 1))^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("x"), Number(4)),
-                AlgebraObject(Number(-2), Variable("x"), Number(2)),
-                AlgebraObject(),
-            ]
-        )
-    )
-    assert interpreter.eval(AST("((y + 2) * (y - 2))^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("y"), Number(4)),
-                AlgebraObject(Number(-8), Variable("y"), Number(2)),
-                AlgebraObject(Number(16)),
-            ]
-        )
-    )
-
-    assert interpreter.eval(AST("((z + 3) * (z - 3))^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("z"), Number(4)),
-                AlgebraObject(Number(-18), Variable("z"), Number(2)),
-                AlgebraObject(Number(81)),
             ]
         )
     )

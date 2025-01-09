@@ -6,7 +6,10 @@ from utils import lexicographic_weight, standard_form, dispatch, polynomial
 
 class Polynomial(Collection):
     def __init__(self, algebraobjects):
-        super().__init__(self.merge(chain(*map(self.flatten, algebraobjects))))
+        # Double merge in case of addition by like denominator
+        super().__init__(
+            self.merge(self.merge(chain(*map(self.flatten, algebraobjects))))
+        )
 
     def __str__(self):
         res = ""
@@ -65,14 +68,15 @@ class Polynomial(Collection):
 
     @staticmethod
     def long_division(a, b):
-        # Only works with univariate Polynomials
         from .product import Product
         from .algebraobject import AlgebraObject
 
         if a.exp != 1 or b.exp != 1:
-            return a * b ** -AlgebraObject()
+            return Product.resolve(a, b ** -AlgebraObject())
+        leading_b = b
+        if isinstance(b.value, Polynomial):
+            leading_b = b.value.leading
         org = a
-        leading_b = b.value.leading
         res = AlgebraObject(Number(0))
         while a.value:
             # Remainder
@@ -83,29 +87,39 @@ class Polynomial(Collection):
                 res += a * b ** -AlgebraObject()
                 break
             fac = leading_a / leading_b
-            # Polynomials are indivisible or due to algorithm not using lexicographic ordering
             if isinstance(fac.value, Product) and (
                 not isinstance(leading_a.value, Product)
                 or len(fac.value) > len(leading_a.value)
             ):
-                # raise NotImplementedError("Input Polynomials out of expected domain")
-                return org * b ** -AlgebraObject()
+                return Product.resolve(org, b ** -AlgebraObject())
             res += fac
             a -= fac * b
         return res
 
     @staticmethod
     def merge(algebraobjects):
-        algebraobjects = list(algebraobjects)
-        while algebraobjects:
-            a = algebraobjects.pop(0)
+        res = list(algebraobjects)
+        while res:
+            a = res.pop(0)
             if a.value == 0:
                 continue
-            for b in tuple(algebraobjects):
+            for b in tuple(res):
                 if a.like(b):
                     if (val := (a + b)).value != 0:
                         yield val
-                    algebraobjects.remove(b)
+                    res.remove(b)
+                    break
+                continue
+                # Experimental
+                if a.denominator.value == b.denominator.value and not isinstance(
+                    a.denominator.value, Number
+                ):
+                    v = (a.numerator + b.numerator) / a.denominator
+                    if isinstance(v.value, Polynomial) and v.exp == 1:
+                        yield from v.value.flatten(v)
+                    else:
+                        yield v
+                    res.remove(b)
                     break
             else:
                 yield a
