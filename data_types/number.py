@@ -3,6 +3,19 @@ from utils import *
 
 
 class Number(Base):
+    def __init__(self, real=0, imag=0):  # Experimental
+        real = Fraction(real)
+        imag = Fraction(imag)
+        den = (real + imag).denominator
+        if imag:
+            self.numerator = complex(
+                (den / real.denominator) * real.numerator,
+                (den / imag.denominator) * imag.numerator,
+            )
+        else:
+            self.numerator = real.numerator
+        self.denominator = den
+
     def __init__(self, real=0, imag=0):
         self.real = Fraction(real)
         self.imag = Fraction(imag)

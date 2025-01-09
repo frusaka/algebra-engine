@@ -17,7 +17,7 @@ def lexicographic_weight(algebraobject):
         return res
     res = algebraobject.exp
     if isinstance(algebraobject.value, Variable):
-        res += ord(algebraobject.value) * 0.01
+        res += ord(algebraobject.value) * 0.001
     return res
 
 

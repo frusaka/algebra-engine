@@ -8,21 +8,12 @@ class Collection(Unknown, set, Base):
 
     @dispatch
     def pow(b, a):
-        res = a ** type(a)(value=b.value.coef)
-        return type(a)(
-            res.coef,
-            res.value,
-            type(a)(value=res.exp) * type(a)(value=b.value.value, exp=b.value.exp),
-        )
+        pass
 
     @pow.register(number)
     def scalar_pow(b, a):
         b = b.value
-        if a.exp != 1:
-            return type(a)(a.coef) ** b * type(a)(
-                value=a.value, exp=type(a)(value=a.exp) * b
-            )
-        if b.exp != 1:
+        if b.exp != 1 or a.exp != 1:
             if b.coef != 1:
                 return (a ** type(a)(b.coef)) ** type(a)(b.value, exp=b.exp)
             return

@@ -118,8 +118,9 @@ class AlgebraObject:
     def __pow__(a, b):
         if b.value == 0:
             return AlgebraObject()
-        return a.value.pow(Proxy(b), a) or AlgebraObject(
-            a.coef, a.value, type(a)(value=a.exp) * b
+        return a.value.pow(Proxy(b), a) or (
+            AlgebraObject(a.coef) ** b
+            * AlgebraObject(value=a.value, exp=AlgebraObject(value=a.exp) * b)
         )
 
     def __pos__(self):

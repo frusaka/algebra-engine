@@ -35,8 +35,7 @@ class Variable(Unknown, str, Base):
 
     @dispatch
     def pow(b, a):
-        return type(a)(a.coef) ** b.value * type(a)(
-            value=a.value, exp=type(a)(value=a.exp) * b.value
-        )
+        # Algebra object has a good enough default fallback for Variable exponentiation
+        pass
 
     pow.register(polynomial)(Base.poly_pow)

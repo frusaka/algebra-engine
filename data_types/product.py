@@ -1,6 +1,5 @@
 from .collection import Collection
 from .number import Number
-from .polynomial import Polynomial
 from utils import *
 
 
@@ -46,14 +45,8 @@ class Product(Collection):
                 res *= t ** -AlgebraObject()
         return res
 
-    @dispatch
-    def add(b, a):
-        if a.like(b.value):
-            return type(a)(a.coef + b.value.coef, a.value)
-
-    @dispatch
-    def mul(b, a):
-        b = b.value
+    @staticmethod
+    def _mul(b, a):
         c = a.coef * b.coef
         res = Product.simplify(a.value, type(a)(value=b.value, exp=b.exp))
         if res:
@@ -62,6 +55,15 @@ class Product(Collection):
                 return type(a)(c, res.value, res.exp)
             return type(a)(c, Product(res))
         return type(a)(value=c)
+
+    @dispatch
+    def add(b, a):
+        if a.like(b.value):
+            return type(a)(a.coef + b.value.coef, a.value)
+
+    @dispatch
+    def mul(b, a):
+        return Product._mul(b.value, a)
 
     @mul.register(number)
     def _(b, a):
@@ -76,14 +78,8 @@ class Product(Collection):
     def _(b, a):
         b = b.value
         if b.exp != 1:
-            # Duplicate code. Needs refactoring
-            c = a.coef * b.coef
-            res = Product.simplify(a.value, type(a)(value=b.value, exp=b.exp))
-            if len(res) == 1:
-                res = res.pop()
-                return type(a)(c * res.coef, res.value, res.exp)
-            return type(a)(a.coef, Product(res))
-        return Polynomial.mul(Proxy(a), b)
+            return Product._mul(b, a)
+        return b.value.mul(Proxy(a), b)
 
     @dispatch
     def pow(b, a):
