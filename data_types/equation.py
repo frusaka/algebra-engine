@@ -56,8 +56,9 @@ class Equation(Base):
         # Isolation by division
         if isinstance(self.left.value, Product):
             for t in self.left.value:
-                if not value in t or t.exp != 1:
-                    if (t.exp if isinstance(t.exp, Number) else t.exp.coef) < 0:
+                exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
+                if not value in t or exp < 0:
+                    if exp < 0:
                         return (self * (AlgebraObject() / t))[value]
                     return (self / t)[value]
 
