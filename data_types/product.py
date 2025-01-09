@@ -74,7 +74,16 @@ class Product(Collection):
 
     @mul.register(polynomial)
     def _(b, a):
-        return Polynomial.mul(Proxy(a), b.value)
+        b = b.value
+        if b.exp != 1:
+            # Duplicate code. Needs refactoring
+            c = a.coef * b.coef
+            res = Product.simplify(a.value, type(a)(value=b.value, exp=b.exp))
+            if len(res) == 1:
+                res = res.pop()
+                return type(a)(c * res.coef, res.value, res.exp)
+            return type(a)(a.coef, Product(res))
+        return Polynomial.mul(Proxy(a), b)
 
     @dispatch
     def pow(b, a):
@@ -85,10 +94,14 @@ class Product(Collection):
 
     @staticmethod
     def resolve(a, b):
-        if isinstance(b.value, Product):
-            # Current little trick
-            # Allowing values like (3-n)/m to not be split messes with operations
-            return type(a)(a.coef, Product([type(a)(value=a.value, exp=a.exp)])) * b
+        # Possible that long division calls resolve with numbers
+        if (
+            isinstance(a.value, Number)
+            and a.exp == 1
+            or isinstance(b.value, Number)
+            and b.exp == 1
+        ):
+            return a * b
         c = a.coef * b.coef
         a = type(a)(value=a.value, exp=a.exp)
         b = type(a)(value=b.value, exp=b.exp)

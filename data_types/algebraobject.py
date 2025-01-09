@@ -57,6 +57,8 @@ class AlgebraObject:
         if isinstance(self.value, Collection) and isinstance(
             self.numerator.value, Number
         ):
+            if not res or res == "-":
+                res = str(self.coef)
             res += "/" + str(self.denominator.value)
         else:
             res += str(self.value)
@@ -109,7 +111,7 @@ class AlgebraObject:
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     def __truediv__(a, b):
-        if isinstance(a.value, Polynomial) and isinstance(b.value, Polynomial):
+        if isinstance(a.value, Polynomial):  # and isinstance(b.value, Polynomial):
             return Polynomial.long_division(a, b)
         return a * b ** -AlgebraObject()
 

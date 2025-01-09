@@ -57,8 +57,8 @@ class Equation(Base):
         if isinstance(self.left.value, Product):
             for t in self.left.value:
                 if not value in t or t.exp != 1:
-                    if isinstance(t.value, Polynomial):
-                        return self.ensure_cancels(t, self.left)
+                    if (t.exp if isinstance(t.exp, Number) else t.exp.coef) < 0:
+                        return (self * (AlgebraObject() / t))[value]
                     return (self / t)[value]
 
         # Isolation by factorization
@@ -72,9 +72,6 @@ class Equation(Base):
                     if isinstance(i.value, Product):
                         for t in i.value:
                             if (t.exp if isinstance(t.exp, Number) else t.exp.coef) < 0:
-                                # Backend implementation not yet properly working if denominator is a Polynomial
-                                if isinstance(t.value, Polynomial):
-                                    return self.ensure_cancels(t, i)[value]
                                 return (self * (AlgebraObject() / t))[value]
                     elif (i.exp if isinstance(i.exp, Number) else i.exp.coef) < 0:
                         return (

@@ -61,7 +61,6 @@ def test_print_polynomial(interpreter):
 
 
 def test_print_product(interpreter):
-    # The current output is still valid, but needs a better representation
     assert str(interpreter.eval(AST("-2xb"))) == "-2(b•x)"
     assert str(interpreter.eval(AST("x^3*y^-5"))) == "(x^3/y^5)"
     assert str(interpreter.eval(AST("s^3*d^-5*z^2"))) == "((z^2•s^3)/d^5)"

@@ -1,8 +1,6 @@
 from processing import Interpreter, AST
 
 # TODO: Refactor and Document the project
-# TODO: Improve Long Division Algorithm with Lexicographic Order
-# NOTE: For polynomials, a * b^-1 does not yield the same result as a/b
 
 comp = Interpreter()
 while True:
