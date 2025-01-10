@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from .bases import Base
 from .number import Number
 from .variable import Variable
 from .collection import Collection
@@ -11,10 +12,10 @@ from utils import Proxy
 @dataclass(order=True)
 class AlgebraObject:
     coef: Number
-    value: Number | Variable | Polynomial | Product
+    value: Base[Number, Variable, Product, Polynomial]
     exp: Number | AlgebraObject
 
-    def __init__(self, coef=Number(1), value=Number(1), exp=Number(1)):
+    def __init__(self, coef=Number(1), value=Number(1), exp=Number(1)) -> None:
         if isinstance(value, AlgebraObject):
             self.coef, self.value, self.exp = value.coef, value.value, value.exp
             return
@@ -39,14 +40,16 @@ class AlgebraObject:
             exp = value
         self.coef, self.value, self.exp = coef, value, exp
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.__class__, self.coef, self.value, self.exp))
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.coef != 1 and isinstance(self.value, Number):
             return "{0}({1})".format(
                 self.coef, AlgebraObject(value=self.value, exp=self.exp)
             )
+        if "/" in str(self.coef) and not self.coef.imag:
+            return "{0}/{1}".format(self.numerator, self.denominator)
         res = ""
         if self.coef != 1:
             res = str(self.coef)
@@ -86,36 +89,38 @@ class AlgebraObject:
             exp = exp.join("()")
         return "{0}^{1}".format(res, exp)
 
-    def __contains__(self, value: Variable):
-        if isinstance(self.exp, AlgebraObject) and value in self.exp:
-            raise NotImplementedError("Cannot get variable from exponent")
+    def __contains__(self, value: Variable) -> bool:
         if isinstance(self.value, Collection):
             return any(value in t for t in self.value)
-        if self.value == value:
+        if (
+            self.value == value
+            or isinstance(self.exp, AlgebraObject)
+            and value in self.exp
+        ):
             return True
         return False
 
-    def __add__(a, b):
+    def __add__(a, b: AlgebraObject) -> AlgebraObject:
         if a.like(b):
             return a.value.add(Proxy(b), a)
         return Polynomial.resolve(Proxy(b), a)
 
-    def __sub__(a, b):
+    def __sub__(a, b: AlgebraObject) -> AlgebraObject:
         return a + -b
 
-    def __mul__(a, b):
+    def __mul__(a, b: AlgebraObject) -> AlgebraObject:
         if v := a.split_const_from_exp():
             return b * v * AlgebraObject(a.coef, a.value, a.exp - AlgebraObject())
         if v := b.split_const_from_exp():
             return a * v * AlgebraObject(b.coef, b.value, b.exp - AlgebraObject())
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
-    def __truediv__(a, b):
-        if isinstance(a.value, Polynomial):  # and isinstance(b.value, Polynomial):
+    def __truediv__(a, b: AlgebraObject) -> AlgebraObject:
+        if isinstance(a.value, Polynomial):
             return Polynomial.long_division(a, b)
         return a * b ** -AlgebraObject()
 
-    def __pow__(a, b):
+    def __pow__(a, b: AlgebraObject) -> AlgebraObject:
         if b.value == 0:
             return AlgebraObject()
         return a.value.pow(Proxy(b), a) or (
@@ -123,14 +128,14 @@ class AlgebraObject:
             * AlgebraObject(value=a.value, exp=AlgebraObject(value=a.exp) * b)
         )
 
-    def __pos__(self):
+    def __pos__(self) -> AlgebraObject:
         return self
 
-    def __neg__(self):
+    def __neg__(self) -> AlgebraObject:
         return self * AlgebraObject(value=Number(-1))
 
-    def __abs__(self):
-        if not isinstance(self.value, Number):
+    def __abs__(self) -> AlgebraObject:
+        if not isinstance(self.value, Number) or self.exp != 1:
             return AlgebraObject(abs(self.coef), self.value, self.exp)
         return AlgebraObject(value=abs(self.value), exp=self.exp)
 
@@ -152,12 +157,15 @@ class AlgebraObject:
             return AlgebraObject(Number(self.coef.denominator), self.value, -self.exp)
         return AlgebraObject(Number(self.coef.denominator))
 
-    def tovalue(self):
-        if isinstance(self.value, Number) and self.exp == 1:
-            return AlgebraObject(value=self.value)
-        return AlgebraObject(value=self.coef)
+    def exp_const(self) -> Number:
+        return self.exp if isinstance(self.exp, Number) else self.exp.coef
 
-    def split_const_from_exp(self):
+    def tovalue(self) -> Number:
+        if isinstance(self.value, Number) and self.exp == 1:
+            return self.value
+        return self.coef
+
+    def split_const_from_exp(self) -> AlgebraObject | None:
         if isinstance(self.exp, Number):
             return
         if isinstance(self.exp.value, Polynomial) and self.exp.exp == 1:
@@ -165,12 +173,12 @@ class AlgebraObject:
                 if i.value == 1:
                     return AlgebraObject(value=self.value)
 
-    def like(self, other, exp=1):
+    def like(self, other, exp=1) -> bool:
         if not isinstance(other, AlgebraObject):
-            return 0
+            return False
         # Assumes in the case of multiplications, values with the same base are like terms
         if not exp and self.value == other.value:
-            return 1
+            return True
 
         if (
             not self.exp.like(other.exp)
@@ -182,7 +190,7 @@ class AlgebraObject:
                 and (self.exp != 1 and self.value != other.value)
             )
         ):
-            return 0
+            return False
         if not isinstance(other.value, Number):
             return self.value == other.value
-        return 1
+        return True

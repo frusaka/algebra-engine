@@ -6,11 +6,7 @@ from utils import lexicographic_weight, standard_form, dispatch, polynomial
 
 class Polynomial(Collection):
     def __init__(self, algebraobjects):
-        res = chain(*map(self.flatten, algebraobjects))
-        # Tripple merge in case of addition by like denominator
-        for _ in range(3):
-            res = self.merge(res)
-        super().__init__(res)
+        super().__init__(self.merge(chain(*map(self.flatten, algebraobjects))))
 
     def __str__(self):
         res = ""
@@ -69,62 +65,77 @@ class Polynomial(Collection):
     def leading(self):
         return max(self, key=lexicographic_weight)
 
+    def leading_options(self):
+        leading = self.leading
+        return [
+            i
+            for i in self
+            if lexicographic_weight(i, 0) == lexicographic_weight(leading, 0)
+        ]
+
     @staticmethod
     def long_division(a, b):
         from .product import Product
         from .algebraobject import AlgebraObject
 
         if a.exp != 1 or b.exp != 1:
-            # return a * b ** -AlgebraObject()
             return Product.resolve(a, b ** -AlgebraObject())
         leading_b = b
+        options_b = []
         if isinstance(b.value, Polynomial):
-            leading_b = b.value.leading
+            options_b = b.value.leading_options()
+            leading_b = options_b.pop()
+
         org = a
         res = AlgebraObject(Number(0))
         while a.value:
             # Remainder
-            if not isinstance(a.value, Polynomial) or (
-                lexicographic_weight(b) > lexicographic_weight(a)
-            ):
-                if isinstance(a.value, Polynomial):
-                    res += Product.resolve(a, b ** -AlgebraObject())
-                else:
-                    res += a * b ** -AlgebraObject()
+            if not isinstance(a.value, Polynomial):
+                res += a * b ** -AlgebraObject()
                 break
-            leading_a = a.value.leading
-            fac = leading_a / leading_b
-            if isinstance(fac.value, Product) and (
-                not isinstance(leading_a.value, Product)
-                or len(fac.value) > len(leading_a.value)
-            ):
-                return Product.resolve(org, b ** -AlgebraObject())
+            for leading_a in a.value.leading_options():
+                fac = leading_a / leading_b
+                if (
+                    isinstance(fac.denominator.value, Number)
+                    and fac.denominator.exp == 1
+                ):
+                    break
+            else:
+                if not res.value and options_b:
+                    leading_b = options_b.pop()
+                    a = org
+                    res = AlgebraObject(Number(0))
+                    continue
+                res += Product.resolve(a, b ** -AlgebraObject())
+                break
             res += fac
             a -= fac * b
         return res
 
-    @staticmethod
-    def merge(algebraobjects):
-        res = list(algebraobjects)
-        while res:
-            a = res.pop(0)
+    def merge(self, algebraobjects):
+        ls = list(algebraobjects)
+        res = []
+        while ls:
+            a = ls.pop(0)
             if a.value == 0:
                 continue
-            for b in tuple(res):
+            for b in ls:
                 if a.like(b):
                     if (val := (a + b)).value != 0:
-                        yield val
-                    res.remove(b)
+                        res.append(val)
+                    ls.remove(b)
                     break
                 if a.denominator.value == b.denominator.value and not isinstance(
                     a.denominator.value, Number
                 ):
-                    v = (a.numerator + b.numerator) / a.denominator
-                    yield from Polynomial.flatten(v)
-                    res.remove(b)
-                    break
+                    v = (a.numerator + b.numerator) / (
+                        a.denominator * type(a)(b.denominator.coef)
+                    )
+                    ls.remove(b)
+                    return self.merge(chain(ls, res, self.flatten(v)))
             else:
-                yield a
+                res.append(a)
+        return res
 
     @staticmethod
     def flatten(algebraobject):

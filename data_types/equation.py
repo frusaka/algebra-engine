@@ -22,72 +22,62 @@ class Equation(Base):
         """
         This method will be called when solving for a variable
         """
+        # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
         print(self)
         if not (value in self.left or value in self.right):
             raise KeyError(f"Variable '{value}' not found")
-        # Put the term being solved for on the left and everything else on the right
+
+        # Rewrite the equation to put the target variable on the left
         if value in self.right and not value in self.left:
             self = Equation(self.right, self.left)
             print(self)
 
         # Moving target terms to the left
         if isinstance(self.right.value, Polynomial):
-            for t in self.right.value:
-                if value in t:
-                    if self.right.exp != 1:
-                        raise NotImplementedError(
-                            f"Error isolating term from Polynomial with an exponent of {self.right.exp}"
-                        )
-                    return (self - t)[value]
+            if value in self.right:
+                if self.right.exp != 1:
+                    return self.reverse_sub(self.right)[value]
+                for t in self.right.value:
+                    if value in t:
+                        return self.reverse_sub(t)[value]
 
         if self.left.coef != 1:
             return (self / AlgebraObject(self.left.coef))[value]
         if self.left.exp != 1:
-            return (self ** (AlgebraObject() / AlgebraObject(value=self.left.exp)))[
-                value
-            ]
+            exp = AlgebraObject() / AlgebraObject(value=self.left.exp)
+            if value in exp:
+                raise NotImplementedError("Cannot isolate variable from exponent")
+            return (self**exp)[value]
 
-        # Isolation by subtraction
         if isinstance(self.left.value, Polynomial):
-            for t in self.left.value:
-                if not value in t:
-                    return (self - t)[value]
+            # Brute-force factorization
+            t = self.left / AlgebraObject(value=value)
+            if not value in t:
+                return self.reverse_div(t)[value]
+
+            for i in self.left.value:
+                # Isolation by subtraction
+                if not value in i:
+                    return self.reverse_sub(i)[value]
+
+                # Term is in a fraction
+                if isinstance(i.value, Product):
+                    for t in i.value:
+                        if t.exp_const() < 0:
+                            return (self * (AlgebraObject() / t))[value]
+                elif i.exp_const() < 0:
+                    return (
+                        self
+                        * (AlgebraObject() / AlgebraObject(value=i.value, exp=i.exp))
+                    )[value]
 
         # Isolation by division
         if isinstance(self.left.value, Product):
             for t in self.left.value:
-                exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
+                exp = t.exp_const()
                 if not value in t or exp < 0:
-                    if exp < 0:
-                        return (self * (AlgebraObject() / t))[value]
-                    return (self / t)[value]
+                    return self.reverse_div(t)[value]
 
-        # Isolation by factorization
-        if isinstance(self.left.value, Polynomial):
-            t = self.left / AlgebraObject(value=value)
-            if not value in t:
-                return (self / t)[value]
-            # Term is in a fraction
-            for i in self.left.value:
-                if value in i:
-                    if isinstance(i.value, Product):
-                        for t in i.value:
-                            if (t.exp if isinstance(t.exp, Number) else t.exp.coef) < 0:
-                                return (self * (AlgebraObject() / t))[value]
-                    elif (i.exp if isinstance(i.exp, Number) else i.exp.coef) < 0:
-                        return (
-                            self
-                            * (
-                                AlgebraObject()
-                                / AlgebraObject(value=i.value, exp=i.exp)
-                            )
-                        )[value]
-        return self
-
-    def __neg__(self):
-        return Equation(-self.left, -self.right)
-
-    def __pos__(self):
         return self
 
     def __add__(self, value: AlgebraObject):
@@ -110,24 +100,15 @@ class Equation(Base):
         self.show_operation("^", value)
         return Equation(self.left**value, self.right**value)
 
-    def ensure_cancels(self, term: AlgebraObject, product: AlgebraObject):
-        """
-        A workaround for the current Polynomial division and multiplication logic
-        It does not factor itself out in cases of fractions
-        """
-        j = AlgebraObject() / AlgebraObject(value=term.value, exp=term.exp)
-        c = AlgebraObject(product.coef)
-        left, right = (self.left - product) * j, (self * j).right
-        res = product.value.copy()
-        res.remove(term)
-        if res:
-            if len(res) == 1:
-                left += res.pop() * c
-            else:
-                left += AlgebraObject(c.value, Product(res))
-        else:
-            left += c
-        return Equation(left, right)
+    def reverse_sub(self, value: AlgebraObject):
+        if value.tovalue() > 0:
+            return self - value
+        return self + -value
+
+    def reverse_div(self, value: AlgebraObject):
+        if value.exp_const() < 0:
+            return self * (AlgebraObject() / value)
+        return self / value
 
     def show_operation(self, operator: str, value: AlgebraObject):
         print(self)

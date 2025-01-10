@@ -1,7 +1,7 @@
 from .classes import *
 
 
-def lexicographic_weight(algebraobject):
+def lexicographic_weight(algebraobject, alphabetic=True):
     from data_types import Number, Variable, Collection
 
     if isinstance(algebraobject.value, Number) or not isinstance(
@@ -13,11 +13,15 @@ def lexicographic_weight(algebraobject):
     if isinstance(algebraobject.value, Collection) and algebraobject.exp == 1:
         # Calling sum() does not work
         for t in algebraobject.value:
-            res += lexicographic_weight(t)
+            res += lexicographic_weight(t, alphabetic)
         return res
     res = algebraobject.exp
-    if isinstance(algebraobject.value, Variable):
-        res += ord(algebraobject.value) * 0.001
+    if isinstance(algebraobject.value, Variable) and alphabetic:
+        # Map range formula
+        a, b = ord("A"), ord("z")
+        c, d = 0, 0.1
+        x = ord(algebraobject.value)
+        res += c + ((x - a) * (d - c)) / (b - a)
     return res
 
 
@@ -26,8 +30,11 @@ def standard_form(collection):
 
 
 def print_frac(frac):
-    if any(not frac.denominator % i for i in (2, 5)) and frac.denominator % 3:
+    denominator = frac.denominator
+    while denominator % 2 == 0:
+        denominator //= 2
+    while denominator % 5 == 0:
+        denominator //= 5
+    if denominator == 1 != frac.denominator:
         return str(frac.numerator / frac.denominator)
-    if frac.denominator == 1:
-        return str(frac.numerator)
-    return str(frac).join("()")
+    return str(frac)

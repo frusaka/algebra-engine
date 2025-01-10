@@ -33,7 +33,12 @@ class Number(Base):
                 i = ""
             elif i == "-1":
                 i = "-"
-            i += "i"
+            if "/" in i:
+                i = "/".join(
+                    (str(Number(imag=self.imag.numerator)), str(self.imag.denominator))
+                )
+            else:
+                i += "i"
             if self.real:
                 op = "+"
                 if i.startswith("-"):
@@ -44,9 +49,7 @@ class Number(Base):
         return print_frac(self.real)
 
     def __repr__(self):
-        return "Number(real={0}, imag={1})".format(
-            print_frac(self.real), print_frac(self.imag)
-        )
+        return "Number(real={0}, imag={1})".format(repr(self.real), repr(self.imag))
 
     def __add__(self, other):
         return Number(self.real + other.real, self.imag + other.imag)
@@ -172,8 +175,10 @@ class Number(Base):
     @staticmethod
     def resolve_pow(a, b):
         # NOTE: a^(nm) = (a^n)^m only if m is a real integer
-        res = type(a)(a.coef, a.value) ** b.tovalue()
-        return type(a)(res.coef, res.value, type(a)(value=a.exp) * (b / b.tovalue()))
+        res = type(a)(a.coef, a.value) ** type(a)(b.tovalue())
+        return type(a)(
+            res.coef, res.value, type(a)(value=a.exp) * (b / type(a)(b.tovalue()))
+        )
 
     @dispatch
     def pow(b, a):

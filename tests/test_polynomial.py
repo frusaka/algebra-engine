@@ -124,7 +124,7 @@ def test_multiply_polynomials(interpreter):
         )
     )
     # Nested
-    assert interpreter.eval(AST("((z + 3) * (z - 3))^2")) == AlgebraObject(
+    assert interpreter.eval(AST("((z + 3)(z - 3))^2")) == AlgebraObject(
         value=Polynomial(
             [
                 AlgebraObject(Number(1), Variable("z"), Number(4)),
@@ -133,6 +133,31 @@ def test_multiply_polynomials(interpreter):
             ]
         )
     )
+    # Negative Exponents
+    assert interpreter.eval(AST("(x+1)^-1(x^2+2x+1)")) == AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(value=Variable("x")),
+                AlgebraObject(Number(1)),
+            ]
+        )
+    )
+    expected = AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(
+                    Number(3),
+                    Product(
+                        [AlgebraObject(Variable("x")), AlgebraObject(Variable("y"))]
+                    ),
+                ),
+                AlgebraObject(Number(-4), Variable("y")),
+            ]
+        )
+    )
+    assert interpreter.eval(AST("(x+2)^-1(3x-4)(xy+2y)")) == expected
+    assert interpreter.eval(AST("(3x-4)(x+2)^-1(xy+2y)")) == expected
+    assert interpreter.eval(AST("(xy+2y)(3x-4)(x+2)^-1")) == expected
 
 
 def test_merge_polynomial(interpreter):

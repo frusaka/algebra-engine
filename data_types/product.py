@@ -7,20 +7,19 @@ class Product(Collection):
     def __str__(self):
         num, den = [], []
         for t in reversed(standard_form(self)):
-            exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
-            if exp < 0:
+            if t.exp_const() < 0:
                 den.append(str(type(t)(value=t.value, exp=abs(t.exp))))
             else:
                 num.append(str(t))
-        a, b = "•".join(num), "•".join(den)
-        if len(num) > 1:
+        a, b = "".join(num), "".join(den)
+        if (("(" in a and len(num) > 1) or len(num) > 1) and den:
             a = a.join("()")
-        if len(den) > 1:
+        if "(" in b and len(den) > 1:
             b = b.join("()")
         if not num:
-            return f"1/{b}".join("()")
+            return f"1/{b}"
         if den:
-            return f"{a}/{b}".join("()")
+            return f"{a}/{b}"
         return a
 
     @property
@@ -29,8 +28,7 @@ class Product(Collection):
 
         res = AlgebraObject()
         for t in self:
-            exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
-            if exp > 0:
+            if t.exp_const() > 0:
                 res *= t
         return res
 
@@ -40,8 +38,7 @@ class Product(Collection):
 
         res = AlgebraObject()
         for t in self:
-            exp = t.exp if isinstance(t.exp, Number) else t.exp.coef
-            if exp < 0:
+            if t.exp_const() < 0:
                 res *= t ** -AlgebraObject()
         return res
 

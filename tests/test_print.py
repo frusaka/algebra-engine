@@ -7,9 +7,12 @@ from data_types import Number, Fraction, AlgebraObject, Variable
 def test_print_frac():
     assert print_frac(Fraction(1, 2)) == "0.5"
     assert print_frac(Fraction(3, 8)) == "0.375"
-    assert print_frac(Fraction(1, 3)) == "(1/3)"
+    assert print_frac(Fraction(1, 3)) == "1/3"
     assert print_frac(Fraction(2, 1)) == "2"
-    assert print_frac(Fraction(3, 17)) == "(3/17)"
+    assert print_frac(Fraction(3, 17)) == "3/17"
+    assert print_frac(Fraction(15, 26)) == "15/26"
+    assert print_frac(Fraction(5, 14)) == "5/14"
+    assert print_frac(Fraction(14, 48)) == "7/24"
 
 
 def test_print_number():
@@ -20,8 +23,8 @@ def test_print_number():
     assert str(Number(0, 0)) == "0"
     assert str(Number(0, 1)) == "i"
     assert str(Number(0, -1)) == "-i"
-    assert str(Number("2/3", "0.5")) == "(2/3)+0.5i"
-    assert str(Number(imag="1/3")) == "(1/3)i"
+    assert str(Number("2/3", "0.5")) == "2/3+0.5i"
+    assert str(Number(imag="1/3")) == "i/3"
 
 
 def test_print_variable():
@@ -29,7 +32,7 @@ def test_print_variable():
     assert str(AlgebraObject(Number(-1), Variable("y"))) == "-y"
     assert str(AlgebraObject(Number(1), Variable("x"), Number(2))) == "x^2"
     assert str(AlgebraObject(Number("0.5"), Variable("a"), Number(3))) == "0.5a^3"
-    assert str(AlgebraObject(Number("3/7"), Variable("h"), Number(1))) == "(3/7)h"
+    assert str(AlgebraObject(Number("3/7"), Variable("h"), Number(1))) == "3h/7"
     assert str(AlgebraObject(Number(2, 3), Variable("x"))) == "(2+3i)x"
     assert str(AlgebraObject(Number(imag=1), Variable("b"))) == "(i)b"
 
@@ -61,8 +64,8 @@ def test_print_polynomial(interpreter):
 
 
 def test_print_product(interpreter):
-    assert str(interpreter.eval(AST("-2xb"))) == "-2(b•x)"
-    assert str(interpreter.eval(AST("x^3*y^-5"))) == "(x^3/y^5)"
-    assert str(interpreter.eval(AST("s^3*d^-5*z^2"))) == "((z^2•s^3)/d^5)"
-    assert str(interpreter.eval(AST("-10(m^-1*n^-1)"))) == "-10/(m•n)"
-    assert str(interpreter.eval(AST("(-2/3)(y^2n^-1)"))) == "(-2/3)(y^2/n)"
+    assert str(interpreter.eval(AST("-2xb"))) == "-2bx"
+    assert str(interpreter.eval(AST("x^3*y^-5"))) == "x^3/y^5"
+    assert str(interpreter.eval(AST("s^3*d^-5*z^2"))) == "(z^2s^3)/d^5"
+    assert str(interpreter.eval(AST("-10(m^-1*n^-1)"))) == "-10/mn"
+    assert str(interpreter.eval(AST("(-2/3)(y^2n^-1)"))) == "-2y^2/3n"
