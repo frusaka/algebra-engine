@@ -1,4 +1,3 @@
-import pytest
 from processing import AST
 from utils import print_frac
 from data_types import Number, Fraction, AlgebraObject, Variable
@@ -16,15 +15,14 @@ def test_print_frac():
 
 
 def test_print_number():
-    assert str(Number(1, 2)) == "1+2i"
-    assert str(Number(-1, 1)) == "-1+i"
-    assert str(Number(0, 2)) == "2i"
-    assert str(Number(1, 0)) == "1"
-    assert str(Number(0, 0)) == "0"
-    assert str(Number(0, 1)) == "i"
-    assert str(Number(0, -1)) == "-i"
-    assert str(Number("2/3", "0.5")) == "2/3+0.5i"
-    assert str(Number(imag="1/3")) == "i/3"
+    assert str(Number(complex(1, 2))) == "(1+2i)"
+    assert str(Number(complex(-1, 1))) == "(-1+i)"
+    assert str(Number(complex(0, 2))) == "2i"
+    assert str(Number(1)) == "1"
+    assert str(Number(complex(0, 1))) == "i"
+    assert str(Number(complex(0, -1))) == "-i"
+    assert str(Number(complex(4, 3), 6)) == "(4+3i)/6"
+    assert str(Number(complex(0, 1), 3)) == "i/3"
 
 
 def test_print_variable():
@@ -33,8 +31,8 @@ def test_print_variable():
     assert str(AlgebraObject(Number(1), Variable("x"), Number(2))) == "x^2"
     assert str(AlgebraObject(Number("0.5"), Variable("a"), Number(3))) == "0.5a^3"
     assert str(AlgebraObject(Number("3/7"), Variable("h"), Number(1))) == "3h/7"
-    assert str(AlgebraObject(Number(2, 3), Variable("x"))) == "(2+3i)x"
-    assert str(AlgebraObject(Number(imag=1), Variable("b"))) == "(i)b"
+    assert str(AlgebraObject(Number(complex(2, 3)), Variable("x"))) == "(2+3i)x"
+    assert str(AlgebraObject(Number(complex(0, 1)), Variable("b"))) == "(i)b"
 
 
 def test_print_negative_exp():

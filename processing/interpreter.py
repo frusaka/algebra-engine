@@ -9,7 +9,7 @@ class Interpreter:
             return
         if isinstance(node, (Number, Variable)):
             if isinstance(node, Variable) and str(node) == "i":
-                return AlgebraObject(value=Number(imag=1))
+                return AlgebraObject(value=Number(complex(imag=1)))
             return AlgebraObject(value=node)
 
         oper = node.oper.type.name.lower()

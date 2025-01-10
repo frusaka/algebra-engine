@@ -31,10 +31,12 @@ def standard_form(collection):
 
 def print_frac(frac):
     denominator = frac.denominator
+    if denominator == 1:
+        return str(frac.numerator)
     while denominator % 2 == 0:
         denominator //= 2
     while denominator % 5 == 0:
         denominator //= 5
-    if denominator == 1 != frac.denominator:
+    if denominator == 1:
         return str(frac.numerator / frac.denominator)
-    return str(frac)
+    return "/".join((str(frac.numerator), str(frac.denominator)))

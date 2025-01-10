@@ -48,12 +48,12 @@ class AlgebraObject:
             return "{0}({1})".format(
                 self.coef, AlgebraObject(value=self.value, exp=self.exp)
             )
-        if "/" in str(self.coef) and not self.coef.imag:
+        if "/" in str(self.coef):
             return "{0}/{1}".format(self.numerator, self.denominator)
         res = ""
         if self.coef != 1:
             res = str(self.coef)
-            if self.coef.imag:
+            if not self.coef.numerator.real:
                 res = res.join("()")
         if self.coef == -1:
             res = "-"
@@ -143,8 +143,7 @@ class AlgebraObject:
     def numerator(self):
         if isinstance(self.value, Product):
             return self.value.numerator * AlgebraObject(Number(self.coef.numerator))
-        exp = self.exp if isinstance(self.exp, Number) else self.exp.coef
-        if exp > 0:
+        if self.exp_const() > 0:
             return AlgebraObject(Number(self.coef.numerator), self.value, self.exp)
         return AlgebraObject(Number(self.coef.numerator))
 
@@ -152,8 +151,7 @@ class AlgebraObject:
     def denominator(self):
         if isinstance(self.value, Product):
             return self.value.denominator * AlgebraObject(Number(self.coef.denominator))
-        exp = self.exp if isinstance(self.exp, Number) else self.exp.coef
-        if exp < 0:
+        if self.exp_const() < 0:
             return AlgebraObject(Number(self.coef.denominator), self.value, -self.exp)
         return AlgebraObject(Number(self.coef.denominator))
 

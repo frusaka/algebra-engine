@@ -18,13 +18,10 @@ class Collection(Unknown, set, Base):
                 return (a ** type(a)(b.coef)) ** type(a)(b.value, exp=b.exp)
             return
         b = b.value
-        if b.imag:
-            if isinstance(exp, type(a)):
-                exp = a.exp * type(a)(b.value)
-            else:
-                exp = a.exp * b.value
-            return type(a)(a.coef**b.value, a.value, exp)
-        b = b.real
+        if b.numerator.imag:
+            return type(a)(
+                a.coef**b.value, a.value, type(a)(value=a.exp) * type(a)(b.value)
+            )
         res = a
         for _ in range(abs(b.numerator) - 1):
             res *= a
