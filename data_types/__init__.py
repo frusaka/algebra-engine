@@ -5,4 +5,5 @@ from .collection import Collection
 from .polynomial import Polynomial
 from .product import Product
 from .algebraobject import AlgebraObject
+from .solutions import Solutions
 from .equation import Equation

@@ -47,9 +47,9 @@ def test_solve_medium(interpreter):
         left=AlgebraObject(value=Variable("x")), right=AlgebraObject(Number("0.25"))
     )
 
-    assert Equation(interpreter.eval(AST("4x-3")), interpreter.eval(AST("2(x+5)")))[
-        Variable("x")
-    ] == Equation(
+    assert Equation(
+        interpreter.eval(AST("4x-3")), right=interpreter.eval(AST("2(x+5)"))
+    )[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")), right=AlgebraObject(Number("6.5"))
     )
 
@@ -67,14 +67,15 @@ def test_solve_medium(interpreter):
         ),
     )
     assert Equation(
-        interpreter.eval(AST("(4x-5)/3 + 7x/2")), AlgebraObject(Number("11/6"))
+        left=interpreter.eval(AST("(4x-5)/3 + 7x/2")),
+        right=AlgebraObject(Number("11/6")),
     )[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")), right=AlgebraObject(Number("21/29"))
     )
 
-    assert Equation(interpreter.eval(AST("2x+3y-z")), AlgebraObject(Number(0)))[
-        Variable("x")
-    ] == Equation(
+    assert Equation(
+        left=interpreter.eval(AST("2x+3y-z")), right=AlgebraObject(Number(0))
+    )[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")),
         right=AlgebraObject(
             value=Polynomial(
@@ -86,18 +87,21 @@ def test_solve_medium(interpreter):
         ),
     )
 
-    assert Equation(interpreter.eval(AST("(x-3)/(x+2)")), AlgebraObject(Number(4)))[
-        Variable("x")
-    ] == Equation(
+    assert Equation(
+        left=interpreter.eval(AST("(x-3)/(x+2)")), right=AlgebraObject(Number(4))
+    )[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")), right=AlgebraObject(Number("-11/3"))
     )
 
     assert Equation(interpreter.eval(AST("3x^2")), interpreter.eval(AST("9 + 2x^2")))[
         Variable("x")
     ] == Equation(
-        left=AlgebraObject(value=Variable("x")), right=AlgebraObject(Number(3))
+        left=AlgebraObject(value=Variable("x")),
+        right=Solutions({AlgebraObject(Number(3)), AlgebraObject(Number(-3))}),
     )
-    eq = Equation(interpreter.eval(AST("(3/x)y + 4")), AlgebraObject(Number(9)))
+    eq = Equation(
+        left=interpreter.eval(AST("(3/x)y + 4")), right=AlgebraObject(Number(9))
+    )
     assert eq[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")),
         right=AlgebraObject(Number("0.6"), Variable("y")),
@@ -110,11 +114,13 @@ def test_solve_medium(interpreter):
 
 def test_solve_denominator(interpreter):
     assert Equation(
-        interpreter.eval(AST("4u - 5/j")), interpreter.eval(AST("u/j - 20"))
+        left=interpreter.eval(AST("4u - 5/j")), right=interpreter.eval(AST("u/j - 20"))
     )[Variable("j")] == Equation(
         left=AlgebraObject(value=Variable("j")), right=AlgebraObject(Number("0.25"))
     )
-    eq = Equation(interpreter.eval(AST("3/c + n/c")), interpreter.eval(AST("8")))
+    eq = Equation(
+        left=interpreter.eval(AST("3/c + n/c")), right=interpreter.eval(AST("8"))
+    )
     assert eq[Variable("c")] == Equation(
         left=AlgebraObject(value=Variable("c")),
         right=AlgebraObject(
@@ -163,25 +169,27 @@ def test_solve_factorization(interpreter):
 
 def test_solve_formulas(interpreter):
     # a^2 + b^2 = c^2, b = 2√(c^2 - a^2) : b = sqrt(c^2 - a^2)
+    # In this case, the engine assigns plus-minus sqrt(c^2 - a^2)
+    right = AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(value=Variable("c"), exp=Number(2)),
+                AlgebraObject(Number(-1), Variable("a"), exp=Number(2)),
+            ]
+        ),
+        exp=Number("0.5"),
+    )
     assert Equation(
-        interpreter.eval(AST("a^2+b^2")),
-        AlgebraObject(value=Variable("c"), exp=Number(2)),
+        left=interpreter.eval(AST("a^2+b^2")),
+        right=AlgebraObject(value=Variable("c"), exp=Number(2)),
     )[Variable("b")] == Equation(
         left=AlgebraObject(value=Variable("b")),
-        right=AlgebraObject(
-            value=Polynomial(
-                [
-                    AlgebraObject(value=Variable("c"), exp=Number(2)),
-                    AlgebraObject(Number(-1), Variable("a"), exp=Number(2)),
-                ]
-            ),
-            exp=Number("0.5"),
-        ),
+        right=Solutions((right, -right)),
     )
     # d = st, t = d/s
-    assert Equation(AlgebraObject(value=Variable("d")), interpreter.eval(AST("st")))[
-        Variable("t")
-    ] == Equation(
+    assert Equation(
+        left=AlgebraObject(value=Variable("d")), right=interpreter.eval(AST("st"))
+    )[Variable("t")] == Equation(
         left=AlgebraObject(value=Variable("t")),
         right=AlgebraObject(
             value=Product(
@@ -194,7 +202,7 @@ def test_solve_formulas(interpreter):
     )
     # C = Prt + P, P = C/(rt + 1)
     assert Equation(
-        AlgebraObject(value=Variable("C")), interpreter.eval(AST("Prt + P"))
+        left=AlgebraObject(value=Variable("C")), right=interpreter.eval(AST("Prt + P"))
     )[Variable("P")] == Equation(
         left=AlgebraObject(value=Variable("P")),
         right=AlgebraObject(
@@ -223,7 +231,7 @@ def test_solve_formulas(interpreter):
     )
     # ax + b = c, b = c - ax
     assert Equation(
-        interpreter.eval(AST("ax + b")), AlgebraObject(value=Variable("c"))
+        left=interpreter.eval(AST("ax + b")), right=AlgebraObject(value=Variable("c"))
     )[Variable("b")] == Equation(
         left=AlgebraObject(value=Variable("b")),
         right=AlgebraObject(
@@ -245,7 +253,7 @@ def test_solve_formulas(interpreter):
     )
     # y = mx + c, x = (y - c)/m
     assert Equation(
-        AlgebraObject(value=Variable("y")), interpreter.eval(AST("mx + c"))
+        left=AlgebraObject(value=Variable("y")), right=interpreter.eval(AST("mx + c"))
     )[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")),
         right=AlgebraObject(
@@ -262,5 +270,78 @@ def test_solve_formulas(interpreter):
                     AlgebraObject(value=Variable("m"), exp=Number(-1)),
                 ]
             ),
+        ),
+    )
+
+
+def test_solve_quadratic(interpreter):
+    assert Equation(
+        left=interpreter.eval(AST("2x^2 + 3x - 5")), right=AlgebraObject(Number(0))
+    )[Variable("x")] == Equation(
+        left=AlgebraObject(value=Variable("x")),
+        right=Solutions(
+            {
+                AlgebraObject(Number(1)),
+                AlgebraObject(Number("-2.5")),
+            }
+        ),
+    )
+    assert Equation(
+        left=interpreter.eval(AST("x^2 - 6x + 9")), right=AlgebraObject(Number(0))
+    )[Variable("x")] == Equation(
+        left=AlgebraObject(value=Variable("x")), right=AlgebraObject(Number(3))
+    )
+    assert Equation(
+        left=interpreter.eval(AST("-3x^2 + 12x - 9")), right=AlgebraObject(Number(0))
+    )[Variable("x")] == Equation(
+        left=AlgebraObject(value=Variable("x")),
+        right=Solutions(
+            {
+                AlgebraObject(Number(1)),
+                AlgebraObject(Number(3)),
+            }
+        ),
+    )
+    assert Equation(
+        left=interpreter.eval(AST("2x^2 + 13x")), right=AlgebraObject(Number(24))
+    )[Variable("x")] == Equation(
+        left=AlgebraObject(value=Variable("x")),
+        right=Solutions(
+            {
+                AlgebraObject(Number("1.5")),
+                AlgebraObject(Number(-8)),
+            }
+        ),
+    )
+    assert Equation(
+        left=interpreter.eval(AST("ax^2 + bx + c")), right=AlgebraObject(Number(0))
+    )[Variable("x")] == Equation(
+        left=AlgebraObject(value=Variable("x")),
+        right=Solutions(
+            {
+                interpreter.eval(AST("(-b + (b^2 - 4ac)^0.5)/2a")),
+                interpreter.eval(AST("(-b - (b^2 - 4ac)^0.5)/2a")),
+            }
+        ),
+    )
+
+
+def test_solve_complex(interpreter):
+    # Results would be too long to write out in object form
+    left = interpreter.eval(
+        AST("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x")
+    )
+    assert Equation(
+        left=interpreter.eval(AST("p/x + q/(x+2) + r/(x-1)")),
+        right=interpreter.eval(AST("5x - 7")),
+    )[Variable("x")] == Equation(
+        left=left,
+        right=AlgebraObject(Number(2), Variable("p")),
+    )
+    right = AlgebraObject(Number(2), Variable("p"))
+    assert Equation(left, right)[Variable("p")] == Equation(
+        left=AlgebraObject(value=Variable("p")),
+        right=interpreter.eval(
+            AST("5x^2 - 7x - r - q + (-rx + 2qx - 2r - 2q)/(x^2 + x - 2)")
         ),
     )

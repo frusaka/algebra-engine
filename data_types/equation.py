@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from .solutions import Solutions
 from .polynomial import Polynomial
 from .product import Product
 from .bases import Base
@@ -10,7 +11,7 @@ from .algebraobject import AlgebraObject
 @dataclass
 class Equation(Base):
     left: AlgebraObject
-    right: AlgebraObject
+    right: AlgebraObject | Solutions
 
     def __hash__(self):
         return hash((Equation, self.left, self.right))
@@ -40,6 +41,8 @@ class Equation(Base):
                 for t in self.right.value:
                     if value in t:
                         return self.reverse_sub(t)[value]
+        if value in self.right:
+            return self.reverse_sub(self.right)[value]
 
         if self.left.coef != 1:
             return (self / AlgebraObject(self.left.coef))[value]
@@ -54,12 +57,10 @@ class Equation(Base):
             t = self.left / AlgebraObject(value=value)
             if not value in t:
                 return self.reverse_div(t)[value]
-
+            remove = None
             for i in self.left.value:
-                # Isolation by subtraction
                 if not value in i:
-                    return self.reverse_sub(i)[value]
-
+                    remove = i  # Not moving it yet, need to check for quadratics
                 # Term is in a fraction
                 if isinstance(i.value, Product):
                     for t in i.value:
@@ -70,6 +71,13 @@ class Equation(Base):
                         self
                         * (AlgebraObject() / AlgebraObject(value=i.value, exp=i.exp))
                     )[value]
+
+            # Solving using the quadratic formuala
+            if (res := self.solve_quadratic(value)) is not self:
+                return res
+
+            if remove:
+                return self.reverse_sub(remove)[value]
 
         # Isolation by division
         if isinstance(self.left.value, Product):
@@ -98,7 +106,53 @@ class Equation(Base):
 
     def __pow__(self, value: AlgebraObject):
         self.show_operation("^", value)
-        return Equation(self.left**value, self.right**value)
+        rhs = self.right**value
+        if (
+            value.exp == 1
+            and isinstance(value.value, Number)
+            and value.value.denominator == 2
+        ):
+            # Assumes the left-hand side containes the variable being solved for
+            # Otherwise it would be {-x, x} = {+n, -n}
+            # sqrt(x) = +-..
+            rhs = Solutions({rhs, -rhs})
+        return Equation(self.left**value, rhs)
+
+    def solve_quadratic(self, value: Variable):
+        a, b = None, None
+        for t in self.left.value:
+            if value not in (v := t / AlgebraObject(value=value, exp=Number(2))):
+                if a:
+                    return self
+                a = v
+                x_2 = t
+        for t in self.left.value:
+            if value not in (v := t / AlgebraObject(value=value)):
+                if b:
+                    return self
+                b = v
+                x = t
+        if not a or not b:
+            return self
+        if self.right.value:
+            self = self.reverse_sub(self.right)
+            print(self)
+        c = self.left - (x_2 + x)
+        res = Equation(AlgebraObject(value=value), self.quadratic_formula(a, b, c))
+        print(res)
+        return res
+
+    @staticmethod
+    def quadratic_formula(a: AlgebraObject, b: AlgebraObject, c: AlgebraObject):
+        print("Quadratic formula with a={0}, b={1}, and c={2}".format(a, b, c))
+        rhs = (
+            b ** AlgebraObject(Number(2)) - AlgebraObject(Number(4)) * a * c
+        ) ** AlgebraObject(value=Number("1/2"))
+        den = AlgebraObject(Number(2)) * a
+        res = {(-b + rhs) / den, (-b - rhs) / den}
+        if len(res) == 1:
+            return res.pop()
+        return Solutions(res)
 
     def reverse_sub(self, value: AlgebraObject):
         if value.tovalue() > 0:

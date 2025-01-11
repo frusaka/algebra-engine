@@ -44,9 +44,15 @@ class AlgebraObject:
         return hash((self.__class__, self.coef, self.value, self.exp))
 
     def __str__(self) -> str:
-        if self.coef != 1 and isinstance(self.value, Number):
-            return "{0}({1})".format(
-                self.coef, AlgebraObject(value=self.value, exp=self.exp)
+        if isinstance(self.value, Number) and self.exp != 1:
+            if self.coef != 1:
+                return "{0}{1}".format(
+                    self.coef, AlgebraObject(value=self.value, exp=self.exp)
+                )
+            return (
+                str(AlgebraObject(value="$", exp=self.exp))
+                .join("()")
+                .replace("$", str(self.value))
             )
         if "/" in str(self.coef):
             return "{0}/{1}".format(self.numerator, self.denominator)
@@ -116,7 +122,7 @@ class AlgebraObject:
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     def __truediv__(a, b: AlgebraObject) -> AlgebraObject:
-        if isinstance(a.value, Polynomial):
+        if isinstance(a.value, Polynomial) and not isinstance(b.value, Number):
             return Polynomial.long_division(a, b)
         return a * b ** -AlgebraObject()
 

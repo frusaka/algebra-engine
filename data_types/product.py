@@ -12,7 +12,7 @@ class Product(Collection):
             else:
                 num.append(str(t))
         a, b = "".join(num), "".join(den)
-        if (("(" in a and len(num) > 1) or len(num) > 1) and den:
+        if len(num) > 1 and den:
             a = a.join("()")
         if "(" in b and len(den) > 1:
             b = b.join("()")
@@ -87,14 +87,6 @@ class Product(Collection):
 
     @staticmethod
     def resolve(a, b):
-        # Possible that long division calls resolve with numbers
-        if (
-            isinstance(a.value, Number)
-            and a.exp == 1
-            or isinstance(b.value, Number)
-            and b.exp == 1
-        ):
-            return a * b
         c = a.coef * b.coef
         a = type(a)(value=a.value, exp=a.exp)
         b = type(a)(value=b.value, exp=b.exp)
