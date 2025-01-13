@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+import math
 from .bases import Base
 from .number import Number
 from .variable import Variable
@@ -146,13 +147,28 @@ class AlgebraObject:
             return AlgebraObject(abs(self.coef), self.value, self.exp)
         return AlgebraObject(value=abs(self.value), exp=self.exp)
 
+    def gcd_coefs(self):
+        coef = self.tovalue()
+        was_imag = 0
+        if coef.numerator.imag:
+            yield int(coef.numerator.real)
+            yield int(coef.numerator.imag)
+            was_imag = 1
+        if isinstance(self.value, Polynomial) and abs(self.exp) == 1:
+            for i in self.value:
+                yield from i.gcd_coefs()
+            if self.exp == 1:
+                return
+        if not was_imag:
+            yield coef.numerator
+
     @property
     def numerator(self):
         if isinstance(self.value, Product):
             return self.value.numerator * AlgebraObject(Number(self.coef.numerator))
         if self.exp_const() > 0:
-            return AlgebraObject(Number(self.coef.numerator), self.value, self.exp)
-        return AlgebraObject(Number(self.coef.numerator))
+            return AlgebraObject(Number(self.tovalue().numerator), self.value, self.exp)
+        return AlgebraObject(Number(self.tovalue().numerator))
 
     @property
     def denominator(self):
@@ -163,7 +179,7 @@ class AlgebraObject:
                 AlgebraObject(Number(self.coef.denominator), self.value, self.exp)
                 ** -AlgebraObject()
             )
-        return AlgebraObject(Number(self.coef.denominator))
+        return AlgebraObject(Number(self.tovalue().denominator))
 
     @property
     def remainder(self):
@@ -229,6 +245,11 @@ class AlgebraObject:
             for i in b.value:
                 if i.denominator.value != 1:
                     return a.rationalize(a * i.denominator, b * i.denominator)
+        gcd = math.gcd(*a.gcd_coefs(), *b.gcd_coefs())
+        if gcd != 1:
+            gcd = AlgebraObject(Number(gcd) ** -1)
+            a *= gcd
+            b *= gcd
         return a, b
 
     @staticmethod

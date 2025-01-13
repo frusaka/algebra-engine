@@ -43,6 +43,8 @@ class Polynomial(Collection):
 
     @dispatch
     def mul(b, a):
+        from .product import Product
+
         b = b.value
         if a.exp == 1:
             res = Polynomial(t * b for t in a.value)
@@ -55,14 +57,13 @@ class Polynomial(Collection):
             return type(a)(
                 a.coef * b.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp)
             )
-        if isinstance(b.value, Number) and b.exp == 1:
-            if a.exp == -1:
-                return Polynomial.scalar_divide_frac(a, b)
-            return type(a)(b.value * a.coef, a.value, a.exp)
         if isinstance(b.value, Polynomial) and b.exp == 1:
             return b * a
-        if a.exp_const() > 0 and type(b.value).__name__ == "Product":
-            return b * a
+        if a.exp == -1:
+            num, den = a.rationalize(b, a ** -type(a)())
+            if isinstance(num.value, Number) and num.exp == 1:
+                return type(a)(num.value, den.value, a.exp)
+            return Product.resolve(num, den ** -type(a)())
 
     @property
     def leading(self):
@@ -75,38 +76,6 @@ class Polynomial(Collection):
             for i in self
             if lexicographic_weight(i, 0) == lexicographic_weight(leading, 0)
         ]
-
-    @staticmethod
-    def scalar_divide_frac(a, b):
-        """
-        Given a is a Polynomial and b is a Number, this method performs scalar division of a by b, and apply gcd.
-        This assumes a has a negative exponent of -1 (a.k.a, a Fraction).
-        To be moved to the AlgebraObject class...
-        """
-        a = type(a)() / a
-        for i in a.value:
-            if (c := i.tovalue()).denominator != 1:
-                c = type(a)(Number(c.denominator))
-                b *= c
-                a *= c
-        if b.value.denominator != 1:
-            c = type(a)(Number(b.value.denominator))
-            b *= c
-            a *= c
-        # one or some of the coefficients might have a complex number numerator
-        try:
-            gcd = type(a)(
-                Number(
-                    math.gcd(
-                        b.value.numerator, *(i.tovalue().numerator for i in a.value)
-                    )
-                )
-            )
-            b /= gcd
-            a /= gcd
-        except TypeError:
-            pass
-        return type(a)(b.value, a.value, -a.exp)
 
     @staticmethod
     def _long_division(a, b):
