@@ -129,8 +129,10 @@ class Polynomial(Collection):
         ):
             v = Polynomial._long_division(b, a)
             if v != Product.resolve(b, a ** -type(a)()):
-                # Reverse the result since division order was reversed
-                return v ** -type(a)()
+                a, b = a.rationalize(type(a)(), v)
+                if isinstance(a.value, Number) and a.exp == 1:
+                    return a / b
+                return Product.resolve(a, b ** -type(a)())
         return res
 
     def merge(self, algebraobjects):
