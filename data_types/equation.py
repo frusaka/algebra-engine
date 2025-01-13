@@ -61,6 +61,7 @@ class Equation(Base):
             for i in self.left.value:
                 if not value in i:
                     remove = i  # Not moving it yet, need to check for quadratics
+                    continue
                 # Term is in a fraction
                 if isinstance(i.value, Product):
                     for t in i.value:
@@ -120,25 +121,26 @@ class Equation(Base):
 
     def solve_quadratic(self, value: Variable):
         a, b = None, None
+        targ = AlgebraObject(value=value)
         for t in self.left.value:
-            if value not in (v := t / AlgebraObject(value=value, exp=Number(2))):
-                if a:
-                    return self
-                a = v
-                x_2 = t
-        for t in self.left.value:
-            if value not in (v := t / AlgebraObject(value=value)):
+            v = t / targ
+            if value not in v:
                 if b:
                     return self
                 b = v
-                x = t
+                bx = t
+            elif value not in (v := v / targ):
+                if a:
+                    return self
+                a = v
+                ax_2 = t
         if not a or not b:
             return self
         if self.right.value:
             self = self.reverse_sub(self.right)
             print(self)
-        c = self.left - (x_2 + x)
-        res = Equation(AlgebraObject(value=value), self.quadratic_formula(a, b, c))
+        c = self.left - (ax_2 + bx)
+        res = Equation(targ, self.quadratic_formula(a, b, c))
         print(res)
         return res
 

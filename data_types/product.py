@@ -1,9 +1,12 @@
 from .collection import Collection
-from .number import Number
 from utils import *
+from itertools import chain
 
 
 class Product(Collection):
+    def __init__(self, algebraobjects):
+        super().__init__(chain(*map(self.flatten, algebraobjects)))
+
     def __str__(self):
         num, den = [], []
         for t in reversed(standard_form(self)):
@@ -74,7 +77,7 @@ class Product(Collection):
     @mul.register(polynomial)
     def _(b, a):
         b = b.value
-        if b.exp != 1:
+        if abs(b.exp) != 1:
             return Product._mul(b, a)
         return b.value.mul(Proxy(a), b)
 

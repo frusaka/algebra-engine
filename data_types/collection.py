@@ -6,6 +6,14 @@ class Collection(Unknown, set, Base):
     def __hash__(self):
         return hash((type(self), tuple(standard_form(self))))
 
+    def flatten(self, algebraobject):
+        if algebraobject.exp != 1 or not isinstance(algebraobject.value, type(self)):
+            yield algebraobject
+            return
+
+        for i in algebraobject.value:
+            yield from self.flatten(i)
+
     @dispatch
     def pow(b, a):
         pass

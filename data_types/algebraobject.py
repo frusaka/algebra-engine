@@ -54,6 +54,11 @@ class AlgebraObject:
                 .join("()")
                 .replace("$", str(self.value))
             )
+        if self.exp_const() < 0:
+            return "{0}/{1}".format(
+                self.coef.numerator,
+                AlgebraObject(Number(self.coef.denominator), self.value, -self.exp),
+            )
         if "/" in str(self.coef):
             return "{0}/{1}".format(self.numerator, self.denominator)
         res = ""
@@ -71,14 +76,9 @@ class AlgebraObject:
             res += "/" + str(self.denominator.value)
         else:
             res += str(self.value)
-        exp = self.exp if isinstance(self.exp, Number) else self.exp.coef
         if self.exp == 1:
             return res
-        if exp < 0:
-            return "{0}/{1}".format(
-                self.coef.numerator,
-                AlgebraObject(Number(self.coef.denominator), self.value, -self.exp),
-            )
+        exp = self.exp_const()
         if exp.denominator != 1:
             if self.coef != 1:
                 return "{0}({1})".format(
@@ -122,6 +122,7 @@ class AlgebraObject:
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     def __truediv__(a, b: AlgebraObject) -> AlgebraObject:
+        a, b = AlgebraObject.rationalize(a, b)
         if isinstance(a.value, Polynomial) and not isinstance(b.value, Number):
             return Polynomial.long_division(a, b)
         return a * b ** -AlgebraObject()
@@ -158,8 +159,23 @@ class AlgebraObject:
         if isinstance(self.value, Product):
             return self.value.denominator * AlgebraObject(Number(self.coef.denominator))
         if self.exp_const() < 0:
-            return AlgebraObject(Number(self.coef.denominator), self.value, -self.exp)
+            return (
+                AlgebraObject(Number(self.coef.denominator), self.value, self.exp)
+                ** -AlgebraObject()
+            )
         return AlgebraObject(Number(self.coef.denominator))
+
+    @property
+    def remainder(self):
+        if self.denominator.value != 1:
+            return self.numerator
+        if self.exp != 1:
+            return AlgebraObject(Number(0))
+        if isinstance(self.value, Polynomial):
+            for i in self.value:
+                if i.denominator.value == 1:
+                    return i.numerator
+        return AlgebraObject(Number(0))
 
     def exp_const(self) -> Number:
         return self.exp if isinstance(self.exp, Number) else self.exp.coef
@@ -198,3 +214,35 @@ class AlgebraObject:
         if not isinstance(other.value, Number):
             return self.value == other.value
         return True
+
+    @staticmethod
+    def rationalize(a: AlgebraObject, b: AlgebraObject):
+        if a.denominator.value != 1:
+            return a.rationalize(a * a.denominator, b * a.denominator)
+        if b.denominator.value != 1:
+            return a.rationalize(a * b.denominator, b * b.denominator)
+        if a.exp == 1 and isinstance(a.value, Polynomial):
+            for i in a.value:
+                if i.denominator.value != 1:
+                    return a.rationalize(a * i.denominator, b * i.denominator)
+        if b.exp == 1 and isinstance(b.value, Polynomial):
+            for i in b.value:
+                if i.denominator.value != 1:
+                    return a.rationalize(a * i.denominator, b * i.denominator)
+        return a, b
+
+    @staticmethod
+    def gcd(a: AlgebraObject, b: AlgebraObject):
+        while b.value != 0:
+            r = (a / b).remainder
+            if r == a:
+                return AlgebraObject()
+            a, b = b, r
+        return a
+
+    @staticmethod
+    def lcm(a: AlgebraObject, b: AlgebraObject):
+        gcd = AlgebraObject.gcd(a, b)
+        if gcd.value == 1:
+            gcd = AlgebraObject.gcd(b, a)
+        return (a * b) / gcd

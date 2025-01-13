@@ -22,11 +22,11 @@ def test_divide_polynomials(interpreter):
                 AlgebraObject(Number(3), Variable("x")),
                 AlgebraObject(Number(2)),
                 AlgebraObject(
-                    Number(16),
+                    Number(8),
                     Polynomial(
                         [
-                            AlgebraObject(Number(2)),
-                            AlgebraObject(Number(-2), Variable("x")),
+                            AlgebraObject(Number(-1), Variable("x")),
+                            AlgebraObject(Number(1)),
                         ]
                     ),
                     Number(-1),
@@ -40,11 +40,11 @@ def test_divide_polynomials(interpreter):
                 AlgebraObject(Number(2), Variable("x")),
                 AlgebraObject(Number(4)),
                 AlgebraObject(
-                    Number("-41/25"),
+                    Number(-41),
                     Polynomial(
                         [
-                            AlgebraObject(Number(2), Variable("x")),
-                            AlgebraObject(Number(-4)),
+                            AlgebraObject(Number(50), Variable("x")),
+                            AlgebraObject(Number(-100)),
                         ]
                     ),
                     Number(-1),

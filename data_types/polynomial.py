@@ -1,4 +1,5 @@
 from itertools import chain
+import math
 from .collection import Collection
 from .number import Number
 from utils import lexicographic_weight, standard_form, dispatch, polynomial
@@ -50,15 +51,17 @@ class Polynomial(Collection):
             if len(res) == 1:
                 return res.pop()
             return type(a)(value=res)
-        elif type(b.value).__name__ == "Product":
-            return b * a
         if a.like(b, 0):
             return type(a)(
                 a.coef * b.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp)
             )
         if isinstance(b.value, Number) and b.exp == 1:
+            if a.exp == -1:
+                return Polynomial.scalar_divide_frac(a, b)
             return type(a)(b.value * a.coef, a.value, a.exp)
         if isinstance(b.value, Polynomial) and b.exp == 1:
+            return b * a
+        if a.exp_const() > 0 and type(b.value).__name__ == "Product":
             return b * a
 
     @property
@@ -74,7 +77,39 @@ class Polynomial(Collection):
         ]
 
     @staticmethod
-    def long_division(a, b):
+    def scalar_divide_frac(a, b):
+        """
+        Given a is a Polynomial and b is a Number, this method performs scalar division of a by b, and apply gcd.
+        This assumes a has a negative exponent of -1 (a.k.a, a Fraction).
+        To be moved to the AlgebraObject class...
+        """
+        a = type(a)() / a
+        for i in a.value:
+            if (c := i.tovalue()).denominator != 1:
+                c = type(a)(Number(c.denominator))
+                b *= c
+                a *= c
+        if b.value.denominator != 1:
+            c = type(a)(Number(b.value.denominator))
+            b *= c
+            a *= c
+        # one or some of the coefficients might have a complex number numerator
+        try:
+            gcd = type(a)(
+                Number(
+                    math.gcd(
+                        b.value.numerator, *(i.tovalue().numerator for i in a.value)
+                    )
+                )
+            )
+            b /= gcd
+            a /= gcd
+        except TypeError:
+            pass
+        return type(a)(b.value, a.value, -a.exp)
+
+    @staticmethod
+    def _long_division(a, b):
         from .product import Product
         from .algebraobject import AlgebraObject
 
@@ -112,6 +147,23 @@ class Polynomial(Collection):
             a -= fac * b
         return res
 
+    @staticmethod
+    def long_division(a, b):
+        # Supports dual direction long division
+        from .product import Product
+
+        res = Polynomial._long_division(a, b)
+        if (
+            isinstance(b.value, Polynomial)
+            and lexicographic_weight(b, 0) > lexicographic_weight(a, 0)
+            and res == Product.resolve(a, b ** -type(a)())
+        ):
+            v = Polynomial._long_division(b, a)
+            if v != Product.resolve(b, a ** -type(a)()):
+                # Reverse the result since division order was reversed
+                return v ** -type(a)()
+        return res
+
     def merge(self, algebraobjects):
         ls = list(algebraobjects)
         res = []
@@ -125,23 +177,16 @@ class Polynomial(Collection):
                         res.append(val)
                     ls.remove(b)
                     break
-                if a.denominator.value == b.denominator.value and not isinstance(
-                    a.denominator.value, Number
+                # Combining fractions
+                if not isinstance(a.denominator.value, Number) and not isinstance(
+                    b.denominator.value, Number
                 ):
-                    v = (a.numerator + b.numerator) / (
-                        a.denominator * type(a)(b.denominator.coef)
-                    )
+                    den = a.lcm(a.denominator, b.denominator)
+                    num_a = (den / a.denominator) * a.numerator
+                    num_b = (den / b.denominator) * b.numerator
+                    v = (num_a + num_b) / den
                     ls.remove(b)
                     return self.merge(chain(ls, res, self.flatten(v)))
             else:
                 res.append(a)
         return res
-
-    @staticmethod
-    def flatten(algebraobject):
-        if algebraobject.exp != 1 or not isinstance(algebraobject.value, Polynomial):
-            yield algebraobject
-            return
-
-        for i in algebraobject.value:
-            yield from Polynomial.flatten(i)

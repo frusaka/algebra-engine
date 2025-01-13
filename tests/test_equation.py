@@ -328,20 +328,21 @@ def test_solve_quadratic(interpreter):
 
 def test_solve_complex(interpreter):
     # Results would be too long to write out in object form
-    left = interpreter.eval(
+    inp1 = interpreter.eval(AST("p/x + q/(x+2) + r/(x-1)"))
+    out1 = interpreter.eval(AST("5x - 7"))
+    inp2 = interpreter.eval(
         AST("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x")
     )
-    assert Equation(
-        left=interpreter.eval(AST("p/x + q/(x+2) + r/(x-1)")),
-        right=interpreter.eval(AST("5x - 7")),
-    )[Variable("x")] == Equation(
-        left=left,
+    expected1 = Equation(
+        left=inp2,
         right=AlgebraObject(Number(2), Variable("p")),
     )
-    right = AlgebraObject(Number(2), Variable("p"))
-    assert Equation(left, right)[Variable("p")] == Equation(
+    assert Equation(left=inp1, right=out1)[Variable("x")] == expected1
+    expected = Equation(
         left=AlgebraObject(value=Variable("p")),
         right=interpreter.eval(
             AST("5x^2 - 7x - r - q + (-rx + 2qx - 2r - 2q)/(x^2 + x - 2)")
         ),
     )
+    assert Equation(left=inp1, right=out1)[Variable("p")] == expected
+    assert expected1[Variable("p")] == expected
