@@ -1,5 +1,4 @@
 from itertools import chain
-import math
 from .collection import Collection
 from .number import Number
 from utils import lexicographic_weight, standard_form, dispatch, polynomial
@@ -64,6 +63,8 @@ class Polynomial(Collection):
             if isinstance(num.value, Number) and num.exp == 1:
                 return type(a)(num.value, den.value, a.exp)
             return Product.resolve(num, den ** -type(a)())
+        if isinstance(a.exp, Number) and isinstance(b.value, Number) and b.exp == 1:
+            return type(a)(b.value * a.coef, a.value, a.exp)
 
     @property
     def leading(self):
@@ -121,19 +122,15 @@ class Polynomial(Collection):
         # Supports dual direction long division
         from .product import Product
 
-        res = Polynomial._long_division(a, b)
-        if (
-            isinstance(b.value, Polynomial)
-            and lexicographic_weight(b, 0) > lexicographic_weight(a, 0)
-            and res == Product.resolve(a, b ** -type(a)())
+        if lexicographic_weight(b, 0) > lexicographic_weight(a, 0) and isinstance(
+            b.value, Polynomial
         ):
-            v = Polynomial._long_division(b, a)
-            if v != Product.resolve(b, a ** -type(a)()):
-                a, b = a.rationalize(type(a)(), v)
-                if isinstance(a.value, Number) and a.exp == 1:
-                    return a / b
-                return Product.resolve(a, b ** -type(a)())
-        return res
+            res = Polynomial._long_division(b, a)
+            a, b = a.rationalize(type(a)(), res)
+            if isinstance(a.value, Number) and a.exp == 1:
+                return type(a)(a.value * b.coef, b.value, -b.exp)
+            return Product.resolve(a, b ** -type(a)())
+        return Polynomial._long_division(a, b)
 
     def merge(self, algebraobjects):
         ls = list(algebraobjects)

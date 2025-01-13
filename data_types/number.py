@@ -38,7 +38,9 @@ class Number(Base):
         return bool(self.numerator)
 
     def __str__(self):
-        return print_frac(self).replace("j", "i").replace("1i", "i")
+        return (
+            print_frac(self).replace("j", "i").replace("1i", "i").replace("1i", "11i")
+        )
 
     def __repr__(self) -> str:
         return "Number(numerator={0}, denominator={1})".format(

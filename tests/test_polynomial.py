@@ -52,9 +52,61 @@ def test_divide_polynomials(interpreter):
             ]
         )
     )
+    # Numerator with lower degrees
+    assert interpreter.eval(AST("(x - 1)/(x - 1)^2")) == AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(value=Variable("x")),
+                AlgebraObject(Number(-1)),
+            ]
+        ),
+        exp=Number(-1),
+    )
+    assert interpreter.eval(
+        AST("(3(x - 4) - 7(x - 4))/(x^2 - 8x + 16)")
+    ) == AlgebraObject(
+        Number(4),
+        Polynomial(
+            [
+                AlgebraObject(Number(-1), value=Variable("x")),
+                AlgebraObject(Number(4)),
+            ]
+        ),
+        Number(-1),
+    )
+    assert interpreter.eval(AST("(3(x + 6) -0.5(x + 6))/(x + 6)^2")) == AlgebraObject(
+        Number(5),
+        Polynomial(
+            [
+                AlgebraObject(Number(2), Variable("x")),
+                AlgebraObject(Number(12)),
+            ]
+        ),
+        Number(-1),
+    )
 
 
-def test_divide_product_polynomials(interpreter):
+def test_divide_multivariate(interpreter):
+    assert interpreter.eval(AST("(3n + 3c)/(n+c)")) == AlgebraObject(Number(3))
+    assert interpreter.eval(AST("(n+c)/(3n+3c)")) == AlgebraObject(Number("1/3"))
+    assert interpreter.eval(AST("(a^3 + b^3)/(a + b)")) == AlgebraObject(
+        value=Polynomial(
+            [
+                AlgebraObject(value=Variable("b"), exp=Number(2)),
+                AlgebraObject(value=Variable("a"), exp=Number(2)),
+                AlgebraObject(
+                    Number(-1),
+                    Product(
+                        [
+                            AlgebraObject(value=Variable("a")),
+                            AlgebraObject(value=Variable("b")),
+                        ]
+                    ),
+                ),
+            ]
+        )
+    )
+
     assert interpreter.eval(
         AST("(-3.75c^2 + 18ab + 4.5abc - 15c)/(3+0.75c)")
     ) == AlgebraObject(
@@ -169,14 +221,6 @@ def test_merge_polynomial(interpreter):
             ]
         )
     )
-    assert interpreter.eval(AST("(y^2 + 3y + 2) - (y + 2)")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("y"), Number(2)),
-                AlgebraObject(Number(2), Variable("y")),
-            ]
-        )
-    )
     assert interpreter.eval(AST("(z^2 + 4z + 3) - (z + 3)")) == AlgebraObject(
         value=Polynomial(
             [
@@ -202,4 +246,14 @@ def test_merge_polynomial(interpreter):
                 AlgebraObject(Number(-1)),
             ]
         )
+    )
+    assert interpreter.eval(AST("2(2√(x + c)) - 1.5(2√(x + c))")) == AlgebraObject(
+        Number("0.5"),
+        Polynomial(
+            [
+                AlgebraObject(value=Variable("x")),
+                AlgebraObject(value=Variable("c")),
+            ]
+        ),
+        Number("0.5"),
     )

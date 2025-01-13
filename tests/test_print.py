@@ -20,6 +20,7 @@ def test_print_number():
     assert str(Number(complex(0, 2))) == "2i"
     assert str(Number(1)) == "1"
     assert str(Number(complex(0, 1))) == "i"
+    assert str(Number(complex(0, -11))) == "-11i"
     assert str(Number(complex(0, -1))) == "-i"
     assert str(Number(complex(4, 3), 6)) == "(4+3i)/6"
     assert str(Number(complex(0, 1), 3)) == "i/3"
@@ -42,13 +43,17 @@ def test_print_negative_exp():
     assert str(AlgebraObject(Number("6/7"), Variable("k"), Number(-3))) == "6/7k^3"
 
 
-def test_print_radical():
+def test_print_radical(interpreter):
     assert str(AlgebraObject(Number(1), Variable("y"), Number("0.5"))) == "2√y"
     assert str(AlgebraObject(Number(1), Variable("x"), Number("-1/3"))) == "1/3√x"
     assert str(AlgebraObject(Number("3.5"), Variable("q"), Number("1/3"))) == "3.5(3√q)"
     assert (
         str(AlgebraObject(Number("0.2"), Variable("r"), Number("2/3"))) == "0.2(3√r^2)"
     )
+    assert str(interpreter.eval(AST("2√(x + c)"))) == "2√(x + c)"
+    assert str(interpreter.eval(AST("-1(2√(x + c))"))) == "-2√(x + c)"
+    assert str(interpreter.eval(AST("2(2√(x + c))"))) == "2(2√(x + c))"
+    assert str(interpreter.eval(AST("-2(2√(x + c))"))) == "-2(2√(x + c))"
 
 
 def test_print_polynomial(interpreter):

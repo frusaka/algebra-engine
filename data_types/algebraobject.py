@@ -7,7 +7,7 @@ from .variable import Variable
 from .collection import Collection
 from .product import Product
 from .polynomial import Polynomial
-from utils import Proxy
+from utils import Proxy, print_coef
 
 
 @dataclass(order=True)
@@ -48,7 +48,7 @@ class AlgebraObject:
         if isinstance(self.value, Number) and self.exp != 1:
             if self.coef != 1:
                 return "{0}{1}".format(
-                    self.coef, AlgebraObject(value=self.value, exp=self.exp)
+                    print_coef(self.coef), AlgebraObject(value=self.value, exp=self.exp)
                 )
             return (
                 str(AlgebraObject(value="$", exp=self.exp))
@@ -62,13 +62,7 @@ class AlgebraObject:
             )
         if "/" in str(self.coef):
             return "{0}/{1}".format(self.numerator, self.denominator)
-        res = ""
-        if self.coef != 1:
-            res = str(self.coef)
-            if not self.coef.numerator.real:
-                res = res.join("()")
-        if self.coef == -1:
-            res = "-"
+        res = print_coef(self.coef)
         if isinstance(self.value, Collection) and isinstance(
             self.numerator.value, Number
         ):
@@ -82,10 +76,10 @@ class AlgebraObject:
         exp = self.exp_const()
         if exp.denominator != 1:
             if self.coef != 1:
-                return "{0}({1})".format(
-                    "-" if self.coef == -1 else self.coef,
-                    AlgebraObject(value=self.value, exp=self.exp),
-                )
+                val = AlgebraObject(value=self.value, exp=self.exp)
+                if self.coef == -1:
+                    return "-{0}".format(val)
+                return "{0}({1})".format(print_coef(self.coef), val)
             if exp.numerator != 1:
                 res = "{0}^{1}".format(res, exp.numerator)
             return "{0}√{1}".format(exp.denominator, res)
