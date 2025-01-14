@@ -89,6 +89,9 @@ class Equation(Base):
 
         return self
 
+    def __neg__(self):
+        return Equation(-self.left, -self.right)
+
     def __add__(self, value: AlgebraObject):
         self.show_operation("+", value)
         return Equation(self.left + value, self.right + value)

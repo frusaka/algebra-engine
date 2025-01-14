@@ -1,43 +1,48 @@
 from __future__ import annotations
+from dataclasses import dataclass
 import math
 from typing import Any, SupportsFloat, SupportsComplex
 from .bases import Base, Fraction
 from utils import *
 
 
+@dataclass(frozen=True, init=False)
 class Number(Base):
-    def __init__(
-        self,
+    numerator: SupportsFloat | SupportsComplex | str
+    denominator: SupportsFloat
+
+    def __new__(
+        cls,
         numerator: SupportsFloat | SupportsComplex | str = 0,
         denominator: SupportsFloat = 1,
-    ) -> None:
-        if (
-            (isinstance(numerator, complex) and numerator.imag)
-            or isinstance(numerator, str)
-            and "j" in numerator
-        ):
+    ) -> Number:
+        obj = super().__new__(cls)
+        if isinstance(numerator, complex) and numerator.imag:
             real = Fraction(Fraction(numerator.real), Fraction(denominator))
             imag = Fraction(Fraction(numerator.imag), Fraction(denominator))
             den = math.lcm(real.denominator, imag.denominator)
-            self.numerator = complex(
-                (den / real.denominator) * real.numerator,
-                (den / imag.denominator) * imag.numerator,
+            object.__setattr__(
+                obj,
+                "numerator",
+                complex(
+                    (den / real.denominator) * real.numerator,
+                    (den / imag.denominator) * imag.numerator,
+                ),
             )
-            self.denominator = den
-            return
+            object.__setattr__(obj, "denominator", den)
+            return obj
         if isinstance(numerator, complex):
             numerator = numerator.real
         val = Fraction(Fraction(numerator), Fraction(denominator))
-        self.numerator = val.numerator
-        self.denominator = val.denominator
-
-    def __hash__(self) -> int:
-        return hash((Number, self.numerator, self.denominator))
+        object.__setattr__(obj, "numerator", val.numerator)
+        object.__setattr__(obj, "denominator", val.denominator)
+        return obj
 
     def __bool__(self) -> bool:
         return bool(self.numerator)
 
     def __str__(self):
+        # Lazy print
         return (
             print_frac(self).replace("j", "i").replace("1i", "i").replace("1i", "11i")
         )

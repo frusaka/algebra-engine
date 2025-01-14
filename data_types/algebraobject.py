@@ -7,7 +7,7 @@ from .variable import Variable
 from .collection import Collection
 from .product import Product
 from .polynomial import Polynomial
-from utils import Proxy, print_coef
+from utils import Proxy, lexicographic_weight, print_coef
 
 
 @dataclass(frozen=True, init=False, order=True)
@@ -222,11 +222,8 @@ class AlgebraObject:
         return AlgebraObject(Number(self.tovalue().denominator))
 
     def remainder(self):
-        """
-        Return the first encountered fraction part of a term
-        This is meant to be used by the gcd method.
-        """
-        if self.denominator.value != 1:
+        """The term that has non constant denominator"""
+        if not isinstance(self.denominator.value, Number) or self.denominator.exp != 1:
             return self.numerator
         if self.exp != 1:
             return AlgebraObject(Number(0))
@@ -317,26 +314,20 @@ class AlgebraObject:
 
     @staticmethod
     def gcd(a: AlgebraObject, b: AlgebraObject):
-        """
-        Greatest common divisor of a & b
-        This feature is not stable
-        """
-
-        def gcd(a, b):
-            while b.value != 0:
-                r = (a / b).remainder()
-                if r == a:
-                    return AlgebraObject()
-                a, b = b, r
-            return a
-
-        # Try the other way round
-        # A better, faster aproach might be needed
-        if (v := gcd(a, b)).value == 1:
-            return gcd(b, a)
-        return v
+        """The symbolic Greatest Common Divisor of a & b"""
+        if lexicographic_weight(b, 0) > lexicographic_weight(a, 0):
+            a, b = b, a
+        while b.value != 0:
+            r = (a / b).remainder()
+            if r == a:
+                return AlgebraObject()
+            a, b = b, r
+        return a
 
     @staticmethod
     def lcm(a: AlgebraObject, b: AlgebraObject):
-        """Lowest Common Multiple of a & b"""
-        return (a * b) / AlgebraObject.gcd(a, b)
+        """Symbolic Lowest Common Multiple of rationalized a & b"""
+        c, d = a.coef.numerator, b.coef.numerator
+        a = AlgebraObject(value=a.value, exp=a.exp)
+        b = AlgebraObject(value=b.value, exp=b.exp)
+        return (a * b) / AlgebraObject.gcd(a, b) * AlgebraObject(Number(math.lcm(c, d)))
