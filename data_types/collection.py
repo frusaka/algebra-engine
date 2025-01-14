@@ -2,17 +2,21 @@ from .bases import *
 from utils import *
 
 
-class Collection(Unknown, set, Base):
+class Collection(Unknown, frozenset, Base):
     def __hash__(self):
-        return hash((type(self), tuple(standard_form(self))))
+        return frozenset.__hash__(self)
 
-    def flatten(self, algebraobject):
-        if algebraobject.exp != 1 or not isinstance(algebraobject.value, type(self)):
-            yield algebraobject
-            return
+    @staticmethod
+    def flatten(algebraobject, target_type):
+        def flatten(t):
+            if t.exp != 1 or not isinstance(t.value, target_type):
+                yield t
+                return
 
-        for i in algebraobject.value:
-            yield from self.flatten(i)
+            for i in t.value:
+                yield from flatten(i)
+
+        return flatten(algebraobject)
 
     @dispatch
     def pow(b, a):

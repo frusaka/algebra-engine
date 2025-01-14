@@ -314,13 +314,36 @@ def test_solve_quadratic(interpreter):
         ),
     )
     assert Equation(
-        left=interpreter.eval(AST("ax^2 + bx + c")), right=AlgebraObject(Number(0))
-    )[Variable("x")] == Equation(
-        left=AlgebraObject(value=Variable("x")),
+        left=interpreter.eval(AST("(a-4)^2 ")),
+        right=AlgebraObject(value=Variable("c"), exp=Number(2)),
+    )[Variable("a")] == Equation(
+        left=AlgebraObject(value=Variable("a")),
+        right=Solutions(
+            {
+                interpreter.eval(AST("4 - c")),
+                interpreter.eval(AST("4 + c")),
+            }
+        ),
+    )
+    assert Equation(
+        left=interpreter.eval(AST("ay^2 + by + c")), right=AlgebraObject(Number(0))
+    )[Variable("y")] == Equation(
+        left=AlgebraObject(value=Variable("y")),
         right=Solutions(
             {
                 interpreter.eval(AST("(-b + (b^2 - 4ac)^0.5)/2a")),
                 interpreter.eval(AST("(-b - (b^2 - 4ac)^0.5)/2a")),
+            }
+        ),
+    )
+    assert Equation(
+        left=interpreter.eval(AST("-6ap^2 - 4ap + c")), right=AlgebraObject(Number(5))
+    )[Variable("p")] == Equation(
+        left=AlgebraObject(value=Variable("p")),
+        right=Solutions(
+            {
+                interpreter.eval(AST("-1/3 - 2√(24ac + 16a^2 - 120a)/12a")),
+                interpreter.eval(AST("-1/3 + 2√(24ac + 16a^2 - 120a)/12a")),
             }
         ),
     )

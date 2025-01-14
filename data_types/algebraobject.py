@@ -10,16 +10,19 @@ from .polynomial import Polynomial
 from utils import Proxy, print_coef
 
 
-@dataclass(order=True)
+@dataclass(frozen=True, init=False, order=True)
 class AlgebraObject:
     coef: Number
     value: Base[Number, Variable, Product, Polynomial]
     exp: Number | AlgebraObject
 
-    def __init__(self, coef=Number(1), value=Number(1), exp=Number(1)) -> None:
+    def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)):
+        obj = super().__new__(cls)
         if isinstance(value, AlgebraObject):
-            self.coef, self.value, self.exp = value.coef, value.value, value.exp
-            return
+            object.__setattr__(obj, "coef", value.coef)
+            object.__setattr__(obj, "value", value.value)
+            object.__setattr__(obj, "exp", value.exp)
+            return obj
         # Cases when operations with exponents simplify to a constant
         if (
             isinstance(exp, AlgebraObject)
@@ -39,10 +42,10 @@ class AlgebraObject:
         # 1^n = 1 for any value of n
         elif value == 1:
             exp = value
-        self.coef, self.value, self.exp = coef, value, exp
-
-    def __hash__(self) -> int:
-        return hash((self.__class__, self.coef, self.value, self.exp))
+        object.__setattr__(obj, "coef", coef)
+        object.__setattr__(obj, "value", value)
+        object.__setattr__(obj, "exp", exp)
+        return obj
 
     def __str__(self) -> str:
         if isinstance(self.value, Number) and self.exp != 1:

@@ -1,12 +1,21 @@
-from itertools import chain
+import itertools
 from .collection import Collection
 from .number import Number
 from utils import lexicographic_weight, standard_form, dispatch, polynomial
 
 
 class Polynomial(Collection):
-    def __init__(self, algebraobjects):
-        super().__init__(self.merge(chain(*map(self.flatten, algebraobjects))))
+    def __new__(cls, algebraobjects):
+        return super().__new__(
+            cls,
+            cls.merge(
+                itertools.chain(
+                    *itertools.starmap(
+                        cls.flatten, zip(algebraobjects, itertools.repeat(cls))
+                    )
+                ),
+            ),
+        )
 
     def __str__(self):
         res = ""
@@ -27,7 +36,7 @@ class Polynomial(Collection):
         if not val:
             return type(a)(value=Number(0))
         if len(val) == 1:
-            return val.pop()
+            return next(iter(val))
         return type(a)(value=val)
 
     @dispatch
@@ -50,7 +59,7 @@ class Polynomial(Collection):
             if not res:
                 return type(a)(value=Number(0))
             if len(res) == 1:
-                return res.pop()
+                return next(iter(res))
             return type(a)(value=res)
         if a.like(b, 0):
             return type(a)(
@@ -95,7 +104,7 @@ class Polynomial(Collection):
         res = AlgebraObject(Number(0))
         while a.value:
             # Remainder
-            if not isinstance(a.value, Polynomial):
+            if not isinstance(a.value, Polynomial) or a.exp != 1:
                 res += a * b ** -AlgebraObject()
                 break
             for leading_a in a.value.leading_options():
@@ -132,7 +141,8 @@ class Polynomial(Collection):
             return Product.resolve(a, b ** -type(a)())
         return Polynomial._long_division(a, b)
 
-    def merge(self, algebraobjects):
+    @staticmethod
+    def merge(algebraobjects):
         ls = list(algebraobjects)
         res = []
         while ls:
@@ -154,7 +164,9 @@ class Polynomial(Collection):
                     num_b = (den / b.denominator) * b.numerator
                     v = (num_a + num_b) / den
                     ls.remove(b)
-                    return self.merge(chain(ls, res, self.flatten(v)))
+                    return Polynomial.merge(
+                        itertools.chain(ls, res, Polynomial.flatten(v, Polynomial))
+                    )
             else:
                 res.append(a)
         return res

@@ -1,11 +1,18 @@
 from .collection import Collection
 from utils import *
-from itertools import chain
+import itertools
 
 
 class Product(Collection):
-    def __init__(self, algebraobjects):
-        super().__init__(chain(*map(self.flatten, algebraobjects)))
+    def __new__(cls, algebraobjects):
+        return super().__new__(
+            cls,
+            itertools.chain(
+                *itertools.starmap(
+                    cls.flatten, zip(algebraobjects, itertools.repeat(cls))
+                )
+            ),
+        )
 
     def __str__(self):
         num, den = [], []
@@ -97,8 +104,8 @@ class Product(Collection):
 
     @staticmethod
     def simplify(a, b):
-        algebraobjects = a.copy() if isinstance(a, Product) else {a}
-        rem = (b.value if isinstance(b.value, Product) else {b}).copy()
+        algebraobjects = set(a) if isinstance(a, Product) else {a}
+        rem = set(b.value) if isinstance(b.value, Product) else {b}
         for a in tuple(algebraobjects):
             for b in tuple(rem):
                 if not algebraobjects:

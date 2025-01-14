@@ -146,7 +146,7 @@ class Equation(Base):
 
     @staticmethod
     def quadratic_formula(a: AlgebraObject, b: AlgebraObject, c: AlgebraObject):
-        print("Quadratic formula with a={0}, b={1}, and c={2}".format(a, b, c))
+        print("Quadratic(a={0}, b={1}, c={2})".format(a, b, c))
         rhs = (
             b ** AlgebraObject(Number(2)) - AlgebraObject(Number(4)) * a * c
         ) ** AlgebraObject(value=Number("1/2"))
