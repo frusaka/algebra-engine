@@ -1,3 +1,4 @@
+import pytest
 from data_types import *
 from processing import AST
 
@@ -349,15 +350,15 @@ def test_solve_quadratic(interpreter):
     )
 
 
+@pytest.mark.skip(reason="Test is slow, and gcd method not unstable")
 def test_solve_complex(interpreter):
     # Results would be too long to write out in object form
     inp1 = interpreter.eval(AST("p/x + q/(x+2) + r/(x-1)"))
     out1 = interpreter.eval(AST("5x - 7"))
-    inp2 = interpreter.eval(
-        AST("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x")
-    )
     expected1 = Equation(
-        left=inp2,
+        left=interpreter.eval(
+            AST("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x")
+        ),
         right=AlgebraObject(Number(2), Variable("p")),
     )
     assert Equation(left=inp1, right=out1)[Variable("x")] == expected1

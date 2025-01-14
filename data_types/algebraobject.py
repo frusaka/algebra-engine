@@ -30,6 +30,7 @@ class AlgebraObject:
             and exp.exp == 1
         ):
             exp = exp.value
+        # Aplying basic known algebraic rules to validate the term
         if coef == 0:
             value = Number(0)
             coef = exp = Number(1)
@@ -48,6 +49,8 @@ class AlgebraObject:
         return obj
 
     def __str__(self) -> str:
+        """String representation of a term"""
+        # Numbers with symbolic exponents
         if isinstance(self.value, Number) and self.exp != 1:
             if self.coef != 1:
                 return "{0}{1}".format(
@@ -58,6 +61,8 @@ class AlgebraObject:
                 .join("()")
                 .replace("$", str(self.value))
             )
+
+        # Negative exponets: a^-n -> numerator/a^n
         if self.exp_const() < 0:
             return "{0}/{1}".format(
                 self.coef.numerator,
@@ -66,6 +71,8 @@ class AlgebraObject:
         if "/" in str(self.coef):
             return "{0}/{1}".format(self.numerator, self.denominator)
         res = print_coef(self.coef)
+        # Cases when a Polynomial or Product has no symbolic numerator
+        # Instead of 3(1/(abc)), prints 3/(abc)
         if isinstance(self.value, Collection) and isinstance(
             self.numerator.value, Number
         ):
@@ -77,6 +84,8 @@ class AlgebraObject:
         if self.exp == 1:
             return res
         exp = self.exp_const()
+
+        # Radical representation
         if exp.denominator != 1:
             if self.coef != 1:
                 val = AlgebraObject(value=self.value, exp=self.exp)
@@ -86,6 +95,8 @@ class AlgebraObject:
             if exp.numerator != 1:
                 res = "{0}^{1}".format(res, exp.numerator)
             return "{0}√{1}".format(exp.denominator, res)
+
+        # Symbolic exponent representation
         exp = str(self.exp)
         if isinstance(self.exp, AlgebraObject) and (
             self.exp.coef != 1 or self.exp.exp != 1
@@ -94,6 +105,9 @@ class AlgebraObject:
         return "{0}^{1}".format(res, exp)
 
     def __contains__(self, value: Variable) -> bool:
+        """
+        Check whether a term contains the given variable, whether by values or exponent.
+        """
         if isinstance(self.value, Collection):
             return any(value in t for t in self.value)
         if (
@@ -105,14 +119,17 @@ class AlgebraObject:
         return False
 
     def __add__(a, b: AlgebraObject) -> AlgebraObject:
+        """Add b to a"""
         if a.like(b):
             return a.value.add(Proxy(b), a)
         return Polynomial.resolve(Proxy(b), a)
 
     def __sub__(a, b: AlgebraObject) -> AlgebraObject:
+        """Subtract b from a"""
         return a + -b
 
     def __mul__(a, b: AlgebraObject) -> AlgebraObject:
+        """Multiply a with b"""
         if v := a.split_const_from_exp():
             return b * v * AlgebraObject(a.coef, a.value, a.exp - AlgebraObject())
         if v := b.split_const_from_exp():
@@ -120,12 +137,14 @@ class AlgebraObject:
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     def __truediv__(a, b: AlgebraObject) -> AlgebraObject:
+        """Divde a by b"""
         a, b = AlgebraObject.rationalize(a, b)
         if isinstance(a.value, Polynomial) and not isinstance(b.value, Number):
             return Polynomial.long_division(a, b)
         return a * b ** -AlgebraObject()
 
     def __pow__(a, b: AlgebraObject) -> AlgebraObject:
+        """Evaluate base a with an exponent of b"""
         if b.value == 0:
             return AlgebraObject()
         return a.value.pow(Proxy(b), a) or (
@@ -134,23 +153,38 @@ class AlgebraObject:
         )
 
     def __pos__(self) -> AlgebraObject:
+        """Positive x, does nothing"""
         return self
 
     def __neg__(self) -> AlgebraObject:
+        """Negation"""
         return self * AlgebraObject(value=Number(-1))
 
     def __abs__(self) -> AlgebraObject:
+        """
+        Gets the absolute of a term.
+        It assumes in the cases of unkowns, get the absolute value of their coefficients.
+        This method is not meant to be used outside the internal backend.
+        """
         if not isinstance(self.value, Number) or self.exp != 1:
             return AlgebraObject(abs(self.coef), self.value, self.exp)
         return AlgebraObject(value=abs(self.value), exp=self.exp)
 
     def gcd_coefs(self):
+        """
+        Get all the constants associated with a term (coefficient or value).
+        Meant for use for finding the gcd of the constants in term
+        """
         coef = self.tovalue()
         was_imag = 0
+        # Imaginary numbers get split into their individual components
+        # Same as would be with Polynomials
         if coef.numerator.imag:
             yield int(coef.numerator.real)
             yield int(coef.numerator.imag)
             was_imag = 1
+
+        # Get the constants inside a polynomial with a constant exponent
         if isinstance(self.value, Polynomial) and abs(self.exp) == 1:
             for i in self.value:
                 yield from i.gcd_coefs()
@@ -161,16 +195,25 @@ class AlgebraObject:
 
     @property
     def numerator(self):
+        """Numerator of a term"""
         if isinstance(self.value, Product):
             return self.value.numerator * AlgebraObject(Number(self.coef.numerator))
+        if isinstance(self.value, Number) and self.exp == 1:
+            return AlgebraObject(Number(self.value.numerator))
         if self.exp_const() > 0:
             return AlgebraObject(Number(self.tovalue().numerator), self.value, self.exp)
         return AlgebraObject(Number(self.tovalue().numerator))
 
     @property
     def denominator(self):
+        """
+        The denominator of a term.
+        Even fractional constants have a non-1 denominator
+        """
         if isinstance(self.value, Product):
             return self.value.denominator * AlgebraObject(Number(self.coef.denominator))
+        if isinstance(self.value, Number) and self.exp == 1:
+            return AlgebraObject(Number(self.value.denominator))
         if self.exp_const() < 0:
             return (
                 AlgebraObject(Number(self.coef.denominator), self.value, self.exp)
@@ -178,27 +221,39 @@ class AlgebraObject:
             )
         return AlgebraObject(Number(self.tovalue().denominator))
 
-    @property
     def remainder(self):
+        """
+        Return the first encountered fraction part of a term
+        This is meant to be used by the gcd method.
+        """
         if self.denominator.value != 1:
             return self.numerator
         if self.exp != 1:
             return AlgebraObject(Number(0))
         if isinstance(self.value, Polynomial):
             for i in self.value:
-                if i.denominator.value == 1:
-                    return i.numerator
+                if r := i.remainder():
+                    return r
         return AlgebraObject(Number(0))
 
     def exp_const(self) -> Number:
+        """Get the constant in a terms exponent"""
         return self.exp if isinstance(self.exp, Number) else self.exp.coef
 
     def tovalue(self) -> Number:
+        """
+        Get the constant value associated with a term.
+        For a number, itself, and for an unkown, the coefficient
+        """
         if isinstance(self.value, Number) and self.exp == 1:
             return self.value
         return self.coef
 
     def split_const_from_exp(self) -> AlgebraObject | None:
+        """
+        If a term is in the form x^(y + n), where n is a constant,
+        return x^n
+        """
         if isinstance(self.exp, Number):
             return
         if isinstance(self.exp.value, Polynomial) and self.exp.exp == 1:
@@ -206,34 +261,43 @@ class AlgebraObject:
                 if i.value == 1:
                     return AlgebraObject(value=self.value)
 
-    def like(self, other, exp=1) -> bool:
-        if not isinstance(other, AlgebraObject):
+    def like(self, b, exp=1) -> bool:
+        """Determine whether a term is like another"""
+        if not isinstance(b, AlgebraObject):
             return False
+
         # Assumes in the case of multiplications, values with the same base are like terms
-        if not exp and self.value == other.value:
+        if not exp and self.value == b.value:
             return True
 
+        # Check list to declare two terms like
         if (
-            not self.exp.like(other.exp)
-            or not isinstance(other.value, type(self.value))
+            not self.exp.like(b.exp)
+            or not isinstance(b.value, type(self.value))
             or (exp)
             and (
-                self.exp != other.exp
-                or isinstance(other.value, Number)
-                and (self.exp != 1 and self.value != other.value)
+                self.exp != b.exp
+                or isinstance(b.value, Number)
+                and (self.exp != 1 and self.value != b.value)
             )
         ):
             return False
-        if not isinstance(other.value, Number):
-            return self.value == other.value
+        if not isinstance(b.value, Number):
+            return self.value == b.value
         return True
 
     @staticmethod
     def rationalize(a: AlgebraObject, b: AlgebraObject):
+        """
+        Given a : b, express a and b such that neither a nor b contain fractions
+        """
+        # Fractions at the top-level
         if a.denominator.value != 1:
             return a.rationalize(a * a.denominator, b * a.denominator)
         if b.denominator.value != 1:
             return a.rationalize(a * b.denominator, b * b.denominator)
+
+        # Fractions inside a polynomial
         if a.exp == 1 and isinstance(a.value, Polynomial):
             for i in a.value:
                 if i.denominator.value != 1:
@@ -242,6 +306,8 @@ class AlgebraObject:
             for i in b.value:
                 if i.denominator.value != 1:
                     return a.rationalize(a * i.denominator, b * i.denominator)
+
+        # Factoring by gcd
         gcd = math.gcd(*a.gcd_coefs(), *b.gcd_coefs())
         if gcd != 1:
             gcd = AlgebraObject(Number(gcd) ** -1)
@@ -251,16 +317,26 @@ class AlgebraObject:
 
     @staticmethod
     def gcd(a: AlgebraObject, b: AlgebraObject):
-        while b.value != 0:
-            r = (a / b).remainder
-            if r == a:
-                return AlgebraObject()
-            a, b = b, r
-        return a
+        """
+        Greatest common divisor of a & b
+        This feature is not stable
+        """
+
+        def gcd(a, b):
+            while b.value != 0:
+                r = (a / b).remainder()
+                if r == a:
+                    return AlgebraObject()
+                a, b = b, r
+            return a
+
+        # Try the other way round
+        # A better, faster aproach might be needed
+        if (v := gcd(a, b)).value == 1:
+            return gcd(b, a)
+        return v
 
     @staticmethod
     def lcm(a: AlgebraObject, b: AlgebraObject):
-        gcd = AlgebraObject.gcd(a, b)
-        if gcd.value == 1:
-            gcd = AlgebraObject.gcd(b, a)
-        return (a * b) / gcd
+        """Lowest Common Multiple of a & b"""
+        return (a * b) / AlgebraObject.gcd(a, b)
