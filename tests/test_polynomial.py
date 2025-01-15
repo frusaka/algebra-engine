@@ -22,11 +22,11 @@ def test_divide_polynomials(interpreter):
                 AlgebraObject(Number(3), Variable("x")),
                 AlgebraObject(Number(2)),
                 AlgebraObject(
-                    Number(8),
+                    Number(-8),
                     Polynomial(
                         [
-                            AlgebraObject(Number(-1), Variable("x")),
-                            AlgebraObject(Number(1)),
+                            AlgebraObject(value=Variable("x")),
+                            AlgebraObject(Number(-1)),
                         ]
                     ),
                     Number(-1),
@@ -65,11 +65,11 @@ def test_divide_polynomials(interpreter):
     assert interpreter.eval(
         AST("(3(x - 4) - 7(x - 4))/(x^2 - 8x + 16)")
     ) == AlgebraObject(
-        Number(4),
+        Number(-4),
         Polynomial(
             [
-                AlgebraObject(Number(-1), value=Variable("x")),
-                AlgebraObject(Number(4)),
+                AlgebraObject(value=Variable("x")),
+                AlgebraObject(Number(-4)),
             ]
         ),
         Number(-1),

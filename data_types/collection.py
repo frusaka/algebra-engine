@@ -6,17 +6,14 @@ class Collection(Unknown, frozenset, Base):
     def __hash__(self):
         return frozenset.__hash__(self)
 
-    @staticmethod
-    def flatten(algebraobject, target_type):
-        def flatten(t):
-            if t.exp != 1 or not isinstance(t.value, target_type):
-                yield t
-                return
+    @classmethod
+    def flatten(cls, algebraobject):
+        if algebraobject.exp != 1 or not isinstance(algebraobject.value, cls):
+            yield algebraobject
+            return
 
-            for i in t.value:
-                yield from flatten(i)
-
-        return flatten(algebraobject)
+        for i in algebraobject.value:
+            yield from cls.flatten(i)
 
     @dispatch
     def pow(b, a):

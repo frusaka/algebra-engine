@@ -350,7 +350,6 @@ def test_solve_quadratic(interpreter):
     )
 
 
-@pytest.mark.xfail(reason="Passing, but the form might be different")
 def test_solve_complex(interpreter):
     # Results would be too long to write out in object form
     inp1 = interpreter.eval(AST("p/x + q/(x+2) + r/(x-1)"))

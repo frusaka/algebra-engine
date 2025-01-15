@@ -45,7 +45,7 @@ class Equation(Base):
             return self.reverse_sub(self.right)[value]
 
         if self.left.coef != 1:
-            return (self / AlgebraObject(self.left.coef))[value]
+            return (self.reverse_div(AlgebraObject(self.left.coef)))[value]
         if self.left.exp != 1:
             exp = AlgebraObject() / AlgebraObject(value=self.left.exp)
             if value in exp:
@@ -79,6 +79,11 @@ class Equation(Base):
 
             if remove:
                 return self.reverse_sub(remove)[value]
+
+            # Solving by factoring coefficients
+            _, left = AlgebraObject.rationalize(self.right, self.left)
+            if left != self.left:
+                return (self.reverse_div((left / self.left) ** -AlgebraObject()))[value]
 
         # Isolation by division
         if isinstance(self.left.value, Product):
@@ -137,6 +142,8 @@ class Equation(Base):
                     return self
                 a = v
                 ax_2 = t
+            elif value in t:
+                return self
         if not a or not b:
             return self
         if self.right.value:
@@ -160,12 +167,12 @@ class Equation(Base):
         return Solutions(res)
 
     def reverse_sub(self, value: AlgebraObject):
-        if value.tovalue() > 0:
+        if value.to_const() > 0:
             return self - value
         return self + -value
 
     def reverse_div(self, value: AlgebraObject):
-        if value.exp_const() < 0:
+        if value.denominator.value != 1:
             return self * (AlgebraObject() / value)
         return self / value
 

@@ -1,9 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import math
-from typing import Any, SupportsFloat, SupportsComplex
+from typing import Any, SupportsFloat, SupportsComplex, TYPE_CHECKING
 from .bases import Base, Fraction
 from utils import *
+
+if TYPE_CHECKING:
+    from .algebraobject import AlgebraObject
 
 
 @dataclass(frozen=True, init=False)
@@ -41,7 +44,7 @@ class Number(Base):
     def __bool__(self) -> bool:
         return bool(self.numerator)
 
-    def __str__(self):
+    def __str__(self) -> str:
         # Lazy print
         return (
             print_frac(self).replace("j", "i").replace("1i", "i").replace("1i", "11i")
@@ -133,33 +136,33 @@ class Number(Base):
             value.numerator, value.denominator
         )
 
-    def __le__(self, value) -> bool:
+    def __le__(self, value: Number | SupportsFloat | SupportsComplex) -> bool:
         return self < value or self == value
 
     @staticmethod
-    def nth_root(x, n):
+    def nth_root(x: SupportsFloat | SupportsComplex, n: int):
         if not isinstance(x, complex) and n % 2 == 1 and x < 0:
             return -abs(x) ** (1 / n)
         else:
             return x ** (1 / n)
 
     @dispatch
-    def add(b, a):
+    def add(b: AlgebraObject, a: AlgebraObject):
         pass
 
     @add.register(number)
-    def _(b, a):
+    def _(b: AlgebraObject, a: AlgebraObject):
         b = b.value
         if a.exp == b.exp == 1:
             return type(a)(value=a.value + b.value)
         return type(a)(a.coef + b.coef, a.value, a.exp)
 
     @dispatch
-    def mul(b, a):
+    def mul(b: AlgebraObject, a: AlgebraObject):
         return b.value.value.mul(Proxy(a), b.value)
 
     @mul.register(number)
-    def _(b, a):
+    def _(b: AlgebraObject, a: AlgebraObject):
         b = b.value
         if a.like(b, 0):
             # Can be like term with different exponents (3^x * 3^y)
@@ -172,19 +175,19 @@ class Number(Base):
             return type(a)(b.value * a.coef, a.value, a.exp)
 
     @staticmethod
-    def resolve_pow(a, b):
+    def resolve_pow(a: AlgebraObject, b: AlgebraObject) -> AlgebraObject:
         # NOTE: a^(nm) = (a^n)^m only if m is a real integer
-        res = type(a)(a.coef, a.value) ** type(a)(b.tovalue())
+        res = type(a)(a.coef, a.value) ** type(a)(b.to_const())
         return type(a)(
-            res.coef, res.value, type(a)(value=a.exp) * (b / type(a)(b.tovalue()))
+            res.coef, res.value, type(a)(value=a.exp) * (b / type(a)(b.to_const()))
         )
 
     @dispatch
-    def pow(b, a):
+    def pow(b: AlgebraObject, a: AlgebraObject) -> AlgebraObject:
         return Number.resolve_pow(a, b.value)
 
     @pow.register(number)
-    def _(b, a):
+    def _(b: AlgebraObject, a: AlgebraObject) -> AlgebraObject:
         if a.exp == b.value.exp == 1:
             return type(a)(a.coef, a.value**b.value.value, a.exp)
         return Number.resolve_pow(a, b.value)
