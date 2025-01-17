@@ -2,7 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import cache, cached_property
 import math
-from typing import Tuple
 from .bases import Base
 from .number import Number
 from .variable import Variable
@@ -14,11 +13,18 @@ from utils import Proxy, print_coef
 
 @dataclass(frozen=True, init=False, order=True)
 class AlgebraObject:
+    """
+    A representation of a mathemetical term.
+    The `coef` field represents the coefficient (2 in 2x).
+    The `value` field represents the constant or unknown (x in 2x, 5 in 5)
+    The `exp` field represents the exponent (2 in 3x^2). If the exponent is negative, then it is printed as a division
+    """
+
     coef: Number
     value: Base[Number, Variable, Product, Polynomial]
     exp: Number | AlgebraObject
 
-    def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)):
+    def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)) -> AlgebraObject:
         obj = super().__new__(cls)
         if isinstance(value, AlgebraObject):
             object.__setattr__(obj, "coef", value.coef)
@@ -72,7 +78,7 @@ class AlgebraObject:
         if "/" in str(self.coef):
             return "{0}/{1}".format(self.numerator, self.denominator)
         res = print_coef(self.coef)
-        # Cases when a Polynomial or Product has no symbolic numerator
+        # Cases when a Polynomial or Product has no variable numerator
         # Instead of 3(1/(abc)), prints 3/(abc)
         if isinstance(self.value, Collection) and isinstance(
             self.numerator.value, Number
@@ -189,7 +195,7 @@ class AlgebraObject:
     @cache
     def canonical(self) -> AlgebraObject:
         """
-        A minimalist version of the input that does not have magnitude data.
+        A minimalist version of the input that has 1 as the coefficient.
         This can be used to group like terms for Polynomials
         """
         if isinstance(self.value, Number) and self.exp == 1:
@@ -250,7 +256,7 @@ class AlgebraObject:
 
     @cached_property
     def inv(self) -> AlgebraObject:
-        """Get the inverse"""
+        """The inverse of a term (x^-1)"""
         return self ** -AlgebraObject()
 
     @cached_property
@@ -269,6 +275,22 @@ class AlgebraObject:
     def exp_const(self) -> Number:
         """Get the constant in a terms exponent"""
         return self.exp if isinstance(self.exp, Number) else self.exp.coef
+
+    @cache
+    def get_exp(self, value: Variable) -> bool:
+        """
+        Get the exponent of the given variable.
+        Mostly meant to help with solving by factorization
+        """
+        if self.value == value:
+            return self.exp
+        if isinstance(self.value, Collection):
+            for t in self.value:
+                if v := t.get_exp(value):
+                    return v
+        if isinstance(self.exp, AlgebraObject):
+            return self.exp.get_exp(value)
+        return Number()
 
     def to_const(self) -> Number:
         """
@@ -330,7 +352,6 @@ class AlgebraObject:
             for i in a.value:
                 if i.denominator.value != 1:
                     return a.rationalize(a * i.denominator, b * i.denominator)
-
         if p := b.exp == 1 and isinstance(b.value, Polynomial):
             for i in b.value:
                 if i.denominator.value != 1:
@@ -342,6 +363,7 @@ class AlgebraObject:
             gcd = AlgebraObject(Number(gcd) ** -1)
             a *= gcd
             b *= gcd
+
         # Make the denominator or leading denominator positive for consistency
         if max(b.gcd_coefs()) < 0 or (p and b.value.leading.coef < 0):
             a = -a

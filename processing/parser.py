@@ -1,8 +1,11 @@
-from processing.tokens import TokenType
-from processing.operators import SYMBOLS, Unary, Binary
+from typing import Generator, Sequence
+from .tokens import Token, TokenType
+from .operators import SYMBOLS, Unary, Binary
 
 
 class Parser:
+    """Takes input tokens and converts it to AST following operator precedence"""
+
     def __init__(self, tokens):
         self.tokens = self.prefix(tokens)
 
@@ -22,6 +25,7 @@ class Parser:
         raise SyntaxError("unmatched parenthesis")
 
     def parse(self):
+        """Convert from prefix notation to a tree that can be evaluated by the Interpreter"""
         self.advance()
         if self.curr is None:
             return
@@ -38,17 +42,24 @@ class Parser:
             self.operator_error(oper)
         return Binary(oper, left, right)
 
-    def postfix(self, tokens):
+    def postfix(self, tokens: Sequence[Token]) -> Generator[Token]:
+        """
+        Takes input tokens and converts it to postfix notation.
+        properly manages operator precendence
+        """
         stack = []
         # NOTE: Reversing the tokens reverses the parentheses
         for token in reversed(list(tokens)):
+            # Unkowns or operands
             if token.type is TokenType.ERROR:
                 raise token.value
             if token.type in (TokenType.NUMBER, TokenType.VAR):
                 yield token
+
             # Opening parenthesis
             elif token.type is TokenType.RPAREN:
                 stack.append(token)
+
             # closing parenthesis
             elif token.type is TokenType.LPAREN:
                 if not stack:
@@ -58,6 +69,7 @@ class Parser:
                     if not stack:
                         self.paren_error()
                 stack.pop()
+
             # An operator
             else:
                 if not stack:
@@ -78,4 +90,5 @@ class Parser:
         yield from reversed(stack)
 
     def prefix(self, tokens):
+        """Takes tokens and converts them to prefix notation"""
         return reversed(list(self.postfix(tokens)))

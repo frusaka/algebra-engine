@@ -3,6 +3,11 @@ from .algebraobject import AlgebraObject
 
 
 class Solutions(Collection):
+    """
+    A collection of valid outputs for a given expression.
+    NOTE: Still under developement
+    """
+
     def __add__(self, value: AlgebraObject):
         return Solutions(t + value for t in self)
 

@@ -11,6 +11,13 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, init=False)
 class Number(Base):
+    """
+    A repsentation of a numeric value.
+    The `numerator` attribute can be an integer or a complex number.
+    If the numerator is complex, the real and imaginary components will be whole numbers.
+    The `denominator` attribute is always an integer.
+    """
+
     numerator: SupportsFloat | SupportsComplex | str
     denominator: SupportsFloat
 
@@ -90,6 +97,7 @@ class Number(Base):
             return self ** Number(other)
         if other.numerator < 0:
             return Number(1) / (self**-other)
+        # Needs saftey checks. The numerator can be too large.
         num = self.nth_root(self.numerator**other.numerator, other.denominator)
         den = self.nth_root(self.denominator**other.numerator, other.denominator)
         return Number(num) / Number(den)
@@ -147,22 +155,22 @@ class Number(Base):
             return x ** (1 / n)
 
     @dispatch
-    def add(b: AlgebraObject, a: AlgebraObject):
+    def add(b: Proxy[AlgebraObject], a: AlgebraObject):
         pass
 
     @add.register(number)
-    def _(b: AlgebraObject, a: AlgebraObject):
+    def _(b: Proxy[AlgebraObject], a: AlgebraObject):
         b = b.value
         if a.exp == b.exp == 1:
             return type(a)(value=a.value + b.value)
         return type(a)(a.coef + b.coef, a.value, a.exp)
 
     @dispatch
-    def mul(b: AlgebraObject, a: AlgebraObject):
+    def mul(b: Proxy[AlgebraObject], a: AlgebraObject):
         return b.value.value.mul(Proxy(a), b.value)
 
     @mul.register(number)
-    def _(b: AlgebraObject, a: AlgebraObject):
+    def _(b: Proxy[AlgebraObject], a: AlgebraObject):
         b = b.value
         if a.like(b, 0):
             # Can be like term with different exponents (3^x * 3^y)
@@ -183,11 +191,11 @@ class Number(Base):
         )
 
     @dispatch
-    def pow(b: AlgebraObject, a: AlgebraObject) -> AlgebraObject:
+    def pow(b: Proxy[AlgebraObject], a: AlgebraObject) -> AlgebraObject:
         return Number.resolve_pow(a, b.value)
 
     @pow.register(number)
-    def _(b: AlgebraObject, a: AlgebraObject) -> AlgebraObject:
+    def _(b: Proxy[AlgebraObject], a: AlgebraObject) -> AlgebraObject:
         if a.exp == b.value.exp == 1:
             return type(a)(a.coef, a.value**b.value.value, a.exp)
         return Number.resolve_pow(a, b.value)

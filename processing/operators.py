@@ -5,6 +5,8 @@ from utils.constants import SYMBOLS
 
 @dataclass
 class Unary:
+    """Unary operator: -n, +n, or maybe in the future, n!"""
+
     oper: Any
     value: Any
 
@@ -14,6 +16,8 @@ class Unary:
 
 @dataclass
 class Binary:
+    """Unary operator: arithmetic (+-*/) or exponetiation"""
+
     oper: Any
     left: Any
     right: Any

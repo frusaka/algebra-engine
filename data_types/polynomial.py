@@ -12,6 +12,8 @@ if TYPE_CHECKING:
 
 
 class Polynomial(Collection):
+    """A collection of unique terms that cannot be further be combined by addition or subtraction"""
+
     def __new__(cls, objs: Sequence[AlgebraObject]) -> Polynomial:
         return super().__new__(cls, cls.merge(itertools.chain(*map(cls.flatten, objs))))
 
@@ -30,6 +32,7 @@ class Polynomial(Collection):
 
     @staticmethod
     def resolve(b: Proxy[AlgebraObject], a: AlgebraObject):
+        """A default fallback if two terms are not like"""
         val = Polynomial([b.value, a])
         if not val:
             return type(a)(value=Number(0))
@@ -52,6 +55,7 @@ class Polynomial(Collection):
         from .product import Product
 
         b = b.value
+        # Distributive property of Multiplication
         if a.exp == 1:
             res = Polynomial(t * b for t in a.value)
             if not res:
@@ -59,19 +63,24 @@ class Polynomial(Collection):
             if len(res) == 1:
                 return next(iter(res))
             return type(a)(value=res)
+        # Combining like terms
         if a.like(b, 0):
             return type(a)(
                 a.coef * b.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp)
             )
         if isinstance(b.value, Polynomial) and b.exp == 1:
             return b * a
+
+        # Multiplication with a fraction Polynomial
         if a.exp == -1:
             num, den = a.rationalize(b, a.inv)
             if isinstance(num.value, Polynomial):
-                return num / den
+                return num / den  # -> Will perform long division
             if isinstance(num.value, Number) and num.exp == 1:
                 return type(a)(num.value, den.value, a.exp)
             return Product.resolve(num, den.inv)
+
+        # Scalar multiplication
         if isinstance(a.exp, Number) and isinstance(b.value, Number) and b.exp == 1:
             return type(a)(b.value * a.coef, a.value, a.exp)
 
@@ -81,6 +90,7 @@ class Polynomial(Collection):
 
     @cache
     def leading_options(self) -> tuple[AlgebraObject]:
+        """Get all the the terms that have a degree equivalent to the leading term's degree"""
         leading = self.leading
         return tuple(
             i
@@ -90,10 +100,11 @@ class Polynomial(Collection):
 
     @staticmethod
     def _long_division(a: AlgebraObject, b: AlgebraObject) -> AlgebraObject:
+        """Backend long division algorithm. `a` must have a higher degree than `b`"""
         from .product import Product
         from .algebraobject import AlgebraObject
 
-        if a.exp != 1 or b.exp != 1:
+        if a.exp != 1 or not isinstance(b.exp, Number):
             return Product.resolve(a, b.inv)
         leading_b = b
         options_b = []
@@ -110,10 +121,7 @@ class Polynomial(Collection):
                 break
             for leading_a in a.value.leading_options():
                 fac = leading_a / leading_b
-                if (
-                    isinstance(fac.denominator.value, Number)
-                    and fac.denominator.exp == 1
-                ):
+                if not fac.remainder.value:
                     break
             else:
                 if not res.value and options_b:
@@ -129,7 +137,10 @@ class Polynomial(Collection):
 
     @staticmethod
     def long_division(a: AlgebraObject, b: AlgebraObject) -> AlgebraObject:
-        # Supports dual direction long division
+        """
+        Interface level long division that supports dual direction for computing absolutes.
+        If `b` has a higher degree than `a`, the result is inverted accordingly.
+        """
         from .product import Product
 
         if lexicographic_weight(b, 0) > lexicographic_weight(a, 0) and isinstance(
@@ -143,9 +154,8 @@ class Polynomial(Collection):
         return Polynomial._long_division(a, b)
 
     @staticmethod
-    def merge(
-        objs: Sequence[AlgebraObject],
-    ) -> Generator[AlgebraObject]:
+    def merge(objs: Sequence[AlgebraObject]) -> Generator[AlgebraObject]:
+        """Detect and combine like terms. All Symbolic fractions are combined into one as the remainder"""
         from .algebraobject import AlgebraObject
 
         res = defaultdict(Number)
@@ -154,32 +164,39 @@ class Polynomial(Collection):
         for t in objs:
             if t.value == 0:
                 continue
-            # Symbolic Fractions
+            # Symbolic fractions
             if not isinstance(t.denominator.value, Number) or t.denominator.exp != 1:
                 fracs[t.canonical()] += t.to_const()
             else:
                 res[t.canonical()] += t.to_const()
+        # One remainder
         if len(fracs) == 1:
             k, v = fracs.popitem()
             res[k] += v
+
+        # Multiple Symbolic fractions
         elif len(fracs) > 1:
             num = defaultdict(Number)
             vals = set()
             den = AlgebraObject()
+
+            # Compute the lcm of the fractions
             for k, v in fracs.items():
                 t = k.scale(v)
                 den = den.lcm(den, t.denominator)
                 vals.add(t)
+
+            # Compute the new numerator of each fraction
             for t in vals:
                 t = (den / t.denominator) * t.numerator
                 num[t.canonical()] += t.to_const()
-            if len(num) == 1:
-                k, v = num.popitem()
-                num = k.lazyscale(v)
-            else:
-                num = AlgebraObject(
-                    value=Polynomial(k.scale(v) for k, v in num.items() if v != 0)
-                )
+
+            # A hashtable was used to prevent excessive recursion
+            num = AlgebraObject(value=Polynomial(k.scale(v) for k, v in num.items()))
+
+            # Combine with the rest of the results
             for t in Polynomial.flatten(num / den):
                 res[t.canonical()] += t.to_const()
+
+        # Return them back into AlgebraObject form and ignore 0's
         return (k.scale(v) for k, v in res.items() if v != 0)

@@ -1,10 +1,17 @@
 import operator
 from data_types import AlgebraObject, Number, Variable
-from processing.operators import Unary
+from processing.operators import Binary, Unary
 
 
 class Interpreter:
-    def eval(self, node):
+    """
+    Evaluates an AST (can be a Unary, Binary, or atomic value)
+    Kept as a class to support setting variable values in the future
+    """
+
+    def eval(
+        self, node: None | Unary | Binary | Number | Variable
+    ) -> AlgebraObject | None:
         if node is None:
             return
         if isinstance(node, (Number, Variable)):

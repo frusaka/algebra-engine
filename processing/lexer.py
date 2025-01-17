@@ -1,8 +1,11 @@
+from typing import Generator
 from processing.tokens import Token, TokenType
 from data_types import Number, Variable
 
 
 class Lexer:
+    """Takes input string and Tokenizes it"""
+
     OPERS = {
         "=": Token(TokenType.EQ),
         "≠": Token(TokenType.NE),
@@ -32,12 +35,14 @@ class Lexer:
         except StopIteration:
             self.curr = None
 
-    def generate_tokens(self):
-        was_num = 0
+    def generate_tokens(self) -> Generator[Token]:
+        """Generate tokens based on input string"""
+        was_num = 0  # Disambiguate unary+- vs binary +-
         while self.curr is not None:
-            if self.curr in " \n\t":
+            if self.curr in " \n\t":  # Ignore spaces
                 self.advance()
                 continue
+
             if self.curr == "." or self.curr.isdigit():
                 # Can be toggled off to experiment with other notations (prefix & postfix)
                 if was_num:
@@ -51,12 +56,16 @@ class Lexer:
                 yield self.generate_number()
                 was_num = 3
                 continue
+
+            # A variable
             if self.curr.isalpha():
                 if was_num:
                     # Implicit multiplication - Variable Coefficient
                     yield self.OPERS["*"][was_num >> 1]
                 yield Token(TokenType.VAR, Variable(self.curr))
                 was_num = 2
+
+            # An operator
             elif self.curr in "+-":
                 yield self.OPERS[self.curr][not was_num]
                 was_num = 0
@@ -66,6 +75,8 @@ class Lexer:
                     yield self.OPERS["*"][1]
                 yield self.OPERS[self.curr] if self.curr != "*" else self.OPERS["*"][0]
                 was_num = self.curr == ")"
+
+            # An unknown symbol. Terminates immediately
             else:
                 yield Token(
                     TokenType.ERROR, SyntaxError(f"unexpected character: '{self.curr}'")
@@ -73,11 +84,13 @@ class Lexer:
                 return
             self.advance()
 
-    def generate_number(self):
+    def generate_number(self) -> Token:
+        """Traverse input string to form a single number"""
         decimals = 0
         number_str = ""
         while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
             if self.curr == ".":
+                # Number cannot have multiple decimals
                 if decimals:
                     return Token(
                         TokenType.ERROR,
@@ -86,6 +99,8 @@ class Lexer:
                 decimals = 1
             number_str += self.curr
             self.advance()
+
+        # Number needs atleast one digit
         if number_str == ".":
             return Token(
                 TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")

@@ -4,6 +4,8 @@ from typing import Any
 
 
 class TokenType(Enum):
+    """Supported token types"""
+
     EQ, NE, GT, GE, LT, LE = 0, 0.2, 0.4, 0.6, 0.8, 0.9
 
     NUMBER, VAR = 1, 1.2
@@ -18,6 +20,8 @@ class TokenType(Enum):
 
 @dataclass
 class Token:
+    """Lexer representation of a token. Contains precedence data"""
+
     type: TokenType
     value: Any = None
     iscoef: bool = False

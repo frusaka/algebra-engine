@@ -2,6 +2,8 @@ from fractions import Fraction
 
 
 class Base:
+    """Base class for all atomic objects"""
+
     def like(self, other):
         if type(self) is not type(other):
             return 0
@@ -21,6 +23,11 @@ class Base:
 
 
 class Unknown:
+    """
+    A small class that prevents comparsions between unknowns.
+    This class should be removed and better alternatives developed
+    """
+
     def __eq__(self, value):
         return super().__eq__(value) and type(value) is type(self)
 

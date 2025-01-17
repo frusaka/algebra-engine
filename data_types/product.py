@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class Product(Collection):
+    """A collection of unique terms that cannot be further be combined by multiplication or division"""
+
     def __new__(cls, objs: Sequence[AlgebraObject]) -> Product[AlgebraObject]:
         return super().__new__(cls, itertools.chain(*map(cls.flatten, objs)))
 

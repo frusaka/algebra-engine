@@ -3,6 +3,8 @@ from utils import *
 
 
 class Variable(Unknown, str, Base):
+    """An unknown in an experssion"""
+
     def __hash__(self):
         return str.__hash__(self)
 

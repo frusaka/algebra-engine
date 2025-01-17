@@ -166,6 +166,13 @@ def test_solve_factorization(interpreter):
     assert eq[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")), right=AlgebraObject(Number(2))
     )
+    expected = interpreter.eval(AST("2√(S/(2hp + 2p))"))
+    assert Equation(
+        left=AlgebraObject(value=Variable("S")),
+        right=interpreter.eval(AST("2pr^2 + 2pr^2h")),
+    )[Variable("r")] == Equation(
+        left=AlgebraObject(value=Variable("r")), right=Solutions({expected, -expected})
+    )
 
 
 def test_solve_formulas(interpreter):
@@ -206,72 +213,20 @@ def test_solve_formulas(interpreter):
         left=AlgebraObject(value=Variable("C")), right=interpreter.eval(AST("Prt + P"))
     )[Variable("P")] == Equation(
         left=AlgebraObject(value=Variable("P")),
-        right=AlgebraObject(
-            value=Product(
-                [
-                    AlgebraObject(value=Variable("C")),
-                    AlgebraObject(
-                        value=Polynomial(
-                            [
-                                AlgebraObject(
-                                    value=Product(
-                                        [
-                                            AlgebraObject(value=Variable("r")),
-                                            AlgebraObject(value=Variable("t")),
-                                        ]
-                                    )
-                                ),
-                                AlgebraObject(Number(1)),
-                            ]
-                        ),
-                        exp=Number(-1),
-                    ),
-                ]
-            ),
-        ),
+        right=interpreter.eval(AST("C/(rt + 1)")),
     )
     # ax + b = c, b = c - ax
     assert Equation(
         left=interpreter.eval(AST("ax + b")), right=AlgebraObject(value=Variable("c"))
     )[Variable("b")] == Equation(
-        left=AlgebraObject(value=Variable("b")),
-        right=AlgebraObject(
-            value=Polynomial(
-                [
-                    AlgebraObject(value=Variable("c")),
-                    AlgebraObject(
-                        Number(-1),
-                        Product(
-                            [
-                                AlgebraObject(value=Variable("a")),
-                                AlgebraObject(value=Variable("x")),
-                            ]
-                        ),
-                    ),
-                ]
-            ),
-        ),
+        left=AlgebraObject(value=Variable("b")), right=interpreter.eval(AST("c - ax"))
     )
     # y = mx + c, x = (y - c)/m
     assert Equation(
         left=AlgebraObject(value=Variable("y")), right=interpreter.eval(AST("mx + c"))
     )[Variable("x")] == Equation(
         left=AlgebraObject(value=Variable("x")),
-        right=AlgebraObject(
-            value=Product(
-                [
-                    AlgebraObject(
-                        value=Polynomial(
-                            [
-                                AlgebraObject(value=Variable("y")),
-                                AlgebraObject(Number(-1), Variable("c")),
-                            ]
-                        ),
-                    ),
-                    AlgebraObject(value=Variable("m"), exp=Number(-1)),
-                ]
-            ),
-        ),
+        right=interpreter.eval(AST("(y - c)/m")),
     )
 
 
@@ -311,6 +266,17 @@ def test_solve_quadratic(interpreter):
             {
                 AlgebraObject(Number("1.5")),
                 AlgebraObject(Number(-8)),
+            }
+        ),
+    )
+    assert Equation(
+        left=interpreter.eval(AST("x + 2√x")), right=AlgebraObject(Number(6))
+    )[Variable("x")] == Equation(
+        left=AlgebraObject(value=Variable("x")),
+        right=Solutions(
+            {
+                AlgebraObject(Number(9)),
+                AlgebraObject(Number(4)),
             }
         ),
     )
