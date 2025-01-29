@@ -1,7 +1,5 @@
 from processing import Interpreter, AST
 
-# TODO: Refactor and Document the project
-
 processor = Interpreter()
 while True:
     try:

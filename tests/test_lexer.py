@@ -8,7 +8,6 @@ def test_unknown():
     assert list(Lexer("~").generate_tokens())[1].type is TokenType.ERROR
     assert list(Lexer(":").generate_tokens())[1].type is TokenType.ERROR
     assert list(Lexer("@").generate_tokens())[1].type is TokenType.ERROR
-    
 
 
 def test_number():
@@ -94,6 +93,41 @@ def test_binary():
         Token(TokenType.NUMBER, Number(2)),
         Token(TokenType.POW),
         Token(TokenType.NUMBER, Number(3)),
+    ]
+    assert list(Lexer("x=5").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x")),
+        Token(TokenType.EQN),
+        Token(TokenType.NUMBER, Number(5)),
+    ]
+    assert list(Lexer("x==5").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x")),
+        Token(TokenType.EQ),
+        Token(TokenType.NUMBER, Number(5)),
+    ]
+    assert list(Lexer("x!=5").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x")),
+        Token(TokenType.NE),
+        Token(TokenType.NUMBER, Number(5)),
+    ]
+    assert list(Lexer("x>=5").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x")),
+        Token(TokenType.GE),
+        Token(TokenType.NUMBER, Number(5)),
+    ]
+    assert list(Lexer("x<=5").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x")),
+        Token(TokenType.LE),
+        Token(TokenType.NUMBER, Number(5)),
+    ]
+    assert list(Lexer("x>5").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x")),
+        Token(TokenType.GT),
+        Token(TokenType.NUMBER, Number(5)),
+    ]
+    assert list(Lexer("x<5").generate_tokens())[1:-1] == [
+        Token(TokenType.VAR, Variable("x")),
+        Token(TokenType.LT),
+        Token(TokenType.NUMBER, Number(5)),
     ]
 
 
@@ -209,6 +243,56 @@ def test_multiple_operators():
         Token(TokenType.MUL),
         Token(TokenType.NUMBER, Number(5)),
         Token(TokenType.ADD),
+        Token(TokenType.NUMBER, Number(2)),
+    ]
+    # Comparison operators
+    assert list(Lexer("3*5==2").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(5)),
+        Token(TokenType.EQ),
+        Token(TokenType.NUMBER, Number(2)),
+    ]
+    assert list(Lexer("3*5!=2").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(5)),
+        Token(TokenType.NE),
+        Token(TokenType.NUMBER, Number(2)),
+    ]
+    assert list(Lexer("3*5=2").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(5)),
+        Token(TokenType.EQN),
+        Token(TokenType.NUMBER, Number(2)),
+    ]
+    assert list(Lexer("3*5>=2").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(5)),
+        Token(TokenType.GE),
+        Token(TokenType.NUMBER, Number(2)),
+    ]
+    assert list(Lexer("3*5<=2").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(5)),
+        Token(TokenType.LE),
+        Token(TokenType.NUMBER, Number(2)),
+    ]
+    assert list(Lexer("3*5<2").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(5)),
+        Token(TokenType.LT),
+        Token(TokenType.NUMBER, Number(2)),
+    ]
+    assert list(Lexer("3*5>2").generate_tokens())[1:-1] == [
+        Token(TokenType.NUMBER, Number(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.NUMBER, Number(5)),
+        Token(TokenType.GT),
         Token(TokenType.NUMBER, Number(2)),
     ]
 
