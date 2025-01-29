@@ -2,8 +2,9 @@ from __future__ import annotations
 from collections import defaultdict
 from functools import cache, cached_property
 import itertools
+from .bases import Base
 from .collection import Collection
-from .number import Number
+from .number import Number, Fraction
 from utils import *
 from typing import Generator, Sequence, TYPE_CHECKING
 
@@ -83,6 +84,39 @@ class Polynomial(Collection):
         # Scalar multiplication
         if isinstance(a.exp, Number) and isinstance(b.value, Number) and b.exp == 1:
             return type(a)(b.value * a.coef, a.value, a.exp)
+
+    @dispatch
+    def pow(b, a):
+        pass
+
+    @pow.register(number)
+    def _(b, a):
+        if a.exp == -1 and abs(b.value.value) != 1:
+            return Polynomial.scalar_pow(b.value, type(a)(value=a.value)).inv
+        return Polynomial.scalar_pow(b.value, a)
+
+    @staticmethod
+    def scalar_pow(b, a):
+        """For-loop based exponentiation of a Polynomial"""
+        if b.exp != 1 or a.exp != 1:
+            if b.coef != 1:
+                return (a ** type(a)(b.coef)) ** type(a)(b.value, exp=b.exp)
+            return
+        b = b.value
+        if b.numerator.imag:
+            return type(a)(
+                a.coef**b.value, a.value, type(a)(value=a.exp) * type(a)(b.value)
+            )
+        res = a
+        for _ in range(abs(b.numerator) - 1):
+            res *= a
+        exp = Fraction(1, b.denominator)
+        if b < 0:
+            exp = -exp
+        res = type(a)(value=res.value, exp=res.exp * exp)
+        return res
+
+    pow.register(polynomial)(Base.poly_pow)
 
     @cached_property
     def leading(self) -> AlgebraObject:
