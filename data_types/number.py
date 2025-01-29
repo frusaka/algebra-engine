@@ -6,7 +6,7 @@ from .bases import Base, Fraction
 from utils import *
 
 if TYPE_CHECKING:
-    from .algebraobject import AlgebraObject
+    from .term import Term
 
 
 @dataclass(frozen=True, init=False)
@@ -155,22 +155,22 @@ class Number(Base):
             return x ** (1 / n)
 
     @dispatch
-    def add(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def add(b: Proxy[Term], a: Term):
         pass
 
     @add.register(number)
-    def _(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def _(b: Proxy[Term], a: Term):
         b = b.value
         if a.exp == b.exp == 1:
             return type(a)(value=a.value + b.value)
         return type(a)(a.coef + b.coef, a.value, a.exp)
 
     @dispatch
-    def mul(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def mul(b: Proxy[Term], a: Term):
         return b.value.value.mul(Proxy(a), b.value)
 
     @mul.register(number)
-    def _(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def _(b: Proxy[Term], a: Term):
         b = b.value
         if a.like(b, 0):
             # Can be like term with different exponents (3^x * 3^y)
@@ -183,7 +183,7 @@ class Number(Base):
             return type(a)(b.value * a.coef, a.value, a.exp)
 
     @staticmethod
-    def resolve_pow(a: AlgebraObject, b: AlgebraObject) -> AlgebraObject:
+    def resolve_pow(a: Term, b: Term) -> Term:
         # NOTE: a^(nm) = (a^n)^m only if m is a real integer
         res = type(a)(a.coef, a.value) ** type(a)(b.to_const())
         return type(a)(
@@ -191,11 +191,11 @@ class Number(Base):
         )
 
     @dispatch
-    def pow(b: Proxy[AlgebraObject], a: AlgebraObject) -> AlgebraObject:
+    def pow(b: Proxy[Term], a: Term) -> Term:
         return Number.resolve_pow(a, b.value)
 
     @pow.register(number)
-    def _(b: Proxy[AlgebraObject], a: AlgebraObject) -> AlgebraObject:
+    def _(b: Proxy[Term], a: Term) -> Term:
         if a.exp == b.value.exp == 1:
             return type(a)(a.coef, a.value**b.value.value, a.exp)
         return Number.resolve_pow(a, b.value)

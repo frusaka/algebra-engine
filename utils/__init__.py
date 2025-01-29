@@ -1,26 +1,24 @@
 from .classes import *
 
 
-def lexicographic_weight(algebraobject, alphabetic=True):
+def lexicographic_weight(term, alphabetic=True):
     from data_types import Number, Variable, Collection
 
-    if isinstance(algebraobject.value, Number) or not isinstance(
-        algebraobject.exp, Number
-    ):
+    if isinstance(term.value, Number) or not isinstance(term.exp, Number):
         return Number(0)
     res = Number(0)
 
-    if isinstance(algebraobject.value, Collection) and algebraobject.exp == 1:
+    if isinstance(term.value, Collection) and term.exp == 1:
         # Calling sum() does not work
-        for t in algebraobject.value:
+        for t in term.value:
             res += lexicographic_weight(t, alphabetic)
         return res
-    res = algebraobject.exp
-    if isinstance(algebraobject.value, Variable) and alphabetic:
+    res = term.exp
+    if isinstance(term.value, Variable) and alphabetic:
         # Map range formula
         a, b = ord("A"), ord("z")
         c, d = 0, 0.1
-        x = ord(algebraobject.value)
+        x = ord(term.value)
         res += c + ((x - a) * (d - c)) / (b - a)
     return res
 

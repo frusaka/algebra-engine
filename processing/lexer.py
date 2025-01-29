@@ -11,7 +11,7 @@ class Lexer:
     OPERS = {
         "→": Token(TokenType.GETITEM),
         "=": Token(TokenType.EQN),
-        "≕": Token(TokenType.EQ),
+        "⩵": Token(TokenType.EQ),
         "≠": Token(TokenType.NE),
         ">": Token(TokenType.GT),
         "≥": Token(TokenType.GE),
@@ -33,7 +33,7 @@ class Lexer:
             .replace(">=", "≥")
             .replace("<=", "≤")
             .replace("->", "→")
-            .replace("=:", "≕")
+            .replace("==", "⩵")
             .join("()")
         )
         self.advance()

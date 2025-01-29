@@ -11,11 +11,11 @@ class Collection(Unknown, frozenset, Base):
         return frozenset.__hash__(self)
 
     @classmethod
-    def flatten(cls, algebraobject):
+    def flatten(cls, term):
         """Unnest the given term if the type matches the `cls`"""
-        if algebraobject.exp != 1 or not isinstance(algebraobject.value, cls):
-            yield algebraobject
+        if term.exp != 1 or not isinstance(term.value, cls):
+            yield term
             return
 
-        for i in algebraobject.value:
+        for i in term.value:
             yield from cls.flatten(i)

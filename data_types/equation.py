@@ -5,13 +5,13 @@ from .product import Product
 from .bases import Base
 from .number import Number
 from .variable import Variable
-from .algebraobject import AlgebraObject
+from .term import Term
 
 
 @dataclass
 class Equation(Base):
-    left: AlgebraObject
-    right: AlgebraObject | Solutions
+    left: Term
+    right: Term | Solutions
 
     def __hash__(self):
         return hash((Equation, self.left, self.right))
@@ -46,16 +46,16 @@ class Equation(Base):
             return self.reverse_sub(self.right)[value]
 
         if self.left.coef != 1:
-            return (self.reverse_div(AlgebraObject(self.left.coef)))[value]
+            return (self.reverse_div(Term(self.left.coef)))[value]
         if self.left.exp != 1:
-            exp = AlgebraObject() / AlgebraObject(value=self.left.exp)
+            exp = Term() / Term(value=self.left.exp)
             if value in exp:
                 raise NotImplementedError("Cannot isolate variable from exponent")
             return (self**exp)[value]
 
         if isinstance(self.left.value, Polynomial):
             # Brute-force factorization
-            t = self.left / AlgebraObject(value=value, exp=self.left.get_exp(value))
+            t = self.left / Term(value=value, exp=self.left.get_exp(value))
             if not value in t:
                 return self.reverse_div(t)[value]
             remove = None
@@ -69,12 +69,12 @@ class Equation(Base):
                         if t.exp_const() < 0:
                             return (self * t.inv)[value]
                 elif (exp := i.exp_const()) < 0:
-                    return (self * AlgebraObject(value=i.value, exp=i.exp).inv)[value]
+                    return (self * Term(value=i.value, exp=i.exp).inv)[value]
                 # Term is in radical form
                 elif exp.denominator != 1:
                     self -= self.left - i
                     print(self)
-                    return (self ** AlgebraObject(Number(exp.denominator)))[value]
+                    return (self ** Term(Number(exp.denominator)))[value]
 
             # Solving using the quadratic formuala
             if (res := self.solve_quadratic(value)) is not self:
@@ -84,9 +84,9 @@ class Equation(Base):
                 return self.reverse_sub(remove)[value]
 
             # Solving by factoring coefficients
-            _, left = AlgebraObject.rationalize(self.right, self.left)
+            _, left = Term.rationalize(self.right, self.left)
             if left != self.left:
-                return (self.reverse_div((left / self.left) ** -AlgebraObject()))[value]
+                return (self.reverse_div((left / self.left) ** -Term()))[value]
 
         # Isolation by division
         if isinstance(self.left.value, Product):
@@ -100,23 +100,23 @@ class Equation(Base):
     def __neg__(self):
         return Equation(-self.left, -self.right)
 
-    def __add__(self, value: AlgebraObject):
+    def __add__(self, value: Term):
         self.show_operation("+", value)
         return Equation(self.left + value, self.right + value)
 
-    def __sub__(self, value: AlgebraObject):
+    def __sub__(self, value: Term):
         self.show_operation("-", value)
         return Equation(self.left - value, self.right - value)
 
-    def __mul__(self, value: AlgebraObject):
+    def __mul__(self, value: Term):
         self.show_operation("*", value)
         return Equation(self.left * value, self.right * value)
 
-    def __truediv__(self, value: AlgebraObject):
+    def __truediv__(self, value: Term):
         self.show_operation("/", value)
         return Equation(self.left / value, self.right / value)
 
-    def __pow__(self, value: AlgebraObject):
+    def __pow__(self, value: Term):
         self.show_operation("^", value)
         rhs = self.right**value
         if (
@@ -136,7 +136,7 @@ class Equation(Base):
         check whether it can be considered quadratic in terms of `value` and solve
         """
         a, b = None, None
-        x = AlgebraObject(value=value)
+        x = Term(value=value)
         for t in self.left.value:  # Must be a Polynomial
             v = t / x
             # Checks to detect a Quadratice
@@ -170,31 +170,31 @@ class Equation(Base):
         return res
 
     @staticmethod
-    def quadratic_formula(a: AlgebraObject, b: AlgebraObject, c: AlgebraObject):
+    def quadratic_formula(a: Term, b: Term, c: Term):
         """Apply the quadratic formula: (-b ± (b^2 - 4ac))/2a"""
         print("Quadratic(a={0}, b={1}, c={2})".format(a, b, c))
-        rhs = (
-            b ** AlgebraObject(Number(2)) - AlgebraObject(Number(4)) * a * c
-        ) ** AlgebraObject(value=Number("1/2"))
-        den = AlgebraObject(Number(2)) * a
+        rhs = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(
+            value=Number("1/2")
+        )
+        den = Term(Number(2)) * a
         res = {(-b + rhs) / den, (-b - rhs) / den}
         if len(res) == 1:
             return res.pop()
         return Solutions(res)
 
-    def reverse_sub(self, value: AlgebraObject):
+    def reverse_sub(self, value: Term):
         """Make the logging of inverse subtration look natural"""
         if value.to_const() > 0:
             return self - value
         return self + -value
 
-    def reverse_div(self, value: AlgebraObject):
+    def reverse_div(self, value: Term):
         """Make the logging of inverse division look natural"""
         if value.denominator.value != 1:
             return self * value.inv
         return self / value
 
-    def show_operation(self, operator: str, value: AlgebraObject):
+    def show_operation(self, operator: str, value: Term):
         """A convinent method to show the user the solving process"""
         print(self)
         print(" " * str(self).index("="), operator + " ", value, sep="")

@@ -1,5 +1,5 @@
 from .collection import Collection
-from .algebraobject import AlgebraObject
+from .term import Term
 
 
 class Solutions(Collection):
@@ -8,19 +8,19 @@ class Solutions(Collection):
     NOTE: Still under developement
     """
 
-    def __add__(self, value: AlgebraObject):
+    def __add__(self, value: Term):
         return Solutions(t + value for t in self)
 
-    def __sub__(self, value: AlgebraObject):
+    def __sub__(self, value: Term):
         return Solutions(t - value for t in self)
 
-    def __mul__(self, value: AlgebraObject):
+    def __mul__(self, value: Term):
         return Solutions(t * value for t in self)
 
-    def __truediv__(self, value: AlgebraObject):
+    def __truediv__(self, value: Term):
         return Solutions(t / value for t in self)
 
-    def __pow__(self, value: AlgebraObject):
+    def __pow__(self, value: Term):
         return Solutions(t**value for t in self)
 
     def __str__(self) -> str:

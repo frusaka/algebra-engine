@@ -1,0 +1,14 @@
+1. Check for extreneous solutions
+2. Gracefully handle no solutions or infinite solutions
+3. Streamline the process of operations between terms and non-terms (not urgent)
+    e.g:
+        3-(x=5)
+        5(x=5)
+    Perhaps by adding a superclass to supervise operations
+    This should also check for limits
+        e.g:
+            (2x=3)(5x-4=y)
+4. Revise long division to support super simplification of remainders
+    e.g, (3+(x-3)/(x-3)^2) => (3+1/(x-3))
+    NOTE: This would properly simplify to the expected output, but long division can return such a result
+5. Improve consistency and watch for recursion explosion

@@ -9,19 +9,19 @@ from utils import *
 from typing import Generator, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .algebraobject import AlgebraObject
+    from .term import Term
 
 
 class Polynomial(Collection):
     """A collection of unique terms that cannot be further be combined by addition or subtraction"""
 
-    def __new__(cls, objs: Sequence[AlgebraObject]) -> Polynomial:
+    def __new__(cls, objs: Sequence[Term]) -> Polynomial:
         return super().__new__(cls, cls.merge(itertools.chain(*map(cls.flatten, objs))))
 
     def __str__(self):
         res = ""
-        for idx, algebraobject in enumerate(standard_form(self)):
-            rep = str(algebraobject)
+        for idx, term in enumerate(standard_form(self)):
+            rep = str(term)
             if idx > 0 and res:
                 if rep.startswith("-"):
                     rep = rep[1:]
@@ -32,7 +32,7 @@ class Polynomial(Collection):
         return res.join("()")
 
     @staticmethod
-    def resolve(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def resolve(b: Proxy[Term], a: Term):
         """A default fallback if two terms are not like"""
         val = Polynomial([b.value, a])
         if not val:
@@ -42,17 +42,17 @@ class Polynomial(Collection):
         return type(a)(value=val)
 
     @dispatch
-    def add(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def add(b: Proxy[Term], a: Term):
         return Polynomial.resolve(b, a)
 
     @add.register(polynomial)
-    def _(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def _(b: Proxy[Term], a: Term):
         if a.like(b.value) and a.exp != 1:
             return type(a)(a.coef + b.value.coef, a.value, a.exp)
         return Polynomial.resolve(b, a)
 
     @dispatch
-    def mul(b: Proxy[AlgebraObject], a: AlgebraObject):
+    def mul(b: Proxy[Term], a: Term):
         from .product import Product
 
         b = b.value
@@ -119,11 +119,11 @@ class Polynomial(Collection):
     pow.register(polynomial)(Base.poly_pow)
 
     @cached_property
-    def leading(self) -> AlgebraObject:
+    def leading(self) -> Term:
         return max(self, key=lexicographic_weight)
 
     @cache
-    def leading_options(self) -> tuple[AlgebraObject]:
+    def leading_options(self) -> tuple[Term]:
         """Get all the the terms that have a degree equivalent to the leading term's degree"""
         leading = self.leading
         return tuple(
@@ -133,10 +133,10 @@ class Polynomial(Collection):
         )
 
     @staticmethod
-    def _long_division(a: AlgebraObject, b: AlgebraObject) -> AlgebraObject:
+    def _long_division(a: Term, b: Term) -> Term:
         """Backend long division algorithm. `a` must have a higher degree than `b`"""
         from .product import Product
-        from .algebraobject import AlgebraObject
+        from .term import Term
 
         if a.exp != 1 or not isinstance(b.exp, Number):
             return Product.resolve(a, b.inv)
@@ -147,7 +147,7 @@ class Polynomial(Collection):
             leading_b = options_b.pop()
 
         org = a
-        res = AlgebraObject(Number(0))
+        res = Term(Number(0))
         while a.value:
             # Remainder
             if not isinstance(a.value, Polynomial) or a.exp != 1:
@@ -161,7 +161,7 @@ class Polynomial(Collection):
                 if not res.value and options_b:
                     leading_b = options_b.pop()
                     a = org
-                    res = AlgebraObject(Number(0))
+                    res = Term(Number(0))
                     continue
                 res += Product.resolve(a, b.inv)
                 break
@@ -170,7 +170,7 @@ class Polynomial(Collection):
         return res
 
     @staticmethod
-    def long_division(a: AlgebraObject, b: AlgebraObject) -> AlgebraObject:
+    def long_division(a: Term, b: Term) -> Term:
         """
         Interface level long division that supports dual direction for computing absolutes.
         If `b` has a higher degree than `a`, the result is inverted accordingly.
@@ -188,9 +188,9 @@ class Polynomial(Collection):
         return Polynomial._long_division(a, b)
 
     @staticmethod
-    def merge(objs: Sequence[AlgebraObject]) -> Generator[AlgebraObject]:
+    def merge(objs: Sequence[Term]) -> Generator[Term]:
         """Detect and combine like terms. All Symbolic fractions are combined into one as the remainder"""
-        from .algebraobject import AlgebraObject
+        from .term import Term
 
         res = defaultdict(Number)
         fracs = defaultdict(Number)
@@ -212,7 +212,7 @@ class Polynomial(Collection):
         elif len(fracs) > 1:
             num = defaultdict(Number)
             vals = set()
-            den = AlgebraObject()
+            den = Term()
 
             # Compute the lcm of the fractions
             for k, v in fracs.items():
@@ -226,11 +226,11 @@ class Polynomial(Collection):
                 num[t.canonical()] += t.to_const()
 
             # A hashtable was used to prevent excessive recursion
-            num = AlgebraObject(value=Polynomial(k.scale(v) for k, v in num.items()))
+            num = Term(value=Polynomial(k.scale(v) for k, v in num.items()))
 
             # Combine with the rest of the results
             for t in Polynomial.flatten(num / den):
                 res[t.canonical()] += t.to_const()
 
-        # Return them back into AlgebraObject form and ignore 0's
+        # Return them back into Term form and ignore 0's
         return (k.scale(v) for k, v in res.items() if v != 0)

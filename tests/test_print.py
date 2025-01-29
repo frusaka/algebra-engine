@@ -1,6 +1,6 @@
 from processing import AST
 from utils import print_frac
-from data_types import Number, Fraction, AlgebraObject, Variable
+from data_types import Number, Fraction, Term, Variable
 
 
 def test_print_frac():
@@ -27,29 +27,27 @@ def test_print_number():
 
 
 def test_print_variable():
-    assert str(AlgebraObject(Number(1), Variable("x"))) == "x"
-    assert str(AlgebraObject(Number(-1), Variable("y"))) == "-y"
-    assert str(AlgebraObject(Number(1), Variable("x"), Number(2))) == "x^2"
-    assert str(AlgebraObject(Number("0.5"), Variable("a"), Number(3))) == "0.5a^3"
-    assert str(AlgebraObject(Number("3/7"), Variable("h"), Number(1))) == "3h/7"
-    assert str(AlgebraObject(Number(complex(2, 3)), Variable("x"))) == "(2+3i)x"
-    assert str(AlgebraObject(Number(complex(0, 1)), Variable("b"))) == "(i)b"
+    assert str(Term(Number(1), Variable("x"))) == "x"
+    assert str(Term(Number(-1), Variable("y"))) == "-y"
+    assert str(Term(Number(1), Variable("x"), Number(2))) == "x^2"
+    assert str(Term(Number("0.5"), Variable("a"), Number(3))) == "0.5a^3"
+    assert str(Term(Number("3/7"), Variable("h"), Number(1))) == "3h/7"
+    assert str(Term(Number(complex(2, 3)), Variable("x"))) == "(2+3i)x"
+    assert str(Term(Number(complex(0, 1)), Variable("b"))) == "(i)b"
 
 
 def test_print_negative_exp():
-    assert str(AlgebraObject(Number(1), Variable("x"), Number(-1))) == "1/x"
-    assert str(AlgebraObject(Number(1), Variable("f"), Number(-2))) == "1/f^2"
-    assert str(AlgebraObject(Number("1.5"), Variable("x"), Number(-2))) == "3/2x^2"
-    assert str(AlgebraObject(Number("6/7"), Variable("k"), Number(-3))) == "6/7k^3"
+    assert str(Term(Number(1), Variable("x"), Number(-1))) == "1/x"
+    assert str(Term(Number(1), Variable("f"), Number(-2))) == "1/f^2"
+    assert str(Term(Number("1.5"), Variable("x"), Number(-2))) == "3/2x^2"
+    assert str(Term(Number("6/7"), Variable("k"), Number(-3))) == "6/7k^3"
 
 
 def test_print_radical(processor):
-    assert str(AlgebraObject(Number(1), Variable("y"), Number("0.5"))) == "2√y"
-    assert str(AlgebraObject(Number(1), Variable("x"), Number("-1/3"))) == "1/3√x"
-    assert str(AlgebraObject(Number("3.5"), Variable("q"), Number("1/3"))) == "3.5(3√q)"
-    assert (
-        str(AlgebraObject(Number("0.2"), Variable("r"), Number("2/3"))) == "0.2(3√r^2)"
-    )
+    assert str(Term(Number(1), Variable("y"), Number("0.5"))) == "2√y"
+    assert str(Term(Number(1), Variable("x"), Number("-1/3"))) == "1/3√x"
+    assert str(Term(Number("3.5"), Variable("q"), Number("1/3"))) == "3.5(3√q)"
+    assert str(Term(Number("0.2"), Variable("r"), Number("2/3"))) == "0.2(3√r^2)"
     assert str(processor.eval(AST("2√(x + c)"))) == "2√(x + c)"
     assert str(processor.eval(AST("-1(2√(x + c))"))) == "-2√(x + c)"
     assert str(processor.eval(AST("2(2√(x + c))"))) == "2(2√(x + c))"
