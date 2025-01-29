@@ -1,5 +1,5 @@
 import operator
-from data_types import AlgebraObject, Number, Variable
+from data_types import AlgebraObject, Equation, Number, Variable
 from processing.operators import Binary, Unary
 
 
@@ -28,5 +28,9 @@ class Interpreter:
 
         if oper == "root":
             return operator.pow(right, AlgebraObject() / left)
+        if oper == "eqn":
+            return Equation(left, right)
+        if oper == "getitem":
+            return right[left.value]
 
         return getattr(operator, oper)(left, right)

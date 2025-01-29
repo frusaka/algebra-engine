@@ -5,17 +5,21 @@ from typing import Any
 
 class TokenType(Enum):
     """Supported token types"""
+    
+    # Equation
+    GETITEM = 0
+    EQN = 1
 
-    EQ, NE, GT, GE, LT, LE = 0, 0.2, 0.4, 0.6, 0.8, 0.9
+    EQ, NE, GT, GE, LT, LE = 2, 2.2, 2.4, 2.6, 2.8, 2.9
 
-    NUMBER, VAR = 1, 1.2
-    ADD, SUB = 2, 2.2
-    MUL, TRUEDIV = 3, 3.2
-    POW, ROOT = 5, 5.2
-    POS, NEG = 4, 4.2
+    NUMBER, VAR = 3, 3.2
+    ADD, SUB = 4, 4.2
+    MUL, TRUEDIV = 5, 5.2
+    POS, NEG = 6, 6.2
+    POW, ROOT = 7, 7.2
 
-    LPAREN, RPAREN = -6, -6.2
-    ERROR = -7
+    LPAREN, RPAREN = -8, -8.2
+    ERROR = -9
 
 
 @dataclass

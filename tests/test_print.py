@@ -43,32 +43,30 @@ def test_print_negative_exp():
     assert str(AlgebraObject(Number("6/7"), Variable("k"), Number(-3))) == "6/7k^3"
 
 
-def test_print_radical(interpreter):
+def test_print_radical(processor):
     assert str(AlgebraObject(Number(1), Variable("y"), Number("0.5"))) == "2√y"
     assert str(AlgebraObject(Number(1), Variable("x"), Number("-1/3"))) == "1/3√x"
     assert str(AlgebraObject(Number("3.5"), Variable("q"), Number("1/3"))) == "3.5(3√q)"
     assert (
         str(AlgebraObject(Number("0.2"), Variable("r"), Number("2/3"))) == "0.2(3√r^2)"
     )
-    assert str(interpreter.eval(AST("2√(x + c)"))) == "2√(x + c)"
-    assert str(interpreter.eval(AST("-1(2√(x + c))"))) == "-2√(x + c)"
-    assert str(interpreter.eval(AST("2(2√(x + c))"))) == "2(2√(x + c))"
-    assert str(interpreter.eval(AST("-2(2√(x + c))"))) == "-2(2√(x + c))"
+    assert str(processor.eval(AST("2√(x + c)"))) == "2√(x + c)"
+    assert str(processor.eval(AST("-1(2√(x + c))"))) == "-2√(x + c)"
+    assert str(processor.eval(AST("2(2√(x + c))"))) == "2(2√(x + c))"
+    assert str(processor.eval(AST("-2(2√(x + c))"))) == "-2(2√(x + c))"
 
 
-def test_print_polynomial(interpreter):
-    assert str(interpreter.eval(AST("x+1"))) == "(x + 1)"
-    assert str(interpreter.eval(AST("47-600x"))) == "(-600x + 47)"
-    assert (
-        str(interpreter.eval(AST("1600+3x^3+y-12y^2"))) == "(3x^3 - 12y^2 + y + 1600)"
-    )
-    assert str(interpreter.eval(AST("x^2+3x+1"))) == "(x^2 + 3x + 1)"
-    assert str(interpreter.eval(AST("3x+(3/(c+b))-1"))) == "(3x - 1 + 3/(c + b))"
+def test_print_polynomial(processor):
+    assert str(processor.eval(AST("x+1"))) == "(x + 1)"
+    assert str(processor.eval(AST("47-600x"))) == "(-600x + 47)"
+    assert str(processor.eval(AST("1600+3x^3+y-12y^2"))) == "(3x^3 - 12y^2 + y + 1600)"
+    assert str(processor.eval(AST("x^2+3x+1"))) == "(x^2 + 3x + 1)"
+    assert str(processor.eval(AST("3x+(3/(c+b))-1"))) == "(3x - 1 + 3/(c + b))"
 
 
-def test_print_product(interpreter):
-    assert str(interpreter.eval(AST("-2xb"))) == "-2bx"
-    assert str(interpreter.eval(AST("x^3*y^-5"))) == "x^3/y^5"
-    assert str(interpreter.eval(AST("s^3*d^-5*z^2"))) == "(z^2s^3)/d^5"
-    assert str(interpreter.eval(AST("-10(m^-1*n^-1)"))) == "-10/mn"
-    assert str(interpreter.eval(AST("(-2/3)(y^2n^-1)"))) == "-2y^2/3n"
+def test_print_product(processor):
+    assert str(processor.eval(AST("-2xb"))) == "-2bx"
+    assert str(processor.eval(AST("x^3*y^-5"))) == "x^3/y^5"
+    assert str(processor.eval(AST("s^3*d^-5*z^2"))) == "(z^2s^3)/d^5"
+    assert str(processor.eval(AST("-10(m^-1*n^-1)"))) == "-10/mn"
+    assert str(processor.eval(AST("(-2/3)(y^2n^-1)"))) == "-2y^2/3n"

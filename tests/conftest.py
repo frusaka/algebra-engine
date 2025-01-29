@@ -3,5 +3,5 @@ import pytest
 
 
 @pytest.fixture
-def interpreter():
+def processor():
     return Interpreter()
