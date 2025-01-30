@@ -188,7 +188,7 @@ class Polynomial(Collection):
         return Polynomial._long_division(a, b)
 
     @staticmethod
-    def merge(objs: Sequence[Term]) -> Generator[Term]:
+    def merge(objs: Sequence[Term]) -> Generator[Term, None, None]:
         """Detect and combine like terms. All Symbolic fractions are combined into one as the remainder"""
         from .term import Term
 

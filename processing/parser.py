@@ -42,7 +42,7 @@ class Parser:
             self.operator_error(oper)
         return Binary(oper, left, right)
 
-    def postfix(self, tokens: Sequence[Token]) -> Generator[Token]:
+    def postfix(self, tokens: Sequence[Token]) -> Generator[Token, None, None]:
         """
         Takes input tokens and converts it to postfix notation.
         properly manages operator precendence

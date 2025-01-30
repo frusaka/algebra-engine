@@ -44,7 +44,7 @@ class Lexer:
         except StopIteration:
             self.curr = None
 
-    def generate_tokens(self) -> Generator[Token]:
+    def generate_tokens(self) -> Generator[Token, None, None]:
         """Generate tokens based on input string"""
         was_num = 0  # Disambiguate unary+- vs binary +-
         while self.curr is not None:
