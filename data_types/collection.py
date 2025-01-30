@@ -2,7 +2,7 @@ from .bases import *
 from utils import *
 
 
-class Collection(Unknown, frozenset, Base):
+class Collection(Unknown, frozenset, Atomic):
     """
     A base class representing a collection of unique terms
     """

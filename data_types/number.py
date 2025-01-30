@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 from typing import Any, SupportsFloat, SupportsComplex, TYPE_CHECKING
-from .bases import Base, Fraction
+from .bases import Atomic, Fraction
 from utils import *
 
 if TYPE_CHECKING:
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, init=False)
-class Number(Base):
+class Number(Atomic):
     """
     A repsentation of a numeric value.
     The `numerator` attribute can be an integer or a complex number.
@@ -200,4 +200,4 @@ class Number(Base):
             return type(a)(a.coef, a.value**b.value.value, a.exp)
         return Number.resolve_pow(a, b.value)
 
-    pow.register(polynomial)(Base.poly_pow)
+    pow.register(polynomial)(Atomic.poly_pow)

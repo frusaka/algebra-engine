@@ -2,14 +2,15 @@ from dataclasses import dataclass
 from .solutions import Solutions
 from .polynomial import Polynomial
 from .product import Product
-from .bases import Base
+from .bases import Atomic
 from .number import Number
 from .variable import Variable
 from .term import Term
+from utils import quadratic, quadratic_formula
 
 
 @dataclass
-class Equation(Base):
+class Equation(Atomic):
     left: Term
     right: Term | Solutions
 
@@ -77,7 +78,9 @@ class Equation(Base):
                     return (self ** Term(Number(exp.denominator)))[value]
 
             # Solving using the quadratic formuala
-            if (res := self.solve_quadratic(value)) is not self:
+            if (res := quadratic(self, value)) is not None:
+                res = Equation(Term(value=value), quadratic_formula(*res))
+                print(res)
                 return res
 
             if remove:
@@ -129,58 +132,6 @@ class Equation(Base):
             # sqrt(x) = +-..
             rhs = Solutions({rhs, -rhs})
         return Equation(self.left**value, rhs)
-
-    def solve_quadratic(self, value: Variable):
-        """
-        Given that the lhs is a Polynomial,
-        check whether it can be considered quadratic in terms of `value` and solve
-        """
-        a, b = None, None
-        x = Term(value=value)
-        for t in self.left.value:  # Must be a Polynomial
-            v = t / x
-            # Checks to detect a Quadratice
-            # One term that when divided by x cancels the x
-            if value not in v:
-                if b:
-                    return self
-                b = v
-                bx = t
-            # One term that when divided by x^2 cancels the x
-            elif value not in (v := v / x):
-                if a:
-                    return self
-                a = v
-                ax_2 = t
-            # Should otherwise not contain x if not divisible by x or x^2
-            elif value in t:
-                return self
-        # Not a quadratic
-        if not a or not b:
-            return self
-        # Make the rhs 0
-        if self.right.value:
-            self = self.reverse_sub(self.right)
-            print(self)
-        # The rest of the boys, can even be another Polynomial
-        c = self.left - (ax_2 + bx)
-        # Apply the formula
-        res = Equation(x, self.quadratic_formula(a, b, c))
-        print(res)
-        return res
-
-    @staticmethod
-    def quadratic_formula(a: Term, b: Term, c: Term):
-        """Apply the quadratic formula: (-b ± (b^2 - 4ac))/2a"""
-        print("Quadratic(a={0}, b={1}, c={2})".format(a, b, c))
-        rhs = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(
-            value=Number("1/2")
-        )
-        den = Term(Number(2)) * a
-        res = {(-b + rhs) / den, (-b - rhs) / den}
-        if len(res) == 1:
-            return res.pop()
-        return Solutions(res)
 
     def reverse_sub(self, value: Term):
         """Make the logging of inverse subtration look natural"""

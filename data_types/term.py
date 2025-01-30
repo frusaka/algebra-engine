@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import cache, cached_property
 import math
-from .bases import Base
+from .bases import Atomic
 from .number import Number
 from .variable import Variable
 from .collection import Collection
@@ -21,7 +21,7 @@ class Term:
     """
 
     coef: Number
-    value: Base[Number, Variable, Product, Polynomial]
+    value: Atomic[Number, Variable, Product, Polynomial]
     exp: Number | Term
 
     def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)) -> Term:

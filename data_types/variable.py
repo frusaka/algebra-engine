@@ -1,8 +1,8 @@
-from .bases import Unknown, Base
+from .bases import Unknown, Atomic
 from utils import *
 
 
-class Variable(Unknown, str, Base):
+class Variable(Unknown, str, Atomic):
     """An unknown in an experssion"""
 
     def __hash__(self):
@@ -40,4 +40,4 @@ class Variable(Unknown, str, Base):
         # Algebra object has a good enough default fallback for Variable exponentiation
         pass
 
-    pow.register(polynomial)(Base.poly_pow)
+    pow.register(polynomial)(Atomic.poly_pow)

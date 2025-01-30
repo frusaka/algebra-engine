@@ -1,7 +1,7 @@
 from fractions import Fraction
 
 
-class Base:
+class Atomic:
     """Base class for all atomic objects"""
 
     def like(self, other):

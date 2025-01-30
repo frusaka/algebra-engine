@@ -13,4 +13,7 @@
     e.g, (3+(x-3)/(x-3)^2) => (3+1/(x-3))
     NOTE: This would properly simplify to the expected output, but long division can return such a result
 5. Improve consistency and watch for recursion explosion
-6. Refactor and document project after merging
+6. Implement a custom operator API instead of the builtin operator module
+7. Re-write comparison logic: A comparison should output a Comparison object,
+    with ways to check if the condition is satisfied
+8. Refactor and document project after merging

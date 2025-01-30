@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import defaultdict
 from functools import cache, cached_property
 import itertools
-from .bases import Base
+from .bases import Atomic
 from .collection import Collection
 from .number import Number, Fraction
 from utils import *
@@ -116,7 +116,7 @@ class Polynomial(Collection):
         res = type(a)(value=res.value, exp=res.exp * exp)
         return res
 
-    pow.register(polynomial)(Base.poly_pow)
+    pow.register(polynomial)(Atomic.poly_pow)
 
     @cached_property
     def leading(self) -> Term:
