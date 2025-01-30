@@ -1,6 +1,6 @@
-import operator
-from data_types import Term, Equation, Number, Variable
-from processing.operators import Binary, Unary
+from data_types import Term, Number, Variable
+from . import operators
+from .operators import Binary, Unary
 
 
 class Interpreter:
@@ -13,22 +13,15 @@ class Interpreter:
         if node is None:
             return
         if isinstance(node, (Number, Variable)):
-            if isinstance(node, Variable) and str(node) == "i":
+            if str(node) == "i":
                 return Term(value=Number(complex(imag=1)))
             return Term(value=node)
 
         oper = node.oper.type.name.lower()
 
         if isinstance(node, Unary):
-            return getattr(operator, oper)(self.eval(node.value))
+            return getattr(operators, oper)(self.eval(node.value))
 
         left, right = self.eval(node.left), self.eval(node.right)
 
-        if oper == "root":
-            return operator.pow(right, Term() / left)
-        if oper == "eqn":
-            return Equation(left, right)
-        if oper == "getitem":
-            return right[left.value]
-
-        return getattr(operator, oper)(left, right)
+        return getattr(operators, oper)(left, right)

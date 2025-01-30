@@ -35,7 +35,7 @@ class Parser:
         left = self.parse()
         if left is None:
             self.operator_error(oper)
-        if oper.type in (TokenType.NEG, TokenType.POS):
+        if oper.type in (TokenType.NEG, TokenType.POS, TokenType.BOOL):
             return Unary(oper, left)
         right = self.parse()
         if right is None:

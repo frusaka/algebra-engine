@@ -1,24 +1,44 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from enum import Enum
+
+from utils.constants import SYMBOLS
 from .solutions import Solutions
 from .polynomial import Polynomial
 from .product import Product
-from .bases import Atomic
 from .number import Number
 from .variable import Variable
 from .term import Term
 from utils import quadratic, quadratic_formula
 
 
-@dataclass
-class Equation(Atomic):
-    left: Term
-    right: Term | Solutions
+class CompRel(Enum):
+    EQ = 0
+    LT = 1
+    GT = 2
+    LE = 3
+    GE = 4
 
-    def __hash__(self):
-        return hash((Equation, self.left, self.right))
+    def reverse(self):
+        if self.value == 0:
+            return self
+        if self.name.startswith("L"):
+            return getattr(CompRel, self.name.replace("L", "G"))
+        return getattr(CompRel, self.name.replace("G", "L"))
 
     def __str__(self):
-        return "{0} = {1}".format(self.left, self.right)
+        return SYMBOLS.get(self.name)
+
+
+@dataclass(frozen=True)
+class Comparison:
+    left: Term
+    right: Term | Solutions
+    rel: CompRel = CompRel.EQ
+
+    def __str__(self):
+        return "{0} {2} {1}".format(self.left, self.right, self.rel)
 
     def __getitem__(self, value: Variable):
         """
@@ -30,9 +50,9 @@ class Equation(Atomic):
         if not (value in self.left or value in self.right):
             raise KeyError(f"Variable '{value}' not found")
 
-        # Rewrite the equation to put the target variable on the left
+        # Rewrite the comparison to put the target variable on the left
         if value in self.right and not value in self.left:
-            self = Equation(self.right, self.left)
+            self = self.reverse()
             print(self)
 
         # Moving target terms to the left
@@ -79,7 +99,7 @@ class Equation(Atomic):
 
             # Solving using the quadratic formuala
             if (res := quadratic(self, value)) is not None:
-                res = Equation(Term(value=value), quadratic_formula(*res))
+                res = Comparison(Term(value=value), quadratic_formula(*res), self.rel)
                 print(res)
                 return res
 
@@ -101,23 +121,32 @@ class Equation(Atomic):
         return self
 
     def __neg__(self):
-        return Equation(-self.left, -self.right)
+        return Comparison(-self.left, -self.right)
 
     def __add__(self, value: Term):
         self.show_operation("+", value)
-        return Equation(self.left + value, self.right + value)
+        return Comparison(self.left + value, self.right + value, self.rel)
 
     def __sub__(self, value: Term):
         self.show_operation("-", value)
-        return Equation(self.left - value, self.right - value)
+        return Comparison(self.left - value, self.right - value, self.rel)
 
     def __mul__(self, value: Term):
         self.show_operation("*", value)
-        return Equation(self.left * value, self.right * value)
+        # Reverse the signs when multiplying by a negative number
+        return Comparison(
+            self.left * value,
+            self.right * value,
+            self.rel if value.to_const() >= 0 else self.rel.reverse(),
+        )
 
     def __truediv__(self, value: Term):
         self.show_operation("/", value)
-        return Equation(self.left / value, self.right / value)
+        return Comparison(
+            self.left / value,
+            self.right / value,
+            self.rel if value.to_const() > 0 else self.rel.reverse(),
+        )
 
     def __pow__(self, value: Term):
         self.show_operation("^", value)
@@ -131,7 +160,14 @@ class Equation(Atomic):
             # Otherwise it would be {-x, x} = {+n, -n}
             # sqrt(x) = +-..
             rhs = Solutions({rhs, -rhs})
-        return Equation(self.left**value, rhs)
+        return Comparison(self.left**value, rhs, self.rel)
+
+    def __bool__(self):
+        return getattr(self.left, self.rel.name.lower().join(("__", "__")))(self.right)
+
+    def reverse(self):
+        """Write the comparison in reverse"""
+        return Comparison(self.right, self.left, self.rel.reverse())
 
     def reverse_sub(self, value: Term):
         """Make the logging of inverse subtration look natural"""
@@ -148,4 +184,4 @@ class Equation(Atomic):
     def show_operation(self, operator: str, value: Term):
         """A convinent method to show the user the solving process"""
         print(self)
-        print(" " * str(self).index("="), operator + " ", value, sep="")
+        print(" " * str(self).index(str(self.rel)), operator + " ", value, sep="")

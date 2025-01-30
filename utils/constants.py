@@ -1,7 +1,7 @@
 SYMBOLS = {
-    "GETITEM":"→",
-    "EQN":"=",
-    "EQ": "⩵",
+    "GETITEM": "→",
+    "EQ": "=",
+    "BOOL": "?",
     "NE": "≠",
     "GT": ">",
     "GE": "≥",

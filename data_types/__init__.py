@@ -6,4 +6,4 @@ from .polynomial import Polynomial
 from .product import Product
 from .term import Term
 from .solutions import Solutions
-from .equation import Equation
+from .comparison import Comparison, CompRel

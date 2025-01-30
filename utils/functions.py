@@ -29,7 +29,7 @@ def quadratic(eq, var):
     Given that the lhs is a Polynomial,
     check whether it can be considered quadratic in terms of `value` and return a tuple (a, b, c)
     """
-    from data_types import Term, Equation
+    from data_types import Term, Comparison
 
     a, b = None, None
     x = Term(value=var)

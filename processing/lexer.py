@@ -6,13 +6,10 @@ from data_types import Number, Variable
 class Lexer:
     """Takes input string and Tokenizes it"""
 
-    # NOTE: For comparison operators,
-    # implementation will change once solving for inequalities becomes supported
     OPERS = {
         "→": Token(TokenType.GETITEM),
-        "=": Token(TokenType.EQN),
-        "⩵": Token(TokenType.EQ),
-        "≠": Token(TokenType.NE),
+        "?": Token(TokenType.BOOL),
+        "=": Token(TokenType.EQ),
         ">": Token(TokenType.GT),
         "≥": Token(TokenType.GE),
         "<": Token(TokenType.LT),
@@ -29,12 +26,7 @@ class Lexer:
 
     def __init__(self, expr: str):
         self.expr = iter(
-            expr.replace("!=", "≠")
-            .replace(">=", "≥")
-            .replace("<=", "≤")
-            .replace("->", "→")
-            .replace("==", "⩵")
-            .join("()")
+            expr.replace(">=", "≥").replace("<=", "≤").replace("->", "→").join("()")
         )
         self.advance()
 

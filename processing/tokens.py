@@ -5,10 +5,10 @@ from typing import Any
 
 class TokenType(Enum):
     """Supported token types"""
-    
-    # Equation
+
+    # Comparison
     GETITEM = 0
-    EQN = 1
+    BOOL = 1
 
     EQ, NE, GT, GE, LT, LE = 2, 2.2, 2.4, 2.6, 2.8, 2.9
 

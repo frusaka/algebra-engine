@@ -4,43 +4,43 @@ from processing import AST
 
 
 def test_solve_basic(processor):
-    assert Equation(processor.eval(AST("5x+3")), Term(Number(13)))[
+    assert Comparison(processor.eval(AST("5x+3")), Term(Number(13)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number(2)))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(2)))
 
-    assert Equation(processor.eval(AST("2x-7")), Term(Number(3)))[
+    assert Comparison(processor.eval(AST("2x-7")), Term(Number(3)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number(5)))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(5)))
 
-    assert Equation(processor.eval(AST("x/4")), Term(Number(5)))[
+    assert Comparison(processor.eval(AST("x/4")), Term(Number(5)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number(20)))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(20)))
 
-    assert Equation(processor.eval(AST("x+6")), processor.eval(AST("2x-4")))[
+    assert Comparison(processor.eval(AST("x+6")), processor.eval(AST("2x-4")))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number(10)))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(10)))
 
 
 def test_solve_medium(processor):
-    assert Equation(processor.eval(AST("3(x+2)")), Term(Number(15)))[
+    assert Comparison(processor.eval(AST("3(x+2)")), Term(Number(15)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number(3)))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(3)))
 
-    assert Equation(processor.eval(AST("(2x+1)/3")), Term(Number(5)))[
+    assert Comparison(processor.eval(AST("(2x+1)/3")), Term(Number(5)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number(7)))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(7)))
 
-    assert Equation(processor.eval(AST("2/x")), Term(Number(8)))[
+    assert Comparison(processor.eval(AST("2/x")), Term(Number(8)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number("0.25")))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number("0.25")))
 
-    assert Equation(processor.eval(AST("4x-3")), right=processor.eval(AST("2(x+5)")))[
+    assert Comparison(processor.eval(AST("4x-3")), right=processor.eval(AST("2(x+5)")))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number("6.5")))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number("6.5")))
 
-    assert Equation(processor.eval(AST("3x+2y-7")), processor.eval(AST("5y+4")))[
+    assert Comparison(processor.eval(AST("3x+2y-7")), processor.eval(AST("5y+4")))[
         Variable("x")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("x")),
         right=Term(
             value=Polynomial(
@@ -51,16 +51,16 @@ def test_solve_medium(processor):
             )
         ),
     )
-    assert Equation(
+    assert Comparison(
         left=processor.eval(AST("(4x-5)/3 + 7x/2")),
         right=Term(Number("11/6")),
-    )[Variable("x")] == Equation(
+    )[Variable("x")] == Comparison(
         left=Term(value=Variable("x")), right=Term(Number("21/29"))
     )
 
-    assert Equation(left=processor.eval(AST("2x+3y-z")), right=Term(Number(0)))[
+    assert Comparison(left=processor.eval(AST("2x+3y-z")), right=Term(Number(0)))[
         Variable("x")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("x")),
         right=Term(
             value=Polynomial(
@@ -72,35 +72,37 @@ def test_solve_medium(processor):
         ),
     )
 
-    assert Equation(left=processor.eval(AST("(x-3)/(x+2)")), right=Term(Number(4)))[
+    assert Comparison(left=processor.eval(AST("(x-3)/(x+2)")), right=Term(Number(4)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number("-11/3")))
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number("-11/3")))
 
-    assert Equation(processor.eval(AST("3x^2")), processor.eval(AST("9 + 2x^2")))[
+    assert Comparison(processor.eval(AST("3x^2")), processor.eval(AST("9 + 2x^2")))[
         Variable("x")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("x")),
         right=Solutions({Term(Number(3)), Term(Number(-3))}),
     )
-    eq = Equation(left=processor.eval(AST("(3/x)y + 4")), right=Term(Number(9)))
-    assert eq[Variable("x")] == Equation(
+    eq = Comparison(left=processor.eval(AST("(3/x)y + 4")), right=Term(Number(9)))
+    assert eq[Variable("x")] == Comparison(
         left=Term(value=Variable("x")),
         right=Term(Number("0.6"), Variable("y")),
     )
-    assert eq[Variable("y")] == Equation(
+    assert eq[Variable("y")] == Comparison(
         left=Term(value=Variable("y")),
         right=Term(Number("5/3"), Variable("x")),
     )
 
 
 def test_solve_denominator(processor):
-    assert Equation(
+    assert Comparison(
         left=processor.eval(AST("4u - 5/j")), right=processor.eval(AST("u/j - 20"))
-    )[Variable("j")] == Equation(
+    )[Variable("j")] == Comparison(
         left=Term(value=Variable("j")), right=Term(Number("0.25"))
     )
-    eq = Equation(left=processor.eval(AST("3/c + n/c")), right=processor.eval(AST("8")))
-    assert eq[Variable("c")] == Equation(
+    eq = Comparison(
+        left=processor.eval(AST("3/c + n/c")), right=processor.eval(AST("8"))
+    )
+    assert eq[Variable("c")] == Comparison(
         left=Term(value=Variable("c")),
         right=Term(
             value=Polynomial(
@@ -111,7 +113,7 @@ def test_solve_denominator(processor):
             )
         ),
     )
-    assert eq[Variable("n")] == Equation(
+    assert eq[Variable("n")] == Comparison(
         left=Term(value=Variable("n")),
         right=Term(
             value=Polynomial(
@@ -125,30 +127,30 @@ def test_solve_denominator(processor):
 
 
 def test_solve_factorization(processor):
-    eq = Equation(
+    eq = Comparison(
         processor.eval(AST("n(2-3b) + 2 - 4b")), processor.eval(AST("2b - 2"))
     )
-    assert eq[Variable("n")] == Equation(
+    assert eq[Variable("n")] == Comparison(
         left=Term(value=Variable("n")), right=Term(Number(-2))
     )
-    assert eq[Variable("b")] == Equation(
+    assert eq[Variable("b")] == Comparison(
         left=Term(value=Variable("b")), right=Term(Number("2/3"))
     )
 
-    eq = Equation(
+    eq = Comparison(
         processor.eval(AST("1.5y(3x-6) + 3x - 5")), processor.eval(AST("x - 1"))
     )
-    assert eq[Variable("y")] == Equation(
+    assert eq[Variable("y")] == Comparison(
         left=Term(value=Variable("y")), right=Term(Number("-4/9"))
     )
-    assert eq[Variable("x")] == Equation(
+    assert eq[Variable("x")] == Comparison(
         left=Term(value=Variable("x")), right=Term(Number(2))
     )
     expected = processor.eval(AST("2√(S/(2hp + 2p))"))
-    assert Equation(
+    assert Comparison(
         left=Term(value=Variable("S")),
         right=processor.eval(AST("2pr^2 + 2pr^2h")),
-    )[Variable("r")] == Equation(
+    )[Variable("r")] == Comparison(
         left=Term(value=Variable("r")), right=Solutions({expected, -expected})
     )
 
@@ -165,17 +167,17 @@ def test_solve_formulas(processor):
         ),
         exp=Number("0.5"),
     )
-    assert Equation(
+    assert Comparison(
         left=processor.eval(AST("a^2+b^2")),
         right=Term(value=Variable("c"), exp=Number(2)),
-    )[Variable("b")] == Equation(
+    )[Variable("b")] == Comparison(
         left=Term(value=Variable("b")),
         right=Solutions((right, -right)),
     )
     # d = st, t = d/s
-    assert Equation(left=Term(value=Variable("d")), right=processor.eval(AST("st")))[
+    assert Comparison(left=Term(value=Variable("d")), right=processor.eval(AST("st")))[
         Variable("t")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("t")),
         right=Term(
             value=Product(
@@ -187,31 +189,31 @@ def test_solve_formulas(processor):
         ),
     )
     # C = Prt + P, P = C/(rt + 1)
-    assert Equation(
+    assert Comparison(
         left=Term(value=Variable("C")), right=processor.eval(AST("Prt + P"))
-    )[Variable("P")] == Equation(
+    )[Variable("P")] == Comparison(
         left=Term(value=Variable("P")),
         right=processor.eval(AST("C/(rt + 1)")),
     )
     # ax + b = c, b = c - ax
-    assert Equation(
+    assert Comparison(
         left=processor.eval(AST("ax + b")), right=Term(value=Variable("c"))
-    )[Variable("b")] == Equation(
+    )[Variable("b")] == Comparison(
         left=Term(value=Variable("b")), right=processor.eval(AST("c - ax"))
     )
     # y = mx + c, x = (y - c)/m
-    assert Equation(
+    assert Comparison(
         left=Term(value=Variable("y")), right=processor.eval(AST("mx + c"))
-    )[Variable("x")] == Equation(
+    )[Variable("x")] == Comparison(
         left=Term(value=Variable("x")),
         right=processor.eval(AST("(y - c)/m")),
     )
 
 
 def test_solve_quadratic(processor):
-    assert Equation(left=processor.eval(AST("2x^2 + 3x - 5")), right=Term(Number(0)))[
+    assert Comparison(left=processor.eval(AST("2x^2 + 3x - 5")), right=Term(Number(0)))[
         Variable("x")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("x")),
         right=Solutions(
             {
@@ -220,12 +222,12 @@ def test_solve_quadratic(processor):
             }
         ),
     )
-    assert Equation(left=processor.eval(AST("x^2 - 6x + 9")), right=Term(Number(0)))[
+    assert Comparison(left=processor.eval(AST("x^2 - 6x + 9")), right=Term(Number(0)))[
         Variable("x")
-    ] == Equation(left=Term(value=Variable("x")), right=Term(Number(3)))
-    assert Equation(left=processor.eval(AST("-3x^2 + 12x - 9")), right=Term(Number(0)))[
-        Variable("x")
-    ] == Equation(
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(3)))
+    assert Comparison(
+        left=processor.eval(AST("-3x^2 + 12x - 9")), right=Term(Number(0))
+    )[Variable("x")] == Comparison(
         left=Term(value=Variable("x")),
         right=Solutions(
             {
@@ -234,9 +236,9 @@ def test_solve_quadratic(processor):
             }
         ),
     )
-    assert Equation(left=processor.eval(AST("2x^2 + 13x")), right=Term(Number(24)))[
+    assert Comparison(left=processor.eval(AST("2x^2 + 13x")), right=Term(Number(24)))[
         Variable("x")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("x")),
         right=Solutions(
             {
@@ -245,9 +247,9 @@ def test_solve_quadratic(processor):
             }
         ),
     )
-    assert Equation(left=processor.eval(AST("x + 2√x")), right=Term(Number(6)))[
+    assert Comparison(left=processor.eval(AST("x + 2√x")), right=Term(Number(6)))[
         Variable("x")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("x")),
         right=Solutions(
             {
@@ -256,10 +258,10 @@ def test_solve_quadratic(processor):
             }
         ),
     )
-    assert Equation(
+    assert Comparison(
         left=processor.eval(AST("(a-4)^2 ")),
         right=Term(value=Variable("c"), exp=Number(2)),
-    )[Variable("a")] == Equation(
+    )[Variable("a")] == Comparison(
         left=Term(value=Variable("a")),
         right=Solutions(
             {
@@ -268,9 +270,9 @@ def test_solve_quadratic(processor):
             }
         ),
     )
-    assert Equation(left=processor.eval(AST("ay^2 + by + c")), right=Term(Number(0)))[
+    assert Comparison(left=processor.eval(AST("ay^2 + by + c")), right=Term(Number(0)))[
         Variable("y")
-    ] == Equation(
+    ] == Comparison(
         left=Term(value=Variable("y")),
         right=Solutions(
             {
@@ -279,9 +281,9 @@ def test_solve_quadratic(processor):
             }
         ),
     )
-    assert Equation(
+    assert Comparison(
         left=processor.eval(AST("-6ap^2 - 4ap + c")), right=Term(Number(5))
-    )[Variable("p")] == Equation(
+    )[Variable("p")] == Comparison(
         left=Term(value=Variable("p")),
         right=Solutions(
             {
@@ -296,18 +298,18 @@ def test_solve_complex(processor):
     # Results would be too long to write out in object form
     inp1 = processor.eval(AST("p/x + q/(x+2) + r/(x-1)"))
     out1 = processor.eval(AST("5x - 7"))
-    expected1 = Equation(
+    expected1 = Comparison(
         left=processor.eval(
             AST("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x")
         ),
         right=Term(Number(2), Variable("p")),
     )
-    assert Equation(left=inp1, right=out1)[Variable("x")] in {expected1, -expected1}
-    expected = Equation(
+    assert Comparison(left=inp1, right=out1)[Variable("x")] in {expected1, -expected1}
+    expected = Comparison(
         left=Term(value=Variable("p")),
         right=processor.eval(
             AST("5x^2 - 7x - r - q + (-rx + 2qx - 2r - 2q)/(x^2 + x - 2)")
         ),
     )
-    assert Equation(left=inp1, right=out1)[Variable("p")] == expected
+    assert Comparison(left=inp1, right=out1)[Variable("p")] == expected
     assert expected1[Variable("p")] == expected
