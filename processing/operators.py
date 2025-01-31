@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from operator import *
-from data_types import Comparison, CompRel
+from data_types import *
 from typing import Any
 from utils.constants import SYMBOLS
 
@@ -12,7 +12,7 @@ class Unary:
     oper: Any
     value: Any
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{SYMBOLS.get(self.oper.type.name)}{self.value}"
 
 
@@ -24,37 +24,68 @@ class Binary:
     left: Any
     right: Any
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"({self.left} {SYMBOLS.get(self.oper.type.name)} {self.right})"
 
 
-def eq(a, b):
+def eq(a: Any, b: Any) -> Comparison:
     return Comparison(a, b)
 
 
-def gt(a, b):
+def gt(a: Any, b: Any) -> Comparison:
     return Comparison(a, b, CompRel.GT)
 
 
-def lt(a, b):
+def lt(a: Any, b: Any) -> Comparison:
     return Comparison(a, b, CompRel.LT)
 
 
-def le(a, b):
+def le(a: Any, b: Any) -> Comparison:
     return Comparison(a, b, CompRel.LE)
 
 
-def ge(a, b):
+def ge(a: Any, b: Any) -> Comparison:
     return Comparison(a, b, CompRel.GE)
 
 
-def getitem(a, b):
-    return b[a.value]
+def subs(a: Term | Comparison, var: Variable, value: Any) -> Term | Comparison:
+    """Substitute all occurances of `var` with the provided value"""
+    from processing import Interpreter, AST
+
+    return Interpreter().eval(AST(str(a).replace(var, str(value).join("()"))))
 
 
-def root(a, b):
+def solve(var: Variable, comp: Comparison) -> Comparison:
+    var = var.value
+    res = comp[var]
+    if var in res and not isinstance(res.left.value, Variable):
+        raise ArithmeticError(f"Could not solve for '{var}'")
+    rhs = set(res.right) if isinstance(res.right, Solutions) else [res.right]
+
+    # Check for extraneous solutions
+    for i in tuple(rhs):
+        try:
+            if subs(comp.right - comp.left, var, i).value != 0:
+                rhs.remove(i)
+        except ZeroDivisionError:
+            rhs.remove(i)
+    if len(rhs) == 1:
+        rhs = rhs.pop()
+        # Infinite solutions
+        if res.left == rhs:
+            rhs = Any
+    # No solutions
+    elif not rhs:
+        rhs = None
+    # Multiple solutions
+    else:
+        rhs = Solutions(rhs)
+    return Comparison(Term(value=var), rhs, res.rel)
+
+
+def root(a: Term, b: Term) -> Term:
     return b**a.inv
 
 
-def bool(a):
+def bool(a: Term | Comparison) -> bool:
     return getattr(a, "__bool__", lambda: a.value != 0)()

@@ -1,4 +1,5 @@
 from typing import Generator, Sequence
+from data_types import Number, Variable
 from .tokens import Token, TokenType
 from .operators import SYMBOLS, Unary, Binary
 
@@ -6,10 +7,10 @@ from .operators import SYMBOLS, Unary, Binary
 class Parser:
     """Takes input tokens and converts it to AST following operator precedence"""
 
-    def __init__(self, tokens):
+    def __init__(self, tokens: Sequence[Token]) -> None:
         self.tokens = self.prefix(tokens)
 
-    def advance(self):
+    def advance(self) -> None:
         try:
             self.curr = next(self.tokens)
         except StopIteration:
@@ -24,7 +25,7 @@ class Parser:
     def paren_error():
         raise SyntaxError("unmatched parenthesis")
 
-    def parse(self):
+    def parse(self) -> Unary | Binary | Number | Variable | None:
         """Convert from prefix notation to a tree that can be evaluated by the Interpreter"""
         self.advance()
         if self.curr is None:
@@ -89,6 +90,6 @@ class Parser:
                 self.paren_error()
         yield from reversed(stack)
 
-    def prefix(self, tokens):
+    def prefix(self, tokens: Sequence[Token]) -> Generator[Token, None, None]:
         """Takes tokens and converts them to prefix notation"""
         return reversed(list(self.postfix(tokens)))

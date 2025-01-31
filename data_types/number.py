@@ -148,29 +148,29 @@ class Number(Atomic):
         return self < value or self == value
 
     @staticmethod
-    def nth_root(x: SupportsFloat | SupportsComplex, n: int):
+    def nth_root(x: SupportsFloat | SupportsComplex, n: int) -> float:
         if not isinstance(x, complex) and n % 2 == 1 and x < 0:
             return -abs(x) ** (1 / n)
         else:
             return x ** (1 / n)
 
     @dispatch
-    def add(b: Proxy[Term], a: Term):
+    def add(b: Proxy[Term], a: Term) -> None:
         pass
 
     @add.register(number)
-    def _(b: Proxy[Term], a: Term):
+    def _(b: Proxy[Term], a: Term) -> Term:
         b = b.value
         if a.exp == b.exp == 1:
             return type(a)(value=a.value + b.value)
         return type(a)(a.coef + b.coef, a.value, a.exp)
 
     @dispatch
-    def mul(b: Proxy[Term], a: Term):
+    def mul(b: Proxy[Term], a: Term) -> Term | None:
         return b.value.value.mul(Proxy(a), b.value)
 
     @mul.register(number)
-    def _(b: Proxy[Term], a: Term):
+    def _(b: Proxy[Term], a: Term) -> Term | None:
         b = b.value
         if a.like(b, 0):
             # Can be like term with different exponents (3^x * 3^y)

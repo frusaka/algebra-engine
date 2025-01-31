@@ -294,22 +294,31 @@ def test_solve_quadratic(processor):
     )
 
 
+def test_solve_extraneous(processor):
+    assert processor.eval(AST("x -> (x+2)/(x+1) - x/(1-x) = x/(x-1)")).right == Term(
+        Number(-2)
+    )
+
+
 def test_solve_complex(processor):
     # Results would be too long to write out in object form
-    inp1 = processor.eval(AST("p/x + q/(x+2) + r/(x-1)"))
-    out1 = processor.eval(AST("5x - 7"))
-    expected1 = Comparison(
+    eq = Comparison(
         left=processor.eval(
             AST("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x")
         ),
         right=Term(Number(2), Variable("p")),
     )
-    assert Comparison(left=inp1, right=out1)[Variable("x")] in {expected1, -expected1}
     expected = Comparison(
         left=Term(value=Variable("p")),
         right=processor.eval(
             AST("5x^2 - 7x - r - q + (-rx + 2qx - 2r - 2q)/(x^2 + x - 2)")
         ),
     )
-    assert Comparison(left=inp1, right=out1)[Variable("p")] == expected
-    assert expected1[Variable("p")] == expected
+    assert (
+        Comparison(
+            left=processor.eval(AST("p/x + q/(x+2) + r/(x-1)")),
+            right=processor.eval(AST("5x - 7")),
+        )[Variable("p")]
+        == expected
+    )
+    assert eq[Variable("p")] == expected

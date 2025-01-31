@@ -37,10 +37,12 @@ class Comparison:
     right: Term | Solutions
     rel: CompRel = CompRel.EQ
 
-    def __str__(self):
-        return "{0} {2} {1}".format(self.left, self.right, self.rel)
+    def __str__(self) -> str:
+        return "{0} {2} {1}".format(self.left, self.right, self.rel).replace(
+            "typing.", ""
+        )
 
-    def __getitem__(self, value: Variable):
+    def __getitem__(self, value: Variable) -> Comparison:
         """
         This method will be called when solving for a variable.
         Extraneous solutions, fnfinite solutions, or no solution cases are not in check
@@ -48,7 +50,7 @@ class Comparison:
         # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
         print(self)
         if not (value in self.left or value in self.right):
-            raise KeyError(f"Variable '{value}' not found")
+            return self
 
         # Rewrite the comparison to put the target variable on the left
         if value in self.right and not value in self.left:
@@ -120,18 +122,21 @@ class Comparison:
 
         return self
 
-    def __neg__(self):
+    def __contains__(self, value: Variable) -> bool:
+        return value in self.left or value in self.right
+
+    def __neg__(self) -> Comparison:
         return Comparison(-self.left, -self.right)
 
-    def __add__(self, value: Term):
+    def __add__(self, value: Term) -> Comparison:
         self.show_operation("+", value)
         return Comparison(self.left + value, self.right + value, self.rel)
 
-    def __sub__(self, value: Term):
+    def __sub__(self, value: Term) -> Comparison:
         self.show_operation("-", value)
         return Comparison(self.left - value, self.right - value, self.rel)
 
-    def __mul__(self, value: Term):
+    def __mul__(self, value: Term) -> Comparison:
         self.show_operation("*", value)
         # Reverse the signs when multiplying by a negative number
         return Comparison(
@@ -140,7 +145,7 @@ class Comparison:
             self.rel if value.to_const() >= 0 else self.rel.reverse(),
         )
 
-    def __truediv__(self, value: Term):
+    def __truediv__(self, value: Term) -> Comparison:
         self.show_operation("/", value)
         return Comparison(
             self.left / value,
@@ -148,11 +153,12 @@ class Comparison:
             self.rel if value.to_const() > 0 else self.rel.reverse(),
         )
 
-    def __pow__(self, value: Term):
+    def __pow__(self, value: Term) -> Comparison:
         self.show_operation("^", value)
         rhs = self.right**value
         if (
-            value.exp == 1
+            rhs.value != 0
+            and value.exp == 1
             and isinstance(value.value, Number)
             and value.value.denominator == 2
         ):
@@ -162,26 +168,26 @@ class Comparison:
             rhs = Solutions({rhs, -rhs})
         return Comparison(self.left**value, rhs, self.rel)
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return getattr(self.left, self.rel.name.lower().join(("__", "__")))(self.right)
 
-    def reverse(self):
+    def reverse(self) -> Comparison:
         """Write the comparison in reverse"""
         return Comparison(self.right, self.left, self.rel.reverse())
 
-    def reverse_sub(self, value: Term):
+    def reverse_sub(self, value: Term) -> Comparison:
         """Make the logging of inverse subtration look natural"""
         if value.to_const() > 0:
             return self - value
         return self + -value
 
-    def reverse_div(self, value: Term):
+    def reverse_div(self, value: Term) -> Comparison:
         """Make the logging of inverse division look natural"""
         if value.denominator.value != 1:
             return self * value.inv
         return self / value
 
-    def show_operation(self, operator: str, value: Term):
+    def show_operation(self, operator: str, value: Term) -> None:
         """A convinent method to show the user the solving process"""
         print(self)
         print(" " * str(self).index(str(self.rel)), operator + " ", value, sep="")

@@ -1,23 +1,28 @@
+from __future__ import annotations
 from .bases import Unknown, Atomic
 from utils import *
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .term import Term
 
 
 class Variable(Unknown, str, Atomic):
     """An unknown in an experssion"""
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return str.__hash__(self)
 
     @dispatch
-    def add(b, a):
+    def add(b: Proxy[Term], a: Term) -> Term:
         return type(a)(a.coef + b.value.coef, a.value, a.exp)
 
     @dispatch
-    def mul(b, a):
+    def mul(b: Proxy[Term], a: Term) -> None:
         pass
 
     @mul.register(variable)
-    def _(b, a):
+    def _(b: Proxy[Term], a: Term) -> Term | None:
         b = b.value
         if a.like(b, 0):
             if type(a.exp) is not type(b.exp):
@@ -27,16 +32,16 @@ class Variable(Unknown, str, Atomic):
             return type(a)(a.coef * b.coef, a.value, exp)
 
     @mul.register(number)
-    def _(b, a):
+    def _(b: Proxy[Term], a: Term) -> Term | None:
         if b.value.exp == 1:
             return type(a)(a.coef * b.value.value, a.value, a.exp)
 
     @mul.register(polynomial | product)
-    def _(b, a):
+    def _(b: Proxy[Term], a: Term) -> Term | None:
         return b.value.value.mul(Proxy(a), b.value)
 
     @dispatch
-    def pow(b, a):
+    def pow(b: Proxy[Term], a: Term) -> None:
         # Algebra object has a good enough default fallback for Variable exponentiation
         pass
 

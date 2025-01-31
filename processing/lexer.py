@@ -7,7 +7,7 @@ class Lexer:
     """Takes input string and Tokenizes it"""
 
     OPERS = {
-        "→": Token(TokenType.GETITEM),
+        "→": Token(TokenType.SOLVE),
         "?": Token(TokenType.BOOL),
         "=": Token(TokenType.EQ),
         ">": Token(TokenType.GT),
@@ -24,13 +24,13 @@ class Lexer:
         ")": Token(TokenType.RPAREN),
     }
 
-    def __init__(self, expr: str):
+    def __init__(self, expr: str) -> None:
         self.expr = iter(
             expr.replace(">=", "≥").replace("<=", "≤").replace("->", "→").join("()")
         )
         self.advance()
 
-    def advance(self):
+    def advance(self) -> None:
         try:
             self.curr = next(self.expr)
         except StopIteration:

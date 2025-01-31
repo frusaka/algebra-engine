@@ -29,7 +29,7 @@ class Solutions(Collection):
         for i, vals in itertools.groupby(self, key=lambda x: abs(x)):
             vals = list(vals)
             if len(vals) == 1:
-                res.append(str(i))
+                res.append(str(vals[0]))
             else:
                 res.append("±" + str(i))
         return " and ".join(res)

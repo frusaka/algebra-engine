@@ -6,8 +6,7 @@ from typing import Any
 class TokenType(Enum):
     """Supported token types"""
 
-    # Comparison
-    GETITEM = 0
+    SOLVE = 0
     BOOL = 1
 
     EQ, NE, GT, GE, LT, LE = 2, 2.2, 2.4, 2.6, 2.8, 2.9
@@ -30,9 +29,9 @@ class Token:
     value: Any = None
     iscoef: bool = False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.type.name + (f": {self.value}" if self.value is not None else "")
 
     @property
-    def priority(self):
+    def priority(self) -> float:
         return self.type.value // 1 + self.iscoef * 0.2

@@ -82,21 +82,21 @@ class Polynomial(Collection):
             return Product.resolve(num, den.inv)
 
         # Scalar multiplication
-        if isinstance(a.exp, Number) and isinstance(b.value, Number) and b.exp == 1:
-            return type(a)(b.value * a.coef, a.value, a.exp)
+        if isinstance(b.value, Number) and b.exp == 1:
+            return a.scale(b.value)
 
     @dispatch
-    def pow(b, a):
+    def pow(b: Proxy[Term], a: Term) -> None:
         pass
 
     @pow.register(number)
-    def _(b, a):
+    def _(b: Proxy[Term], a: Term) -> Term | None:
         if a.exp == -1 and abs(b.value.value) != 1:
             return Polynomial.scalar_pow(b.value, type(a)(value=a.value)).inv
         return Polynomial.scalar_pow(b.value, a)
 
     @staticmethod
-    def scalar_pow(b, a):
+    def scalar_pow(b: Term, a: Term) -> Term | None:
         """For-loop based exponentiation of a Polynomial"""
         if b.exp != 1 or a.exp != 1:
             if b.coef != 1:
@@ -139,6 +139,8 @@ class Polynomial(Collection):
         from .term import Term
 
         if a.exp != 1 or not isinstance(b.exp, Number):
+            if isinstance(b.value, Number) and b.exp == 1:
+                return a.scale(b.inv.value)
             return Product.resolve(a, b.inv)
         leading_b = b
         options_b = []

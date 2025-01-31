@@ -1,4 +1,4 @@
-from data_types import Term, Number, Variable
+from data_types import Term, Number, Variable, Comparison
 from . import operators
 from .operators import Binary, Unary
 
@@ -9,7 +9,9 @@ class Interpreter:
     Kept as a class to support setting variable values in the future
     """
 
-    def eval(self, node: None | Unary | Binary | Number | Variable) -> Term | None:
+    def eval(
+        self, node: None | Unary | Binary | Number | Variable
+    ) -> Term | Comparison | None:
         if node is None:
             return
         if isinstance(node, (Number, Variable)):

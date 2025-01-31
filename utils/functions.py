@@ -1,4 +1,11 @@
-def lexicographic_weight(term, alphabetic=True):
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from data_types import Term, Number, Collection, Comparison, Variable
+
+
+def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     from data_types import Number, Variable, Collection
 
     if isinstance(term.value, Number) or not isinstance(term.exp, Number):
@@ -20,11 +27,11 @@ def lexicographic_weight(term, alphabetic=True):
     return res
 
 
-def standard_form(collection):
+def standard_form(collection: Collection) -> list[Collection]:
     return sorted(collection, key=lexicographic_weight, reverse=1)
 
 
-def quadratic(eq, var):
+def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     """
     Given that the lhs is a Polynomial,
     check whether it can be considered quadratic in terms of `value` and return a tuple (a, b, c)
@@ -33,7 +40,7 @@ def quadratic(eq, var):
 
     a, b = None, None
     x = Term(value=var)
-    for t in eq.left.value:  # Must be a Polynomial
+    for t in comp.left.value:  # Must be a Polynomial
         v = t / x
         # Checks to detect a Quadratice
         # One term that when divided by x cancels the x
@@ -56,24 +63,24 @@ def quadratic(eq, var):
     if not a or not b:
         return
     # Make the rhs 0
-    if eq.right.value:
-        eq = eq.reverse_sub(eq.right)
-        print(eq)
+    if comp.right.value:
+        comp = comp.reverse_sub(comp.right)
+        print(comp)
     # The rest of the boys, can even be another Polynomial
-    c = eq.left - (ax_2 + bx)
+    c = comp.left - (ax_2 + bx)
     return a, b, c
 
 
-def quadratic_formula(a, b, c):
+def quadratic_formula(a: Term, b: Term, c: Term) -> Term:
     """Apply the quadratic formula: (-b ± (b^2 - 4ac))/2a"""
     from data_types import Term, Number, Solutions
 
     print(
-        f"quadratic(a={a}, b={b}, c={c})",
-        f"(-({b}) ± (({b})^2 - 4({a})({c})))/2({a})",
-        sep=": ",
+        f"q(a={a}, b={b}, c={c})",
+        "(-b ± 2√(b^2 - 4ac))/2a",
+        sep=" = ",
     )
-    rhs = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(value=Number("1/2"))
+    rhs = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number("1/2"))
     den = Term(Number(2)) * a
     res = {(-b + rhs) / den, (-b - rhs) / den}
     if len(res) == 1:
