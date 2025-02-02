@@ -44,8 +44,7 @@ class Comparison:
 
     def __getitem__(self, value: Variable) -> Comparison:
         """
-        This method will be called when solving for a variable.
-        Extraneous solutions, fnfinite solutions, or no solution cases are not in check
+        This method will be called when solving for a variable
         """
         # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
         print(self)

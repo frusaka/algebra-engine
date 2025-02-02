@@ -17,12 +17,12 @@ class Parser:
             self.curr = None
 
     @staticmethod
-    def operator_error(oper):
+    def operator_error(oper) -> None:
         oper = SYMBOLS.get(oper.type.name)
         raise SyntaxError(f"operator '{oper}' has inadequate operands")
 
     @staticmethod
-    def paren_error():
+    def paren_error() -> None:
         raise SyntaxError("unmatched parenthesis")
 
     def parse(self) -> Unary | Binary | Number | Variable | None:

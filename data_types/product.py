@@ -56,6 +56,17 @@ class Product(Collection):
 
     @staticmethod
     def _mul(b: Term, a: Term) -> Term:
+        from .polynomial import Polynomial
+
+        # Expanding fractional polynomials
+        if isinstance(a.denominator.value, Polynomial) or isinstance(
+            b.denominator.value, Polynomial
+        ):
+            num = a.numerator * b.numerator
+            den = a.denominator * b.denominator
+            num, den = a.rationalize(num, den)
+            return Product.resolve(num, den.inv)
+
         c = a.coef * b.coef
         res = a.value.simplify(type(a)(value=b.value, exp=b.exp))
         if res:

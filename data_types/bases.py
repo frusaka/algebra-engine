@@ -1,18 +1,24 @@
+from __future__ import annotations
 from fractions import Fraction
+from utils import Proxy
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .term import Term
 
 
 class Atomic:
     """Base class for all atomic objects"""
 
-    def like(self, other):
+    def like(self, other: Any) -> bool:
         if type(self) is not type(other):
-            return 0
+            return False
         if hasattr(self, "imag"):
-            return 1
+            return True
         return self == other
 
     @staticmethod
-    def poly_pow(b, a):
+    def poly_pow(b: Proxy[Term], a: Term) -> Term | None:
         b = b.value
         if b.exp != 1:
             return
@@ -28,17 +34,17 @@ class Unknown:
     This class should be removed and better alternatives developed
     """
 
-    def __eq__(self, value):
+    def __eq__(self, value: Any) -> bool:
         return super().__eq__(value) and type(value) is type(self)
 
-    def __gt__(self, value):
+    def __gt__(self, value: Any) -> bool:
         return False
 
-    def __lt__(self, value):
+    def __lt__(self, value: Any) -> bool:
         return False
 
-    def __ge__(self, value):
+    def __ge__(self, value: Any) -> bool:
         return self == value
 
-    def __le__(self, value):
+    def __le__(self, value: Any) -> bool:
         return self == value

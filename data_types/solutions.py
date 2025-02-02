@@ -5,8 +5,7 @@ from .term import Term
 
 class Solutions(Collection):
     """
-    A collection of valid outputs for a given expression.
-    NOTE: Still under developement
+    A collection of valid outputs for a given equation or inequality
     """
 
     def __add__(self, value: Term):

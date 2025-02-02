@@ -1,0 +1,8 @@
+1. Streamline the process of operations between terms and non-terms (not urgent)
+    e.g:
+        3-(x=5)
+        5(x=5)
+2. Improve solving for inequalities
+3. Handle nested (in)equalities
+4. Improve multivariate long division
+    e.g, (abx^2 + 10abx + 25ab)/(cdx + 5cd) => (abx + 5ab)/cd

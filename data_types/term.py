@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 from dataclasses import dataclass
 from functools import cache, cached_property
 import math
@@ -53,7 +54,6 @@ class Term:
         return obj
 
     def __str__(self) -> str:
-        """String representation of a term"""
         # Numbers with symbolic exponents
         if isinstance(self.value, Number) and self.exp != 1:
             if self.coef != 1:
@@ -107,30 +107,20 @@ class Term:
 
     @cache
     def __contains__(self, value: Variable) -> bool:
-        """
-        Check whether a term contains the given variable, whether by values or exponent.
-        """
-        if isinstance(self.value, Collection):
-            return any(value in t for t in self.value)
-        if self.value == value or isinstance(self.exp, Term) and value in self.exp:
-            return True
-        return False
+        return value in str(self)
 
     @cache
     def __add__(a, b: Term) -> Term:
-        """Add b to a"""
         if a.like(b):
             return a.value.add(Proxy(b), a)
         return Polynomial.resolve(Proxy(b), a)
 
     @cache
     def __sub__(a, b: Term) -> Term:
-        """Subtract b from a"""
         return a + -b
 
     @cache
     def __mul__(a, b: Term) -> Term:
-        """Multiply a with b"""
         if v := a.split_const_from_exp():
             return b * v * Term(a.coef, a.value, a.exp - Term())
         if v := b.split_const_from_exp():
@@ -139,15 +129,25 @@ class Term:
 
     @cache
     def __truediv__(a, b: Term) -> Term:
-        """Divde a by b"""
         if isinstance(a.value, Polynomial):
             a, b = Term.rationalize(a, b)
-            return Polynomial.long_division(a, b)
+            gcd_a, gcd_b = (Term(),) * 2
+            # Factorize the Polynomial
+            if a.exp == 1 and b.exp == 1 and isinstance(b.value, Polynomial):
+                gcd_a = a.value.gcd()
+                gcd_b = b.value.gcd()
+                if gcd_a.value != 1:
+                    a = Polynomial.long_division(a, gcd_a)
+                if gcd_b.value != 1:
+                    b = Polynomial.long_division(b, gcd_b)
+            res = Polynomial.long_division(a, b)
+            if not res.remainder.value:
+                return res * (gcd_a / gcd_b)
+            return Polynomial.long_division(a * gcd_a, b * gcd_b)
         return a * b.inv
 
     @cache
     def __pow__(a, b: Term) -> Term:
-        """Evaluate base a with an exponent of b"""
         if b.value == 0:
             return Term()
         return a.value.pow(Proxy(b), a) or (
@@ -155,12 +155,10 @@ class Term:
         )
 
     def __pos__(self) -> Term:
-        """Positive x, does nothing"""
         return self
 
     @cache
     def __neg__(self) -> Term:
-        """Negation"""
         return self * Term(value=Number(-1))
 
     @cache
@@ -245,7 +243,7 @@ class Term:
         return self ** -Term()
 
     @cached_property
-    def remainder(self):
+    def remainder(self) -> Term:
         """The term that has non constant denominator"""
         if not isinstance(self.denominator.value, Number) or self.denominator.exp != 1:
             return self.numerator
@@ -262,7 +260,7 @@ class Term:
         return self.exp if isinstance(self.exp, Number) else self.exp.coef
 
     @cache
-    def get_exp(self, value: Variable) -> bool:
+    def get_exp(self, value: Variable) -> Number | Term:
         """
         Get the exponent of the given variable.
         Mostly meant to help with solving by factorization
@@ -299,7 +297,7 @@ class Term:
                     return Term(value=self.value)
 
     @cache
-    def like(self, b, exp=1) -> bool:
+    def like(self, b: Any, exp=1) -> bool:
         """Determine whether a term is like another"""
         if not isinstance(b, Term):
             return False
@@ -324,7 +322,7 @@ class Term:
 
     @staticmethod
     @cache
-    def rationalize(a: Term, b: Term):
+    def rationalize(a: Term, b: Term) -> tuple[Term]:
         """Given a : b, express a and b such that neither a nor b contain fractions"""
         # Fractions at the top-level
         if a.denominator.value != 1:
@@ -357,7 +355,7 @@ class Term:
 
     @staticmethod
     @cache
-    def gcd(a: Term, b: Term):
+    def gcd(a: Term, b: Term) -> Term:
         """Greatest Common Divisor of a & b"""
 
         def gcd(a, b):
@@ -374,6 +372,6 @@ class Term:
 
     @staticmethod
     @cache
-    def lcm(a: Term, b: Term):
+    def lcm(a: Term, b: Term) -> Term:
         """Lowest Common Multiple of a & b"""
         return (a * b) / Term.gcd(a, b)

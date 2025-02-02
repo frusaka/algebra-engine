@@ -65,14 +65,19 @@ def solve(var: Variable, comp: Comparison) -> Comparison:
     # Check for extraneous solutions
     for i in tuple(rhs):
         try:
-            if subs(comp.right - comp.left, var, i).value != 0:
+            if not Comparison(
+                subs(comp.left, var, i), subs(comp.right, var, i), comp.rel
+            ):
+                if var in res and comp.rel is not CompRel.EQ:
+                    print("WARNING: Test Solutions".join(("\033[33m", "\033[0m")))
+                    break
                 rhs.remove(i)
         except ZeroDivisionError:
             rhs.remove(i)
     if len(rhs) == 1:
         rhs = rhs.pop()
         # Infinite solutions
-        if res.left == rhs:
+        if Comparison(res.left, rhs, comp.rel):
             rhs = Any
     # No solutions
     elif not rhs:
@@ -80,7 +85,10 @@ def solve(var: Variable, comp: Comparison) -> Comparison:
     # Multiple solutions
     else:
         rhs = Solutions(rhs)
-    return Comparison(Term(value=var), rhs, res.rel)
+    rel = res.rel
+    if rhs in (None, Any):
+        rel = CompRel.EQ
+    return Comparison(Term(value=var), rhs, rel)
 
 
 def root(a: Term, b: Term) -> Term:

@@ -50,6 +50,17 @@ def test_divide_polynomials(processor):
             ]
         )
     )
+    assert processor.eval(AST("((x-3)(x+5)+(x-3))/(x-3)(x+5)")) == Term(
+        value=Polynomial(
+            [
+                Term(Number(1)),
+                Term(
+                    value=Polynomial([Term(value=Variable("x")), Term(Number(5))]),
+                    exp=Number(-1),
+                ),
+            ]
+        )
+    )
     # Numerator with lower degrees
     assert processor.eval(AST("(x - 1)/(x - 1)^2")) == Term(
         value=Polynomial(
@@ -116,6 +127,44 @@ def test_divide_multivariate(processor):
                     ),
                 ),
                 Term(Number(-5), Variable("c")),
+            ]
+        )
+    )
+    assert processor.eval(AST("(ab/(x + 5))*((x+5)(x-4)/cd)")) == Term(
+        value=Product(
+            [
+                Term(
+                    value=Polynomial(
+                        [
+                            Term(
+                                value=Product(
+                                    [
+                                        Term(value=Variable("a")),
+                                        Term(value=Variable("b")),
+                                        Term(value=Variable("x")),
+                                    ]
+                                )
+                            ),
+                            Term(
+                                Number(-4),
+                                Product(
+                                    [
+                                        Term(value=Variable("a")),
+                                        Term(value=Variable("b")),
+                                    ]
+                                ),
+                            ),
+                        ]
+                    )
+                ),
+                Term(
+                    value=Product(
+                        [
+                            Term(value=Variable("c"), exp=Number(-1)),
+                            Term(value=Variable("d"), exp=Number(-1)),
+                        ]
+                    ),
+                ),
             ]
         )
     )

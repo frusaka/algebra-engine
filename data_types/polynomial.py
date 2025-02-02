@@ -132,6 +132,20 @@ class Polynomial(Collection):
             if lexicographic_weight(i, 0) == lexicographic_weight(leading, 0)
         )
 
+    @cache
+    def gcd(self) -> Term:
+        """GCD of a polynomial. Ignores the coefficients"""
+        from .product import Product
+        from .term import Term
+
+        gcd = next(iter(standard_form(self))).canonical()
+        for i in standard_form(self):
+            if not isinstance(i.value, Product):
+                gcd = Term()
+                break
+            gcd = Term.gcd(gcd, i.canonical())
+        return gcd
+
     @staticmethod
     def _long_division(a: Term, b: Term) -> Term:
         """Backend long division algorithm. `a` must have a higher degree than `b`"""
@@ -187,7 +201,17 @@ class Polynomial(Collection):
             if isinstance(a.value, Number) and a.exp == 1:
                 return type(a)(a.value * b.coef, b.value, -b.exp)
             return Product.resolve(a, b.inv)
-        return Polynomial._long_division(a, b)
+        res = Polynomial._long_division(a, b)
+        # Super-simplification of remainders, might get heavy
+        # E.g ((x-3)^2(x-3))/(x-3)^2 => 1 + 1/(x-3)
+        if isinstance(res.remainder.value, Polynomial):
+            rem = Polynomial._long_division(b, res.remainder)
+            if rem.remainder.value == 0:
+                rem = rem.inv
+                v = next(i for i in res.value if i.remainder.value)
+                res -= v
+                res += rem
+        return res
 
     @staticmethod
     def merge(objs: Sequence[Term]) -> Generator[Term, None, None]:
@@ -231,8 +255,9 @@ class Polynomial(Collection):
             num = Term(value=Polynomial(k.scale(v) for k, v in num.items()))
 
             # Combine with the rest of the results
-            for t in Polynomial.flatten(num / den):
-                res[t.canonical()] += t.to_const()
+            if num.value:
+                for t in Polynomial.flatten(num / den):
+                    res[t.canonical()] += t.to_const()
 
         # Return them back into Term form and ignore 0's
         return (k.scale(v) for k, v in res.items() if v != 0)
