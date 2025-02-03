@@ -94,7 +94,7 @@ class Comparison:
                     return (self * Term(value=i.value, exp=i.exp).inv)[value]
                 # Term is in radical form
                 elif exp.denominator != 1:
-                    self -= self.left - i
+                    self = self.reverse_sub(self.left - i)
                     print(self)
                     return (self ** Term(Number(exp.denominator)))[value]
 

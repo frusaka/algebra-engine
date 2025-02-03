@@ -170,6 +170,12 @@ class Term:
         """
         if not isinstance(self.value, Number) or self.exp != 1:
             return Term(abs(self.coef), self.value, self.exp)
+        if (
+            isinstance(self.value, Polynomial)
+            and abs(self.exp) == 1
+            and next(iter(self.value.leading_options())).to_const() < 0
+        ):
+            return -self
         return Term(value=abs(self.value), exp=self.exp)
 
     @cache

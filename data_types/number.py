@@ -53,9 +53,10 @@ class Number(Atomic):
 
     def __str__(self) -> str:
         # Lazy print
-        return (
-            print_frac(self).replace("j", "i").replace("1i", "i").replace("1i", "11i")
-        )
+        res = print_frac(self).replace("j", "i")
+        if abs(self.numerator.imag) == 1:
+            res = res.replace("1i", "i")
+        return res
 
     def __repr__(self) -> str:
         return "Number(numerator={0}, denominator={1})".format(
@@ -100,6 +101,8 @@ class Number(Atomic):
         # Needs saftey checks. The numerator can be too large.
         num = self.nth_root(self.numerator**other.numerator, other.denominator)
         den = self.nth_root(self.denominator**other.numerator, other.denominator)
+        num = complex(round(num.real, 10), round(num.imag, 10))
+        den = complex(round(den.real, 10), round(den.imag, 10))
         return Number(num) / Number(den)
 
     def __abs__(self) -> Number:
@@ -154,6 +157,37 @@ class Number(Atomic):
         else:
             return x ** (1 / n)
 
+    @staticmethod
+    def simplify_radical(n, root=2) -> Term:
+        from .term import Term
+
+        if n < 0:
+            # Handle imaginary numbers for even roots
+            if root % 2 == 0:
+                return Number.simplify_radical(-n, root).scale(Number(complex(imag=1)))
+            else:
+                return -Number.simplify_radical(abs(n), root)
+        # Find the largest perfect power factor
+        largest_power = 1
+        for i in range(1, int(n ** (1 / root)) + 1):
+            if n % (i**root) == 0:
+                largest_power = i**root
+
+        # Extract root
+        outside = int(largest_power ** (1 / root))
+        inside = n // largest_power
+        return Term(Number(outside), Number(inside), exp=Number(1, root))
+
+    @staticmethod
+    def frac_radical(a: Term, b: Term) -> Term:
+        from .product import Product
+
+        if a.exp == 1 and b.exp == 1:
+            return type(a)(value=a.value / b.value)
+        if b.exp == 1:
+            return type(a)(a.coef / b.value, a.value, a.exp)
+        return Product.resolve(a.scale(b.coef**-1), type(a)(b.value, -b.exp))
+
     @dispatch
     def add(b: Proxy[Term], a: Term) -> None:
         pass
@@ -174,9 +208,23 @@ class Number(Atomic):
         b = b.value
         if a.like(b, 0):
             # Can be like term with different exponents (3^x * 3^y)
+            c = a.coef * b.coef
+            # Radicals that are left as is to preserve accuracy
+            if (
+                (a.exp != 1 or b.exp != 1)
+                and isinstance(a.exp, Number)
+                and isinstance(b.exp, Number)
+            ):
+                if a.value == b.value:
+                    return (
+                        type(a)(value=a.value) ** type(a)(value=a.exp + b.exp)
+                    ).scale(c)
+                return (type(a)(value=a.value * b.value) ** type(a)(value=a.exp)).scale(
+                    c
+                )
             if a.exp == b.exp:
-                return type(a)(a.coef * b.coef, a.value * b.value, a.exp)
-            return type(a)(a.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp))
+                return type(a)(c, a.value * b.value, a.exp)
+            return type(a)(c, a.value, type(a)(value=a.exp) + type(a)(value=b.exp))
         if a.exp == 1:
             return type(a)(a.value * b.coef, b.value, b.exp)
         if b.exp == 1:
@@ -196,8 +244,26 @@ class Number(Atomic):
 
     @pow.register(number)
     def _(b: Proxy[Term], a: Term) -> Term:
-        if a.exp == b.value.exp == 1:
-            return type(a)(a.coef, a.value**b.value.value, a.exp)
-        return Number.resolve_pow(a, b.value)
+        b = b.value
+        if b.exp == 1 and isinstance(a.exp, Number):
+            c = a.coef**b.value.numerator
+            den = den_a = b.value.denominator
+            if a.exp != 1:
+                val = a.value ** (a.exp.numerator * b.value.numerator)
+                den_a *= a.exp.denominator
+            else:
+                val = a.value**b.value.numerator
+            # Leave radicals as is if necessary to maintain precision
+            if not val.numerator.imag and not c.numerator.imag:
+                return Number.frac_radical(
+                    Number.simplify_radical(val.numerator, den_a),
+                    Number.simplify_radical(val.denominator, den_a),
+                ) * Number.frac_radical(
+                    Number.simplify_radical(c.numerator, den),
+                    Number.simplify_radical(c.denominator, den),
+                )
+            # Complex radicals converted to floating-point
+            return type(a)(value=a.value**b.value).scale(a.coef**b.value)
+        return Number.resolve_pow(a, b)
 
     pow.register(polynomial)(Atomic.poly_pow)

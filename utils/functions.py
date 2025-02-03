@@ -8,7 +8,9 @@ if TYPE_CHECKING:
 def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     from data_types import Number, Variable, Collection
 
-    if isinstance(term.value, Number) or not isinstance(term.exp, Number):
+    if not isinstance(term.exp, Number) or (
+        isinstance(term.value, Number) and term.exp == 1
+    ):
         return Number(0)
     res = Number(0)
 
@@ -24,6 +26,8 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
         c, d = 0, 0.1
         x = ord(term.value)
         res += c + ((x - a) * (d - c)) / (b - a)
+    if isinstance(term.value, Number):
+        return -res
     return res
 
 
@@ -36,7 +40,7 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     Given that the lhs is a Polynomial,
     check whether it can be considered quadratic in terms of `value` and return a tuple (a, b, c)
     """
-    from data_types import Term, Comparison
+    from data_types import Term
 
     a, b = None, None
     x = Term(value=var)

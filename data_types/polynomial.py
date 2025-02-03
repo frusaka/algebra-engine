@@ -23,9 +23,13 @@ class Polynomial(Collection):
         for idx, term in enumerate(standard_form(self)):
             rep = str(term)
             if idx > 0 and res:
-                if rep.startswith("-"):
-                    rep = rep[1:]
+                if (
+                    rep.startswith("-")
+                    or rep.startswith("(-")
+                    and term.to_const() is term.coef
+                ):
                     res += " - "
+                    rep = str(-term)
                 else:
                     res += " + "
             res += rep

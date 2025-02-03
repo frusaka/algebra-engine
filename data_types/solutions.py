@@ -1,6 +1,13 @@
 import itertools
 from .collection import Collection
 from .term import Term
+from .number import Number
+
+
+def plus_minus_key(t: Term) -> Term:
+    if not isinstance(t.value, Number) or not t.value.numerator.imag:
+        return abs(t)
+    return t
 
 
 class Solutions(Collection):
@@ -25,10 +32,9 @@ class Solutions(Collection):
 
     def __str__(self) -> str:
         res = []
-        for i, vals in itertools.groupby(self, key=lambda x: abs(x)):
-            vals = list(vals)
-            if len(vals) == 1:
-                res.append(str(vals[0]))
+        for i, vals in itertools.groupby(self, key=plus_minus_key):
+            if len(list(vals)) == 1:
+                res.append(str(i))
             else:
                 res.append("±" + str(i))
         return " and ".join(res)

@@ -75,7 +75,7 @@ class Parser:
             else:
                 if not stack:
                     self.paren_error()
-                if token.type is TokenType.POW:
+                if token.type in (TokenType.POW, TokenType.ROOT):
                     while (
                         token.priority <= stack[-1].priority
                         or stack[-1].type is TokenType.NEG
