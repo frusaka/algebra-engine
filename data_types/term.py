@@ -56,14 +56,14 @@ class Term:
     def __str__(self) -> str:
         # Numbers with symbolic exponents
         if isinstance(self.value, Number) and self.exp != 1:
-            if self.coef != 1:
-                return "{0}{1}".format(
-                    print_coef(self.coef), Term(value=self.value, exp=self.exp)
-                )
-            return (
+            c = print_coef(self.coef)
+            if not c.startswith("(") and c and c != "-":
+                c = c.join("()")
+            return "{0}{1}".format(
+                c,
                 str(Term(value="$", exp=self.exp))
                 .join("()")
-                .replace("$", str(self.value))
+                .replace("$", str(self.value)),
             )
         # Negative exponets: ax^-n -> a/x^n
         if self.exp_const() < 0:

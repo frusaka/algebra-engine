@@ -1,5 +1,5 @@
 from processing import AST
-from data_types import Number, Term
+from data_types import Number, Product, Term
 
 
 def test_simplify_constants(processor):
@@ -38,3 +38,74 @@ def test_divide_complex(processor):
     assert processor.eval(AST("(-2+i)/(2+3i)")) == Term(Number(complex(-1, 8), 13))
     assert processor.eval(AST("(3+4i)/(1-2i)")) == Term(Number(complex(-1, 2)))
     assert processor.eval(AST("0/(1+i)")) == Term(Number())
+
+
+def test_numeric_exponentiation(processor):
+    # Exponentiation
+    assert processor.eval(AST("5 ^ 2")) == Term(Number(25))
+    assert processor.eval(AST("-3 ^ 2")) == Term(Number(-9))
+    assert processor.eval(AST("(-3) ^ 2")) == Term(Number(9))
+    assert processor.eval(AST("2 ^- 1")) == Term(Number("0.5"))
+
+    # Perfect Radicals
+    assert processor.eval(AST("2 √ 25")) == Term(Number(5))
+    assert processor.eval(AST("2 √ 25")) == Term(Number(5))
+    assert processor.eval(AST("2 √ -1")) == Term(Number(complex(imag=1)))
+    assert processor.eval(AST("2 √ -81")) == Term(Number(complex(imag=9)))
+    assert processor.eval(AST("3 √ 27")) == Term(Number(3))
+    assert processor.eval(AST("3 √ -27")) == Term(Number(-3))
+
+    # Imperfect radicals
+    assert processor.eval(AST("2 √ 50")) == Term(Number(5), Number(2), Number(1, 2))
+    assert processor.eval(AST("2 √ 192")) == Term(Number(8), Number(3), Number(1, 2))
+    assert processor.eval(AST("3 √ 81")) == Term(Number(3), Number(3), Number(1, 3))
+    assert processor.eval(AST("2 √ 27")) == Term(Number(3), Number(3), exp=Number(1, 2))
+    assert processor.eval(AST("6 √ 27")) == Term(value=Number(3), exp=Number(1, 2))
+    assert processor.eval(AST("4 √ -16")) == Term(Number(complex(imag=2)))
+    assert processor.eval(AST("2 √ -128")) == Term(
+        Number(complex(imag=8)), Number(2), Number(1, 2)
+    )
+
+
+def test_cancels_radical(processor):
+    # Simplify cancelling radicals with like exponents
+    assert processor.eval(AST("(2 √ -50)^2")) == Term(Number(-50))
+    assert processor.eval(AST("(3 √ -81)^3")) == Term(Number(-81))
+    assert processor.eval(AST("(2√5) * (2√5)")) == Term(Number(5))
+    assert processor.eval(AST("(2√-5) * (2√5)")) == Term(Number(complex(imag=5)))
+    assert processor.eval(AST("(2√32) * (2√2)")) == Term(Number(8))
+    assert processor.eval(AST("(3√9) * (3√3)")) == Term(Number(3))
+
+    # Simplify cancelling radicals with like bases
+    assert processor.eval(AST("27^(1/2) * 27^(-1/6)")) == Term(Number(3))
+    assert processor.eval(AST("8^(1/2) * 8^(1/3)")) == Term(
+        Number(4), Number(2), Number(1, 2)
+    )
+    assert processor.eval(AST("2(2√2) * 3√8")) == Term(
+        Number(4), Number(2), Number(1, 2)
+    )
+    assert processor.eval(AST("4(2√2) * 2√8")) == Term(Number(16))
+
+
+def test_multiply_radicals(processor):
+    assert processor.eval(AST("(2√27)(2√2)(1/(6√27))")) == Term(
+        Number(3), Number(2), Number(1, 2)
+    )
+    assert processor.eval(AST("(2√8)(2√2)(1/(4√16))")) == Term(Number(2))
+    assert processor.eval(AST("(2√50)(2√2)(1/(5√100))")) == Term(
+        value=Number(1000), exp=Number(1, 5)
+    )
+    assert processor.eval(AST("(2√18)(2√2)(1/(3√9))")) == Term(
+        Number(2), Number(3), Number(1, 3)
+    )
+    # NOTE: Writing it as 2(2√6)3(2√2)(1/(3√12)) will fail. Needs fix
+    # The product class simplification should be aware of radical numbers
+    assert processor.eval(AST("2(2√6) * 3(2√2) * (1/(3√12))")) == Term(
+        Number(2),
+        Product(
+            [
+                Term(value=Number(3), exp=Number(1, 2)),
+                Term(value=Number(18), exp=Number(1, 3)),
+            ]
+        ),
+    )

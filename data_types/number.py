@@ -158,35 +158,18 @@ class Number(Atomic):
             return x ** (1 / n)
 
     @staticmethod
-    def simplify_radical(n, root=2) -> Term:
-        from .term import Term
-
-        if n < 0:
-            # Handle imaginary numbers for even roots
-            if root % 2 == 0:
-                return Number.simplify_radical(-n, root).scale(Number(complex(imag=1)))
-            else:
-                return -Number.simplify_radical(abs(n), root)
-        # Find the largest perfect power factor
-        largest_power = 1
-        for i in range(1, int(n ** (1 / root)) + 1):
-            if n % (i**root) == 0:
-                largest_power = i**root
-
-        # Extract root
-        outside = int(largest_power ** (1 / root))
-        inside = n // largest_power
-        return Term(Number(outside), Number(inside), exp=Number(1, root))
-
-    @staticmethod
     def frac_radical(a: Term, b: Term) -> Term:
-        from .product import Product
-
-        if a.exp == 1 and b.exp == 1:
-            return type(a)(value=a.value / b.value)
-        if b.exp == 1:
-            return type(a)(a.coef / b.value, a.value, a.exp)
-        return Product.resolve(a.scale(b.coef**-1), type(a)(b.value, -b.exp))
+        if b.exp != 1:
+            exp = Number(1) - b.exp
+            a *= simplify_radical(
+                (b.value.numerator**exp.numerator), exp.denominator
+            ) * simplify_radical((b.coef.numerator**exp.numerator), exp.denominator)
+            b = b.value * b.coef
+        else:
+            b = b.value
+        if a.exp == 1:
+            return type(a)(value=a.value / b)
+        return type(a)(a.coef / b, a.value, a.exp)
 
     @dispatch
     def add(b: Proxy[Term], a: Term) -> None:
@@ -256,11 +239,11 @@ class Number(Atomic):
             # Leave radicals as is if necessary to maintain precision
             if not val.numerator.imag and not c.numerator.imag:
                 return Number.frac_radical(
-                    Number.simplify_radical(val.numerator, den_a),
-                    Number.simplify_radical(val.denominator, den_a),
+                    simplify_radical(val.numerator, den_a),
+                    simplify_radical(val.denominator, den_a),
                 ) * Number.frac_radical(
-                    Number.simplify_radical(c.numerator, den),
-                    Number.simplify_radical(c.denominator, den),
+                    simplify_radical(c.numerator, den),
+                    simplify_radical(c.denominator, den),
                 )
             # Complex radicals converted to floating-point
             return type(a)(value=a.value**b.value).scale(a.coef**b.value)
