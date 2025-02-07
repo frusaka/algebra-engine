@@ -161,7 +161,7 @@ class Number(Atomic):
     def frac_radical(a: Term, b: Term) -> Term:
         if b.exp != 1:
             exp = Number(1) - b.exp
-            a *= simplify_radical((b.value.numerator**exp.numerator), exp.denominator)
+            a *= simplify_radical(b.value.numerator**exp.numerator, exp.denominator)
             b = b.value * b.coef
         else:
             b = b.value

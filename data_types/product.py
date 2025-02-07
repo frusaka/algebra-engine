@@ -1,10 +1,10 @@
 from __future__ import annotations
-from functools import cached_property
 
 from .collection import Collection
 from utils import *
+from functools import cached_property
+from typing import TYPE_CHECKING, Sequence, Set, Tuple
 import itertools
-from typing import TYPE_CHECKING, Sequence, Set
 
 if TYPE_CHECKING:
     from .term import Term
@@ -67,8 +67,8 @@ class Product(Collection):
             num, den = a.rationalize(num, den)
             return Product.resolve(num, den.inv)
 
-        c = a.coef * b.coef
-        res = a.value.simplify(type(a)(value=b.value, exp=b.exp))
+        c, res = a.value.simplify(b.canonical())
+        c *= a.to_const() * b.to_const()
         if res:
             if len(res) == 1:
                 res = res.pop()
@@ -94,12 +94,6 @@ class Product(Collection):
             return num / den
         return Product._mul(a, b)
 
-    @mul.register(number)
-    def _(b: Proxy[Term], a: Term) -> Term:
-        if b.value.exp != 1:
-            return
-        return type(a)(a.coef * b.value.value, a.value, a.exp)
-
     @mul.register(polynomial)
     def _(b: Proxy[Term], a: Term) -> Term:
         b = b.value
@@ -122,10 +116,15 @@ class Product(Collection):
         b = type(a)(value=b.value, exp=b.exp)
         return type(a)(c, Product([a, b]))
 
-    def simplify(a, b: Term) -> Set[Term]:
+    def simplify(a, b: Term) -> Tuple[Number, Set[Term]]:
         """Express a * b by combining like-terms"""
+        from .number import Number
+
         # TODO: Implement canonical-based pairing
         objs = set(a)
+        c = Number(1)
+        if b.value == 1:
+            return c, objs
         rem = set(b.value) if isinstance(b.value, Product) else {b}
         for a in tuple(objs):
             for b in tuple(rem):
@@ -135,6 +134,9 @@ class Product(Collection):
                     objs.remove(a)
                     rem.remove(b)
                     a *= b
+                    if a.to_const() != 1:
+                        c *= a.to_const()
+                        a = a.canonical()
                     if a.value != 1:
                         objs.add(a)
-        return objs.union(rem)
+        return c, objs.union(rem)

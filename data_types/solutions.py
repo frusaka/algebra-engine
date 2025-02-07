@@ -33,8 +33,9 @@ class Solutions(Collection):
     def __str__(self) -> str:
         res = []
         for i, vals in itertools.groupby(self, key=plus_minus_key):
-            if len(list(vals)) == 1:
-                res.append(str(i))
+            vals = list(vals)
+            if len(vals) == 1:
+                res.append(str(vals[0]))
             else:
                 res.append("±" + str(i))
         return " and ".join(res)

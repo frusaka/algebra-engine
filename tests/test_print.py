@@ -52,6 +52,8 @@ def test_print_radical(processor):
     assert str(processor.eval(AST("-1(2√(x + c))"))) == "-2√(x + c)"
     assert str(processor.eval(AST("2(2√(x + c))"))) == "2(2√(x + c))"
     assert str(processor.eval(AST("-2(2√(x + c))"))) == "-2(2√(x + c))"
+    assert str(processor.eval(AST("2√5 / 2"))) == "0.5(2√5)"
+    assert str(processor.eval(AST("2 * 2√5 / 3"))) == "2(2√5)/3"
 
 
 def test_print_polynomial(processor):
@@ -65,6 +67,7 @@ def test_print_polynomial(processor):
 def test_print_product(processor):
     assert str(processor.eval(AST("-2xb"))) == "-2bx"
     assert str(processor.eval(AST("x^3*y^-5"))) == "x^3/y^5"
-    assert str(processor.eval(AST("s^3*d^-5*z^2"))) == "(z^2s^3)/d^5"
     assert str(processor.eval(AST("-10(m^-1*n^-1)"))) == "-10/mn"
     assert str(processor.eval(AST("(-2/3)(y^2n^-1)"))) == "-2y^2/3n"
+    assert str(processor.eval(AST("n/a - 5/4a"))) == "(4n - 5)/4a"
+    assert str(processor.eval(AST("s^3*d^-5*z^2/3"))) == "(z^2s^3)/3d^5"

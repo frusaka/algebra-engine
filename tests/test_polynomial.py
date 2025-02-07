@@ -3,7 +3,7 @@ from processing import AST
 from data_types import Number, Variable, Polynomial, Product, Term
 
 
-def test_divide_polynomials(processor):
+def test_divide_polynomial(processor):
     # Dividing univariate polynomials
     assert processor.eval(AST("(5.2x^3 + 7x^2 - 31.2x - 42) / (3.5+2.6x)")) == Term(
         value=Polynomial(
@@ -170,7 +170,7 @@ def test_divide_multivariate(processor):
     )
 
 
-def test_multiply_polynomials(processor):
+def test_multiply_polynomial(processor):
     # Multiplying univariate polynomials
     assert processor.eval(AST("(2x+3)(0.5x - 5)")) == Term(
         value=Polynomial(
@@ -237,6 +237,22 @@ def test_multiply_polynomials(processor):
             ]
         )
     )
+    assert processor.eval(AST("(x/3 - 7/3)x^-2")) == Term(
+        Number(1, 3),
+        value=Product(
+            [
+                Term(
+                    value=Polynomial(
+                        [
+                            Term(value=Variable("x")),
+                            Term(Number(-7)),
+                        ]
+                    )
+                ),
+                Term(value=Variable("x"), exp=Number(-2)),
+            ]
+        ),
+    )
     expected = Term(
         value=Polynomial(
             [
@@ -297,4 +313,15 @@ def test_merge_polynomial(processor):
             ]
         ),
         Number("0.5"),
+    )
+    assert processor.eval(AST("3/x - 7/3x^2")) == Term(
+        Number(1, 3),
+        Product(
+            [
+                Term(
+                    value=Polynomial([Term(Number(9), Variable("x")), Term(Number(-7))])
+                ),
+                Term(value=Variable("x"), exp=Number(-2)),
+            ]
+        ),
     )

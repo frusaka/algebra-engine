@@ -23,11 +23,8 @@ class Polynomial(Collection):
         for idx, term in enumerate(standard_form(self)):
             rep = str(term)
             if idx > 0 and res:
-                if (
-                    rep.startswith("-")
-                    or rep.startswith("(-")
-                    and term.to_const() is term.coef
-                ):
+                # Needs fix to account for complex number or values like x + (-2x+3)/ab
+                if rep.startswith("-"):
                     res += " - "
                     rep = str(-term)
                 else:
@@ -102,6 +99,7 @@ class Polynomial(Collection):
     @staticmethod
     def scalar_pow(b: Term, a: Term) -> Term | None:
         """For-loop based exponentiation of a Polynomial"""
+
         if b.exp != 1 or a.exp != 1:
             if b.coef != 1:
                 return (a ** type(a)(b.coef)) ** type(a)(b.value, exp=b.exp)
@@ -116,6 +114,10 @@ class Polynomial(Collection):
             res *= a
         exp = Fraction(1, b.denominator)
         if b < 0:
+            if b.denominator == 1:
+                num, den = type(a).rationalize(type(a)(), res)
+                den = type(a)(value=den.value, exp=-den.exp)
+                return num * den
             exp = -exp
         res = type(a)(value=res.value, exp=res.exp * exp)
         return res
@@ -139,15 +141,9 @@ class Polynomial(Collection):
     @cache
     def gcd(self) -> Term:
         """GCD of a polynomial. Ignores the coefficients"""
-        from .product import Product
-        from .term import Term
-
         gcd = next(iter(standard_form(self))).canonical()
         for i in standard_form(self):
-            if not isinstance(i.value, Product):
-                gcd = Term()
-                break
-            gcd = Term.gcd(gcd, i.canonical())
+            gcd = i.gcd(gcd, i.canonical())
         return gcd
 
     @staticmethod
@@ -212,8 +208,7 @@ class Polynomial(Collection):
             rem = Polynomial._long_division(b, res.remainder)
             if rem.remainder.value == 0:
                 rem = rem.inv
-                v = next(i for i in res.value if i.remainder.value)
-                res -= v
+                res -= res.fractional
                 res += rem
         return res
 

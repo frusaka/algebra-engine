@@ -9,7 +9,7 @@ from .variable import Variable
 from .collection import Collection
 from .product import Product
 from .polynomial import Polynomial
-from utils import Proxy, print_coef
+from utils import Proxy, print_coef, lexicographic_weight
 
 
 @dataclass(frozen=True, init=False, order=True)
@@ -54,24 +54,22 @@ class Term:
         return obj
 
     def __str__(self) -> str:
+        if (
+            "/" in str(self.coef)
+            or isinstance(self.value, Product)
+            and self.coef.denominator != 1
+        ):
+            return "{0}/{1}".format(self.numerator, self.denominator)
         # Numbers with symbolic exponents
         if isinstance(self.value, Number) and self.exp != 1:
-            c = print_coef(self.coef)
-            if not c.startswith("(") and c and c != "-":
-                c = c.join("()")
             return "{0}{1}".format(
-                c,
+                print_coef(self.coef),
                 str(Term(value="$", exp=self.exp))
                 .join("()")
                 .replace("$", str(self.value)),
             )
         # Negative exponets: ax^-n -> a/x^n
         if self.exp_const() < 0:
-            return "{0}/{1}".format(
-                self.coef.numerator,
-                Term(Number(self.coef.denominator), self.value, -self.exp),
-            )
-        if "/" in str(self.coef):
             return "{0}/{1}".format(self.numerator, self.denominator)
         res = print_coef(self.coef)
         # Cases when a Polynomial or Product has no variable numerator
@@ -133,17 +131,30 @@ class Term:
             a, b = Term.rationalize(a, b)
             gcd_a, gcd_b = (Term(),) * 2
             # Factorize the Polynomial
-            if a.exp == 1 and b.exp == 1 and isinstance(b.value, Polynomial):
+            if (
+                isinstance(a.value, Polynomial)
+                and isinstance(b.value, Polynomial)
+                and a.exp == b.exp == 1
+            ):
+                gcd_a = gcd_b = Term()
                 gcd_a = a.value.gcd()
                 gcd_b = b.value.gcd()
                 if gcd_a.value != 1:
                     a = Polynomial.long_division(a, gcd_a)
                 if gcd_b.value != 1:
                     b = Polynomial.long_division(b, gcd_b)
+            # Divide the simplified Polynomial
             res = Polynomial.long_division(a, b)
-            if not res.remainder.value:
-                return res * (gcd_a / gcd_b)
-            return Polynomial.long_division(a * gcd_a, b * gcd_b)
+            # Combine with the gcd
+            # Not fully sufficient:
+            #   e.g, ((2x^4 - 8x^2)/(x^4 - 10x^3)) * ((x + 7)/(4x^2 + 36x + 56))
+            #   Engine result -> (x^2 - 4)/(2x^3 - 16x^2 - 40x)
+            #   Simplify further:
+            #       (x+2)(x-2)/2x(x+2)(x-10)
+            #       (x-2)/2x(x-10)
+            frac = gcd_a / gcd_b
+            a, b = Term.rationalize(res, Term())
+            return Polynomial.long_division(a * frac.numerator, frac.denominator * b)
         return a * b.inv
 
     @cache
@@ -159,7 +170,7 @@ class Term:
 
     @cache
     def __neg__(self) -> Term:
-        return self * Term(value=Number(-1))
+        return self * Term(Number(-1))
 
     @cache
     def __abs__(self) -> Term:
@@ -240,8 +251,8 @@ class Term:
         if isinstance(self.value, Number) and self.exp == 1:
             return Term(Number(self.value.denominator))
         if self.exp_const() < 0:
-            return Term(Number(self.coef.denominator), self.value, self.exp).inv
-        return Term(Number(self.to_const().denominator))
+            return Term(Number(self.coef.denominator), self.value, -self.exp)
+        return Term(Number(self.coef.denominator))
 
     @cached_property
     def inv(self) -> Term:
@@ -249,17 +260,22 @@ class Term:
         return self ** -Term()
 
     @cached_property
-    def remainder(self) -> Term:
-        """The term that has non constant denominator"""
+    def fractional(self) -> Term:
+        """Get the term with a non-constant denominator"""
         if not isinstance(self.denominator.value, Number) or self.denominator.exp != 1:
-            return self.numerator
+            return self
         if self.exp != 1:
             return Term(Number(0))
         if isinstance(self.value, Polynomial):
             for i in self.value:
-                if (r := i.remainder).value:
+                if (r := i.fractional).value:
                     return r
         return Term(Number(0))
+
+    @cached_property
+    def remainder(self) -> Term:
+        """The numerator of the term that has non constant denominator"""
+        return self.fractional.numerator
 
     def exp_const(self) -> Number:
         """Get the constant in a terms exponent"""
@@ -347,8 +363,7 @@ class Term:
                     return a.rationalize(a * i.denominator, b * i.denominator)
 
         # Factoring by gcd
-        gcd = math.gcd(*a.gcd_coefs(), *b.gcd_coefs())
-        if gcd != 1:
+        if (gcd := math.gcd(*a.gcd_coefs(), *b.gcd_coefs())) != 1:
             gcd = Term(Number(gcd) ** -1)
             a *= gcd
             b *= gcd
@@ -372,9 +387,9 @@ class Term:
                 a, b = b, r
             return a
 
-        if (val := gcd(a, b)).value == 1:
-            return gcd(b, a)
-        return val
+        if lexicographic_weight(b, 0) > lexicographic_weight(a, 0):
+            a, b = b, a
+        return gcd(a, b)
 
     @staticmethod
     @cache
