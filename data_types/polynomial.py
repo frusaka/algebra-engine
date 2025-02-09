@@ -141,10 +141,15 @@ class Polynomial(Collection):
     @cache
     def gcd(self) -> Term:
         """GCD of a polynomial. Ignores the coefficients"""
-        gcd = next(iter(standard_form(self))).canonical()
-        for i in standard_form(self):
-            gcd = i.gcd(gcd, i.canonical())
-        return gcd
+        terms = iter(self)
+        gcd = next(terms)
+        if isinstance(gcd.value, Polynomial):
+            return type(gcd)()
+        for i in terms:
+            if isinstance(i.value, Polynomial):
+                return type(i)()
+            gcd = i.gcd(gcd, i)
+        return gcd.canonical()
 
     @staticmethod
     def _long_division(a: Term, b: Term) -> Term:
@@ -186,6 +191,7 @@ class Polynomial(Collection):
         return res
 
     @staticmethod
+    @cache
     def long_division(a: Term, b: Term) -> Term:
         """
         Interface level long division that supports dual direction for computing absolutes.

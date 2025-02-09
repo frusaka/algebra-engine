@@ -57,7 +57,7 @@ class Term:
         if (
             "/" in str(self.coef)
             or isinstance(self.value, Product)
-            and self.coef.denominator != 1
+            and not isinstance(self.denominator.value, Number)
         ):
             return "{0}/{1}".format(self.numerator, self.denominator)
         # Numbers with symbolic exponents
@@ -129,31 +129,23 @@ class Term:
     def __truediv__(a, b: Term) -> Term:
         if isinstance(a.value, Polynomial):
             a, b = Term.rationalize(a, b)
-            gcd_a, gcd_b = (Term(),) * 2
-            # Factorize the Polynomial
-            if (
-                isinstance(a.value, Polynomial)
-                and isinstance(b.value, Polynomial)
-                and a.exp == b.exp == 1
-            ):
-                gcd_a = gcd_b = Term()
+            gcd_a = gcd_b = Term()
+
+            if isinstance(a.value, Polynomial) and a.exp == 1:
                 gcd_a = a.value.gcd()
-                gcd_b = b.value.gcd()
-                if gcd_a.value != 1:
-                    a = Polynomial.long_division(a, gcd_a)
-                if gcd_b.value != 1:
-                    b = Polynomial.long_division(b, gcd_b)
-            # Divide the simplified Polynomial
-            res = Polynomial.long_division(a, b)
-            # Combine with the gcd
-            # Not fully sufficient:
-            #   e.g, ((2x^4 - 8x^2)/(x^4 - 10x^3)) * ((x + 7)/(4x^2 + 36x + 56))
-            #   Engine result -> (x^2 - 4)/(2x^3 - 16x^2 - 40x)
-            #   Simplify further:
-            #       (x+2)(x-2)/2x(x+2)(x-10)
-            #       (x-2)/2x(x-10)
+                a = Polynomial.long_division(a, gcd_a)
+                if isinstance(b.value, Polynomial):
+                    if b.exp == 1:
+                        gcd_b = b.value.gcd()
+                        b = Polynomial.long_division(b, gcd_b)
+                        if (gcd := Term.gcd(a, b)).value != 1:
+                            a = Polynomial.long_division(a, gcd)
+                            b = Polynomial.long_division(b, gcd)
+                else:
+                    gcd_b = Term.gcd(gcd_a, b)
+                    if gcd_b.value != 1:
+                        b /= gcd_b
             frac = gcd_a / gcd_b
-            a, b = Term.rationalize(res, Term())
             return Polynomial.long_division(a * frac.numerator, frac.denominator * b)
         return a * b.inv
 
@@ -378,18 +370,23 @@ class Term:
     @cache
     def gcd(a: Term, b: Term) -> Term:
         """Greatest Common Divisor of a & b"""
-
-        def gcd(a, b):
-            while b.value != 0:
-                r = (a / b).remainder
-                if r == a:
-                    return Term()
-                a, b = b, r
-            return a
-
         if lexicographic_weight(b, 0) > lexicographic_weight(a, 0):
             a, b = b, a
-        return gcd(a, b)
+        if isinstance(b.value, Number) and not isinstance(a.value, Number):
+            return Term()
+        # To prevent infinite recurssion, call Long division when applicable
+        if isinstance(a.value, Polynomial):
+            div = Polynomial.long_division
+        else:
+            div = lambda a, b: a / b
+        b2 = b
+        while b.value != 1:
+            if (d := div(a, b).fractional.denominator) == b:
+                return Term()
+            a, b = b, d
+        if a.value != 1 and a != b2:
+            a = div(b2, a)
+        return a
 
     @staticmethod
     @cache

@@ -91,6 +91,23 @@ def test_divide_polynomial(processor):
         ),
         Number(-1),
     )
+    assert processor.eval(AST("(x^2 - 4)/(x^2 + 8x - 20)")) == Term(
+        value=Polynomial(
+            [
+                Term(Number(1)),
+                Term(
+                    Number(-8),
+                    Polynomial(
+                        [
+                            Term(value=Variable("x")),
+                            Term(Number(10)),
+                        ]
+                    ),
+                    Number(-1),
+                ),
+            ]
+        )
+    )
 
 
 def test_divide_multivariate(processor):
@@ -237,6 +254,32 @@ def test_multiply_polynomial(processor):
             ]
         )
     )
+    assert processor.eval(
+        AST("((2x^4 - 8x^2)/(x^4 - 10x^3)) * ((x + 7)/(4x^2 + 36x + 56))")
+    ) == Term(
+        value=Product(
+            [
+                Term(
+                    value=Polynomial(
+                        [
+                            Term(value=Variable("x")),
+                            Term(Number(-2)),
+                        ]
+                    )
+                ),
+                Term(
+                    value=Polynomial(
+                        [
+                            Term(Number(2), Variable("x"), Number(2)),
+                            Term(Number(-20), Variable("x")),
+                        ]
+                    ),
+                    exp=Number(-1),
+                ),
+            ]
+        )
+    )
+
     assert processor.eval(AST("(x/3 - 7/3)x^-2")) == Term(
         Number(1, 3),
         value=Product(
