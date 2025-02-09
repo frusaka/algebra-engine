@@ -2,6 +2,8 @@
     e.g:
         3-(x=5)
         5(x=5)
-2. Make Product class properly handle numeric radicals
-3. Handle nested (in)equalities
-4. Improve solving for inequalities (sign and extraneous solutions check)
+2. Handle nested (in)equalities
+3. Improve solving for inequalities (sign and extraneous solutions check)
+4. Some valid results get rejected when checking for extraneous solutions due to rooting a Polynomial.
+    Add a way to smartly control strictness, or check if a Polynomial has a perfect power
+5. Improve multiplication of Products containing Polynomials

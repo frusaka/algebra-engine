@@ -143,11 +143,7 @@ class Polynomial(Collection):
         """GCD of a polynomial. Ignores the coefficients"""
         terms = iter(self)
         gcd = next(terms)
-        if isinstance(gcd.value, Polynomial):
-            return type(gcd)()
         for i in terms:
-            if isinstance(i.value, Polynomial):
-                return type(i)()
             gcd = i.gcd(gcd, i)
         return gcd.canonical()
 
@@ -194,8 +190,7 @@ class Polynomial(Collection):
     @cache
     def long_division(a: Term, b: Term) -> Term:
         """
-        Interface level long division that supports dual direction for computing absolutes.
-        If `b` has a higher degree than `a`, the result is inverted accordingly.
+        Perform Polynomial division on `a` with `b`, no matter which one has a higher degree.
         """
         from .product import Product
 
@@ -208,8 +203,8 @@ class Polynomial(Collection):
                 return type(a)(a.value * b.coef, b.value, -b.exp)
             return Product.resolve(a, b.inv)
         res = Polynomial._long_division(a, b)
-        # Super-simplification of remainders, might get heavy
-        # E.g ((x-3)^2(x-3))/(x-3)^2 => 1 + 1/(x-3)
+        # Basic super-simplification of remainders
+        # E.g ((x-3)(x+3))/(x-3)^2 => 1 + 6/(x-3)
         if isinstance(res.remainder.value, Polynomial):
             rem = Polynomial._long_division(b, res.remainder)
             if rem.remainder.value == 0:

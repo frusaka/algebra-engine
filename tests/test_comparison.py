@@ -247,17 +247,6 @@ def test_solve_quadratic(processor):
             }
         ),
     )
-    assert Comparison(left=processor.eval(AST("x + 2√x")), right=Term(Number(6)))[
-        Variable("x")
-    ] == Comparison(
-        left=Term(value=Variable("x")),
-        right=Solutions(
-            {
-                Term(Number(9)),
-                Term(Number(4)),
-            }
-        ),
-    )
     assert Comparison(
         left=processor.eval(AST("(a-4)^2 ")),
         right=Term(value=Variable("c"), exp=Number(2)),

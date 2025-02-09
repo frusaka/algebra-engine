@@ -112,7 +112,7 @@ def test_divide_polynomial(processor):
 
 def test_divide_multivariate(processor):
     assert processor.eval(AST("(3n + 3c)/(n+c)")) == Term(Number(3))
-    assert processor.eval(AST("(n+c)/(3n+3c)")) == Term(Number("1/3"))
+    assert processor.eval(AST("(n+c)/(3n+3c)")) == Term(Number(1, 3))
     assert processor.eval(AST("(a^3 + b^3)/(a + b)")) == Term(
         value=Polynomial(
             [
@@ -193,7 +193,7 @@ def test_multiply_polynomial(processor):
         value=Polynomial(
             [
                 Term(Number(1), Variable("x"), Number(2)),
-                Term(Number("-17/2"), Variable("x")),
+                Term(Number(-17, 2), Variable("x")),
                 Term(Number(-15)),
             ]
         )
@@ -254,6 +254,45 @@ def test_multiply_polynomial(processor):
             ]
         )
     )
+
+    assert processor.eval(AST("(x/3 - 7/3)x^-2")) == Term(
+        Number(1, 3),
+        value=Product(
+            [
+                Term(
+                    value=Polynomial(
+                        [
+                            Term(value=Variable("x")),
+                            Term(Number(-7)),
+                        ]
+                    )
+                ),
+                Term(value=Variable("x"), exp=Number(-2)),
+            ]
+        ),
+    )
+    # Consinstency regardless of the order
+    expected = Term(
+        value=Polynomial(
+            [
+                Term(
+                    Number(3),
+                    Product([Term(Variable("x")), Term(Variable("y"))]),
+                ),
+                Term(Number(-4), Variable("y")),
+            ]
+        )
+    )
+    assert processor.eval(AST("(x+2)^-1(3x-4)(xy+2y)")) == expected
+    assert processor.eval(AST("(3x-4)(x+2)^-1(xy+2y)")) == expected
+    assert processor.eval(AST("(xy+2y)(3x-4)(x+2)^-1")) == expected
+
+
+def test_multiply_rationals(processor):
+    # Multiplying Polynomial rationals
+    assert processor.eval(
+        AST("((x^4 - 25x^2)/(x^2 + 8x + 15)) * ((x^2 + 2x - 3)/(6x^3 - 36x^2 + 30x))")
+    ) == Term(Number(1, 6), Variable("x"))
     assert processor.eval(
         AST("((2x^4 - 8x^2)/(x^4 - 10x^3)) * ((x + 7)/(4x^2 + 36x + 56))")
     ) == Term(
@@ -279,10 +318,11 @@ def test_multiply_polynomial(processor):
             ]
         )
     )
-
-    assert processor.eval(AST("(x/3 - 7/3)x^-2")) == Term(
+    assert processor.eval(
+        AST("((x^3 - 6x^2 - 7x)/(3x + 27)) * ((x^2 - 81)/(x^5 - 8x^4 - 9x^3))")
+    ) == Term(
         Number(1, 3),
-        value=Product(
+        Product(
             [
                 Term(
                     value=Polynomial(
@@ -296,20 +336,26 @@ def test_multiply_polynomial(processor):
             ]
         ),
     )
-    expected = Term(
-        value=Polynomial(
+
+    assert processor.eval(
+        AST("((x^2 - 49)/(x^2 + x - 56)) * ((6x^4 - 54x^3)/(2x^4 - 4x^3 - 126x^2))")
+    ) == Term(
+        Number(3),
+        Product(
             [
+                Term(value=Variable("x")),
                 Term(
-                    Number(3),
-                    Product([Term(Variable("x")), Term(Variable("y"))]),
+                    value=Polynomial(
+                        [
+                            Term(value=Variable("x")),
+                            Term(Number(8)),
+                        ]
+                    ),
+                    exp=Number(-1),
                 ),
-                Term(Number(-4), Variable("y")),
             ]
-        )
+        ),
     )
-    assert processor.eval(AST("(x+2)^-1(3x-4)(xy+2y)")) == expected
-    assert processor.eval(AST("(3x-4)(x+2)^-1(xy+2y)")) == expected
-    assert processor.eval(AST("(xy+2y)(3x-4)(x+2)^-1")) == expected
 
 
 def test_merge_polynomial(processor):
@@ -348,14 +394,14 @@ def test_merge_polynomial(processor):
         )
     )
     assert processor.eval(AST("2(2√(x + c)) - 1.5(2√(x + c))")) == Term(
-        Number("0.5"),
+        Number(1, 2),
         Polynomial(
             [
                 Term(value=Variable("x")),
                 Term(value=Variable("c")),
             ]
         ),
-        Number("0.5"),
+        Number(1, 2),
     )
     assert processor.eval(AST("3/x - 7/3x^2")) == Term(
         Number(1, 3),
