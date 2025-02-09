@@ -1,5 +1,6 @@
 SYMBOLS = {
-    "GETITEM": "→",
+    "SOLVE": "→",
+    "RATIO": ":",
     "BOOL": "?",
     "EQ": "=",
     "GT": ">",

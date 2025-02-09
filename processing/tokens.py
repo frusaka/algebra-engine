@@ -13,7 +13,7 @@ class TokenType(Enum):
 
     NUMBER, VAR = 3, 3.2
     ADD, SUB = 4, 4.2
-    MUL, TRUEDIV = 5, 5.2
+    MUL, TRUEDIV, RATIO = 5, 5.2, 5.4
     POS, NEG = 6, 6.2
     POW, ROOT = 7, 7.2
 

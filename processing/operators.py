@@ -97,3 +97,10 @@ def root(a: Term, b: Term) -> Term:
 
 def bool(a: Term | Comparison) -> bool:
     return getattr(a, "__bool__", lambda: a.value != 0)()
+
+
+def ratio(a: Term, b: Term) -> Term:
+    a, b = Term.rationalize(a / b, Term())
+    if not isinstance(b.value, Number) or b.exp != 1:
+        return Product.resolve(a, b.inv)
+    return a.scale(b.inv.value)
