@@ -65,7 +65,7 @@ class Term:
             return "{0}{1}".format(
                 print_coef(self.coef),
                 str(Term(value="$", exp=self.exp))
-                .join("()")
+                .join("()" * (self.coef != 1))
                 .replace("$", str(self.value)),
             )
         # Negative exponets: ax^-n -> a/x^n
@@ -148,6 +148,7 @@ class Term:
                     gcd_b = Term.gcd(gcd_a, b)
                     if gcd_b.value != 1:
                         b /= gcd_b
+
             frac = gcd_a / gcd_b
             # Very unlikely that it simplifies further
             a, b = Term.rationalize(a, b)
@@ -343,21 +344,24 @@ class Term:
     @cache
     def rationalize(a: Term, b: Term) -> tuple[Term]:
         """Given a : b, express a and b such that neither a nor b contain fractions"""
-        # Fractions at the top-level
-        if a.denominator.value != 1:
-            return a.rationalize(a * a.denominator, b * a.denominator)
-        if b.denominator.value != 1:
-            return a.rationalize(a * b.denominator, b * b.denominator)
-
+        # Removing symbolic fractions
+        for i in (a.fractional.denominator, b.fractional.denominator):
+            a *= i
+            b *= i
+        den = a.denominator * b.denominator
+        a *= den
+        b *= den
         # Fractions inside a polynomial
         if a.exp == 1 and isinstance(a.value, Polynomial):
             for i in a.value:
                 if i.denominator.value != 1:
-                    return a.rationalize(a * i.denominator, b * i.denominator)
+                    a *= i.denominator
+                    b *= i.denominator
         if p := b.exp == 1 and isinstance(b.value, Polynomial):
             for i in b.value:
                 if i.denominator.value != 1:
-                    return a.rationalize(a * i.denominator, b * i.denominator)
+                    a *= i.denominator
+                    b *= i.denominator
 
         # Factoring by gcd
         if (gcd := math.gcd(*a.gcd_coefs(), *b.gcd_coefs())) != 1:
@@ -397,4 +401,6 @@ class Term:
     @cache
     def lcm(a: Term, b: Term) -> Term:
         """Lowest Common Multiple of a & b"""
+        if a == b:
+            return a
         return (a * b) / Term.gcd(a, b)

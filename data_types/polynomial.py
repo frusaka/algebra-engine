@@ -133,9 +133,11 @@ class Polynomial(Collection):
         """Get all the the terms that have a degree equivalent to the leading term's degree"""
         leading = self.leading
         return tuple(
-            i
-            for i in self
-            if lexicographic_weight(i, 0) == lexicographic_weight(leading, 0)
+            standard_form(
+                i
+                for i in self
+                if lexicographic_weight(i, 0) == lexicographic_weight(leading, 0)
+            )
         )
 
     @cache

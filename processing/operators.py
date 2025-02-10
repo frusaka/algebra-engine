@@ -101,6 +101,6 @@ def bool(a: Term | Comparison) -> bool:
 
 def ratio(a: Term, b: Term) -> Term:
     a, b = Term.rationalize(a / b, Term())
-    if not isinstance(b.value, Number) or b.exp != 1:
+    if not isinstance(b.value, Number) or not isinstance(a.value, Number):
         return Product.resolve(a, b.inv)
     return a.scale(b.inv.value)

@@ -1,11 +1,13 @@
 from __future__ import annotations
+from functools import cache
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from data_types import Term, Number, Collection, Comparison, Variable
 
 
+@cache
 def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     from data_types import Number, Variable, Collection
 
@@ -32,7 +34,7 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     return res
 
 
-def standard_form(collection: Collection) -> list[Collection]:
+def standard_form(collection: Sequence[Term]) -> list[Collection]:
     return sorted(collection, key=lexicographic_weight, reverse=1)
 
 

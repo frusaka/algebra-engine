@@ -12,13 +12,16 @@ class TokenType(Enum):
     EQ, NE, GT, GE, LT, LE = 2, 2.2, 2.4, 2.6, 2.8, 2.9
 
     NUMBER, VAR = 3, 3.2
-    ADD, SUB = 4, 4.2
-    MUL, TRUEDIV, RATIO = 5, 5.2, 5.4
-    POS, NEG = 6, 6.2
-    POW, ROOT = 7, 7.2
 
-    LPAREN, RPAREN = -8, -8.2
-    ERROR = -9
+    RATIO = 4
+
+    ADD, SUB = 5, 5.2
+    MUL, TRUEDIV = 6, 6.2
+    POS, NEG = 7, 7.2
+    POW, ROOT = 8, 8.2
+
+    LPAREN, RPAREN = -9, -9.2
+    ERROR = -10
 
 
 @dataclass

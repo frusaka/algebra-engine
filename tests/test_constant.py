@@ -68,7 +68,7 @@ def test_numeric_exponentiation(processor):
 
 
 def test_cancels_radical(processor):
-    # Simplify cancelling radicals with like exponents
+    # Simplify canceling radicals with like exponents
     assert processor.eval(AST("(2 √ -50)^2")) == Term(Number(-50))
     assert processor.eval(AST("(3 √ -81)^3")) == Term(Number(-81))
     assert processor.eval(AST("(2√5) * (2√5)")) == Term(Number(5))
@@ -76,7 +76,7 @@ def test_cancels_radical(processor):
     assert processor.eval(AST("(2√32) * (2√2)")) == Term(Number(8))
     assert processor.eval(AST("(3√9) * (3√3)")) == Term(Number(3))
 
-    # Simplify cancelling radicals with like bases
+    # Simplify canceling radicals with like bases
     assert processor.eval(AST("27^(1/2) * 27^(-1/6)")) == Term(Number(3))
     assert processor.eval(AST("8^(1/2) * 8^(1/3)")) == Term(
         Number(4), Number(2), Number(1, 2)

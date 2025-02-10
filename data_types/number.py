@@ -213,10 +213,10 @@ class Number(Atomic):
 
     @staticmethod
     def resolve_pow(a: Term, b: Term) -> Term:
-        # NOTE: a^(nm) = (a^n)^m only if m is a real integer
-        res = type(a)(a.coef, a.value) ** type(a)(b.to_const())
-        return type(a)(
-            res.coef, res.value, type(a)(value=a.exp) * (b / type(a)(b.to_const()))
+        c = type(a)(a.coef) ** type(a)(b.to_const())
+        v = type(a)(a.value) ** type(a)(b.to_const())
+        return c * type(a)(
+            v.coef, v.value, type(a)(value=a.exp) * b.canonical() * type(a)(v.exp)
         )
 
     @dispatch
