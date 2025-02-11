@@ -1,3 +1,4 @@
+from functools import lru_cache
 from data_types import Term, Number, Variable, Comparison
 from . import operators
 from .operators import Binary, Unary
@@ -9,6 +10,7 @@ class Interpreter:
     Kept as a class to support setting variable values in the future
     """
 
+    @lru_cache
     def eval(
         self, node: None | Unary | Binary | Number | Variable
     ) -> Term | Comparison | None:

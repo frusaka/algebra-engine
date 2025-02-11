@@ -185,6 +185,27 @@ def test_divide_multivariate(processor):
             ]
         )
     )
+    # fmt:off
+    assert processor.eval(AST("((x-y)/(x+y))^2 + ((x+y)/(x-y))^2"))==Term(
+        value=Polynomial([
+        Term(Number(2)),
+        Term(Number(-16),
+            Product([
+                Term(value=Variable("x"),exp=Number(2)),
+                Term(value=Variable("y"),exp=Number(2)),
+                Term(value=Polynomial([
+                        Term(Number(2),
+                            Product([
+                                Term(value=Variable("x"),exp=Number(2)),
+                                Term(value=Variable("y"),exp=Number(2)),
+                        ])),
+                        Term(Number(-1),Variable("x"),Number(4)),
+                        Term(Number(-1),Variable("y"),Number(4)),
+                    ]),
+                    exp=Number(-1))
+        ]))
+    ]))
+    # fmt:on
 
 
 def test_multiply_polynomial(processor):
@@ -356,6 +377,25 @@ def test_multiply_rationals(processor):
             ]
         ),
     )
+
+    # fmt:off
+    assert processor.eval(AST("((x^2 - 4)/(x^2 + 4x + 4)) * ((x^3 + 8)/(x^3 - 2x^2 - 4x + 8))"))==Term(
+        value=Polynomial([
+            Term(Number(1)),
+            Term(value=Product([
+                    Term(value=Polynomial([
+                                Term(Number(-2),Variable("x")),
+                                Term(Number(8)),
+                    ])),
+                    Term(value=Polynomial([
+                                Term(value=Variable("x"),exp=Number(2)),
+                                Term(Number(-4)),
+                            ]),
+                        exp=Number(-1)
+                    )]))
+        ])
+    )
+    # fmt:on
 
 
 def test_merge_polynomial(processor):

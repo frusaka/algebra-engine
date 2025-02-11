@@ -24,7 +24,7 @@ class TokenType(Enum):
     ERROR = -10
 
 
-@dataclass
+@dataclass(frozen=True)
 class Token:
     """Lexer representation of a token. Contains precedence data"""
 

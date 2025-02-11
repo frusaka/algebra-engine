@@ -18,9 +18,19 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     res = Number(0)
 
     if isinstance(term.value, Collection) and term.exp == 1:
+        if alphabetic and term.fractional.value:
+            return res - 10000
         # Calling sum() does not work
+        seen = {}
         for t in term.value:
-            res += lexicographic_weight(t, alphabetic)
+            if not isinstance(t.exp, Number):
+                continue
+            seen[t.value] = max(
+                lexicographic_weight(t, alphabetic), seen.get(t.value, res)
+            )
+        for i in seen.values():
+            res += i
+
         return res
     res = term.exp
     if isinstance(term.value, Variable) and alphabetic:

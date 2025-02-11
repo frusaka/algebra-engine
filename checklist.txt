@@ -7,9 +7,10 @@
 4. Some valid results get rejected when checking for extraneous solutions due to rooting a Polynomial.
     Add a way to smartly control strictness, or check if a Polynomial has a perfect power
 5. Improve multiplication of Products containing Polynomials
-6. Fix appearance of unnecessarily large Polynomials
-    ((x-y)/(x+y))^2 + ((x+y)/(x-y))^2 (add to tests)
-7. Lookout for string based substitution.
+6. Lookout for string based substitution.
     In case of small decimals, the output string may not be perfectly precise,
     Or in scientific notation
-8. Improve ratio operator output and add related tests
+7. Improve ratio operator output and add related tests
+8. Add simplification for cases such as:
+    3x/(x^3 + 6x^2)
+9. Implement Polynomial division without cancelling common terms

@@ -196,23 +196,25 @@ class Polynomial(Collection):
         """
         from .product import Product
 
+        if not isinstance(a.value, Polynomial):
+            return a * b.inv
         if lexicographic_weight(b, 0) > lexicographic_weight(a, 0) and isinstance(
             b.value, Polynomial
         ):
             res = Polynomial._long_division(b, a)
             a, b = a.rationalize(type(a)(), res)
-            if isinstance(a.value, Number) and a.exp == 1:
-                return type(a)(a.value * b.coef, b.value, -b.exp)
+            if not isinstance(a.value, Polynomial):
+                return a * b.inv
             return Product.resolve(a, b.inv)
         res = Polynomial._long_division(a, b)
         # Basic super-simplification of remainders
         # E.g ((x-3)(x+3))/(x-3)^2 => 1 + 6/(x-3)
-        if isinstance(res.remainder.value, Polynomial):
-            rem = Polynomial._long_division(b, res.remainder)
-            if rem.remainder.value == 0:
-                rem = rem.inv
-                res -= res.fractional
-                res += rem
+        if isinstance(res.value, Polynomial) and isinstance(
+            res.remainder.value, Polynomial
+        ):
+            rem = res.remainder
+            res -= res.fractional
+            res += Polynomial._long_division(b, rem).inv
         return res
 
     @staticmethod

@@ -5,7 +5,7 @@ from typing import Any
 from utils.constants import SYMBOLS
 
 
-@dataclass
+@dataclass(frozen=True)
 class Unary:
     """Unary operator: -n, +n, or maybe in the future, n!"""
 
@@ -16,7 +16,7 @@ class Unary:
         return f"{SYMBOLS.get(self.oper.type.name)}{self.value}"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Binary:
     """Unary operator: arithmetic (+-*/) or exponetiation"""
 
@@ -101,6 +101,8 @@ def bool(a: Term | Comparison) -> bool:
 
 def ratio(a: Term, b: Term) -> Term:
     a, b = Term.rationalize(a / b, Term())
-    if not isinstance(b.value, Number) or not isinstance(a.value, Number):
+    if not isinstance(b.value, Number) and not isinstance(a.value, Number):
         return Product.resolve(a, b.inv)
-    return a.scale(b.inv.value)
+    if isinstance(b.value, Number):
+        return a.scale(b.inv.value)
+    return a * b.inv

@@ -129,28 +129,25 @@ class Term:
     def __truediv__(a, b: Term) -> Term:
         if isinstance(a.value, Polynomial):
             # Light rationalization
-            for i in (a.fractional.denominator, b.fractional.denominator):
-                a *= i
-                b *= i
+            a, b = Term.rationalize(a, b)
             gcd_a = gcd_b = Term()
 
             if isinstance(a.value, Polynomial) and a.exp == 1:
                 gcd_a = a.value.gcd()
-                a = Polynomial.long_division(a, gcd_a)
+                a = Polynomial._long_division(a, gcd_a)
                 if isinstance(b.value, Polynomial):
                     if b.exp == 1:
                         gcd_b = b.value.gcd()
                         b = Polynomial.long_division(b, gcd_b)
                         if (gcd := Term.gcd(a, b)).value != 1:
-                            a = Polynomial.long_division(a, gcd)
-                            b = Polynomial.long_division(b, gcd)
+                            a = Polynomial._long_division(a, gcd)
+                            b = Polynomial._long_division(b, gcd)
                 else:
                     gcd_b = Term.gcd(gcd_a, b)
                     if gcd_b.value != 1:
                         b /= gcd_b
 
             frac = gcd_a / gcd_b
-            # Very unlikely that it simplifies further
             a, b = Term.rationalize(a, b)
             return Polynomial.long_division(a * frac.numerator, frac.denominator * b)
         return a * b.inv
