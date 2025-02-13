@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from utils.constants import SYMBOLS
-from .solutions import Solutions
+from .system import System
 from .polynomial import Polynomial
 from .product import Product
 from .number import Number
@@ -15,13 +15,14 @@ from utils import quadratic, quadratic_formula
 
 class CompRel(Enum):
     EQ = 0
+    NE = 0.5
     LT = 1
     GT = 2
     LE = 3
     GE = 4
 
     def reverse(self):
-        if self.value == 0:
+        if self.value < 1:
             return self
         if self.name.startswith("L"):
             return getattr(CompRel, self.name.replace("L", "G"))
@@ -31,10 +32,10 @@ class CompRel(Enum):
         return SYMBOLS.get(self.name)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Comparison:
     left: Term
-    right: Term | Solutions
+    right: Term
     rel: CompRel = CompRel.EQ
 
     def __str__(self) -> str:
@@ -96,21 +97,29 @@ class Comparison:
                 elif exp.denominator != 1:
                     self = self.reverse_sub(self.left - i)
                     print(self)
-                    return (self ** Term(Number(exp.denominator)))[value]
+                    return (
+                        Comparison(self.right, self.left, self.rel.reverse())
+                        ** Term(Number(exp.denominator))
+                    )[value]
 
             # Solving using the quadratic formuala
             if (res := quadratic(self, value)) is not None:
-                res = Comparison(Term(value=value), quadratic_formula(*res), self.rel)
+                pos, neg = quadratic_formula(*res)
+                lhs = Term(value=value)
+                if pos == neg and self.rel is CompRel.EQ:
+                    res = Comparison(lhs, pos, self.rel)
+                else:
+                    res = System(
+                        {
+                            Comparison(lhs, pos, self.rel),
+                            Comparison(lhs, neg, self.rel.reverse()),
+                        }
+                    )
                 print(res)
                 return res
 
             if remove:
                 return self.reverse_sub(remove)[value]
-
-            # Solving by factoring coefficients
-            _, left = Term.rationalize(self.right, self.left)
-            if left != self.left:
-                return (self.reverse_div((left / self.left) ** -Term()))[value]
 
         # Isolation by division
         if isinstance(self.left.value, Product):
@@ -154,6 +163,7 @@ class Comparison:
 
     def __pow__(self, value: Term) -> Comparison:
         self.show_operation("^", value)
+        lhs = self.left**value
         rhs = self.right**value
         if (
             rhs.value != 0
@@ -164,8 +174,13 @@ class Comparison:
             # Assumes the left-hand side containes the variable being solved for
             # Otherwise it would be {-x, x} = {+n, -n}
             # sqrt(x) = +-..
-            rhs = Solutions({rhs, -rhs})
-        return Comparison(self.left**value, rhs, self.rel)
+            return System(
+                {
+                    Comparison(lhs, rhs, self.rel),
+                    Comparison(lhs, -rhs, self.rel.reverse()),
+                }
+            )
+        return Comparison(lhs, rhs, self.rel)
 
     def __bool__(self) -> bool:
         return getattr(self.left, self.rel.name.lower().join(("__", "__")))(self.right)
@@ -175,18 +190,17 @@ class Comparison:
         return Comparison(self.right, self.left, self.rel.reverse())
 
     def reverse_sub(self, value: Term) -> Comparison:
-        """Make the logging of inverse subtration look natural"""
+        """Intuitively Log inverse subtration"""
         if value.to_const() > 0:
             return self - value
         return self + -value
 
     def reverse_div(self, value: Term) -> Comparison:
-        """Make the logging of inverse division look natural"""
+        """Intuitively Log inverse division"""
         if value.denominator.value != 1:
             return self * value.inv
         return self / value
 
     def show_operation(self, operator: str, value: Term) -> None:
         """A convinent method to show the user the solving process"""
-        print(self)
         print(" " * str(self).index(str(self.rel)), operator + " ", value, sep="")

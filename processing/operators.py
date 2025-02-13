@@ -60,35 +60,38 @@ def solve(var: Variable, comp: Comparison) -> Comparison:
     res = comp[var]
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
-    rhs = set(res.right) if isinstance(res.right, Solutions) else [res.right]
+    print("Verifying solutions...".join(("\033[34m", "\033[0m")))
+    sol = set(res) if isinstance(res, System) else {res}
 
     # Check for extraneous solutions
-    for i in tuple(rhs):
+    for i in tuple(sol):
         try:
             if not Comparison(
-                subs(comp.left, var, i), subs(comp.right, var, i), comp.rel
+                subs(comp.left, var, i.right), subs(comp.right, var, i.right), comp.rel
             ):
-                if var in res and comp.rel is not CompRel.EQ:
-                    print("WARNING: Test Solutions".join(("\033[33m", "\033[0m")))
-                    break
-                rhs.remove(i)
+                # Atleast check for boundary values
+                if var in i and comp.rel is not CompRel.EQ:
+                    print(
+                        f"Validation skipped: Inequality verification not supported".join(
+                            ("\033[33m", "\033[0m")
+                        )
+                    )
+                    continue
+                sol.remove(i)
         except ZeroDivisionError:
-            rhs.remove(i)
-    if len(rhs) == 1:
-        rhs = rhs.pop()
+            sol.remove(i)
+    if len(sol) == 1:
+        sol = sol.pop()
         # Infinite solutions
-        if Comparison(res.left, rhs, comp.rel):
-            rhs = Any
+        if isinstance(res, Comparison) and res:
+            return Comparison(Term(value=var), Any)
+        # One solution
+        return sol
     # No solutions
-    elif not rhs:
-        rhs = None
+    if not sol:
+        return Comparison(Term(value=var), None)
     # Multiple solutions
-    else:
-        rhs = Solutions(rhs)
-    rel = res.rel
-    if rhs in (None, Any):
-        rel = CompRel.EQ
-    return Comparison(Term(value=var), rhs, rel)
+    return System(sol)
 
 
 def root(a: Term, b: Term) -> Term:

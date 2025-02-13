@@ -378,6 +378,22 @@ def test_multiply_rationals(processor):
         ),
     )
 
+    assert processor.eval(
+        AST(
+            "-9x/(x^2 - 8x) * (9x^3 + 36x^2 - 189x)/(x^2 - 10x + 21) / ((x + 7)/(x^2 - 15x + 56))"
+        )
+    ) == Term(Number(-81), Variable("x"))
+    assert processor.eval(
+        AST(
+            "(24 - 6x)/(x^2 - 10x + 24) * (x^2 - 8x + 12)/(10 - x) / ((x^2 + 8x - 20)/(100x - x^3))"
+        )
+    ) == Term(Number(-6), Variable("x"))
+    assert processor.eval(
+        AST(
+            "(-x - 6)/(x + 9) * (x + 10)/(-2x - 18) : (x^2 + 16x + 60)/(x^2 + 18x + 81)"
+        )
+    ) == Term(Number(1, 2))
+
     # fmt:off
     assert processor.eval(AST("((x^2 - 4)/(x^2 + 4x + 4)) * ((x^3 + 8)/(x^3 - 2x^2 - 4x + 8))"))==Term(
         value=Polynomial([

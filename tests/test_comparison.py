@@ -78,9 +78,11 @@ def test_solve_medium(processor):
 
     assert Comparison(processor.eval(AST("3x^2")), processor.eval(AST("9 + 2x^2")))[
         Variable("x")
-    ] == Comparison(
-        left=Term(value=Variable("x")),
-        right=Solutions({Term(Number(3)), Term(Number(-3))}),
+    ] == System(
+        {
+            Comparison(Term(value=Variable("x")), Term(Number(3))),
+            Comparison(Term(value=Variable("x")), Term(Number(-3))),
+        }
     )
     eq = Comparison(left=processor.eval(AST("(3/x)y + 4")), right=Term(Number(9)))
     assert eq[Variable("x")] == Comparison(
@@ -150,8 +152,11 @@ def test_solve_factorization(processor):
     assert Comparison(
         left=Term(value=Variable("S")),
         right=processor.eval(AST("2pr^2 + 2pr^2h")),
-    )[Variable("r")] == Comparison(
-        left=Term(value=Variable("r")), right=Solutions({expected, -expected})
+    )[Variable("r")] == System(
+        {
+            Comparison(left=Term(value=Variable("r")), right=expected),
+            Comparison(left=Term(value=Variable("r")), right=-expected),
+        }
     )
 
 
@@ -170,9 +175,17 @@ def test_solve_formulas(processor):
     assert Comparison(
         left=processor.eval(AST("a^2+b^2")),
         right=Term(value=Variable("c"), exp=Number(2)),
-    )[Variable("b")] == Comparison(
-        left=Term(value=Variable("b")),
-        right=Solutions((right, -right)),
+    )[Variable("b")] == System(
+        {
+            Comparison(
+                left=Term(value=Variable("b")),
+                right=right,
+            ),
+            Comparison(
+                left=Term(value=Variable("b")),
+                right=-right,
+            ),
+        }
     )
     # d = st, t = d/s
     assert Comparison(left=Term(value=Variable("d")), right=processor.eval(AST("st")))[
@@ -213,73 +226,71 @@ def test_solve_formulas(processor):
 def test_solve_quadratic(processor):
     assert Comparison(left=processor.eval(AST("2x^2 + 3x - 5")), right=Term(Number(0)))[
         Variable("x")
-    ] == Comparison(
-        left=Term(value=Variable("x")),
-        right=Solutions(
-            {
-                Term(Number(1)),
-                Term(Number("-2.5")),
-            }
-        ),
+    ] == System(
+        {
+            Comparison(left=Term(value=Variable("x")), right=Term(Number(1))),
+            Comparison(left=Term(value=Variable("x")), right=Term(Number(-5, 2))),
+        }
     )
     assert Comparison(left=processor.eval(AST("x^2 - 6x + 9")), right=Term(Number(0)))[
         Variable("x")
     ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(3)))
     assert Comparison(
         left=processor.eval(AST("-3x^2 + 12x - 9")), right=Term(Number(0))
-    )[Variable("x")] == Comparison(
-        left=Term(value=Variable("x")),
-        right=Solutions(
-            {
-                Term(Number(1)),
-                Term(Number(3)),
-            }
-        ),
+    )[Variable("x")] == System(
+        {
+            Comparison(left=Term(value=Variable("x")), right=Term(Number(1))),
+            Comparison(left=Term(value=Variable("x")), right=Term(Number(3))),
+        }
     )
     assert Comparison(left=processor.eval(AST("2x^2 + 13x")), right=Term(Number(24)))[
         Variable("x")
-    ] == Comparison(
-        left=Term(value=Variable("x")),
-        right=Solutions(
-            {
-                Term(Number("1.5")),
-                Term(Number(-8)),
-            }
-        ),
+    ] == System(
+        {
+            Comparison(left=Term(value=Variable("x")), right=Term(Number(3, 2))),
+            Comparison(left=Term(value=Variable("x")), right=Term(Number(-8))),
+        }
     )
     assert Comparison(
         left=processor.eval(AST("(a-4)^2 ")),
         right=Term(value=Variable("c"), exp=Number(2)),
-    )[Variable("a")] == Comparison(
-        left=Term(value=Variable("a")),
-        right=Solutions(
-            {
-                processor.eval(AST("4 - c")),
-                processor.eval(AST("4 + c")),
-            }
-        ),
+    )[Variable("a")] == System(
+        {
+            Comparison(
+                left=Term(value=Variable("a")), right=processor.eval(AST("4 - c"))
+            ),
+            Comparison(
+                left=Term(value=Variable("a")), right=processor.eval(AST("4 + c"))
+            ),
+        }
     )
     assert Comparison(left=processor.eval(AST("ay^2 + by + c")), right=Term(Number(0)))[
         Variable("y")
-    ] == Comparison(
-        left=Term(value=Variable("y")),
-        right=Solutions(
-            {
-                processor.eval(AST("(-b + (b^2 - 4ac)^0.5)/2a")),
-                processor.eval(AST("(-b - (b^2 - 4ac)^0.5)/2a")),
-            }
-        ),
+    ] == System(
+        {
+            Comparison(
+                left=Term(value=Variable("y")),
+                right=processor.eval(AST("(-b + (b^2 - 4ac)^0.5)/2a")),
+            ),
+            Comparison(
+                left=Term(value=Variable("y")),
+                right=processor.eval(AST("(-b - (b^2 - 4ac)^0.5)/2a")),
+            ),
+        }
     )
     assert Comparison(
         left=processor.eval(AST("-6ap^2 - 4ap + c")), right=Term(Number(5))
-    )[Variable("p")] == Comparison(
-        left=Term(value=Variable("p")),
-        right=Solutions(
-            {
-                processor.eval(AST("-1/3 - 2√(24ac + 16a^2 - 120a)/12a")),
-                processor.eval(AST("-1/3 + 2√(24ac + 16a^2 - 120a)/12a")),
-            }
-        ),
+    )[Variable("p")] == System(
+        {
+            Comparison(
+                left=Term(value=Variable("p")),
+                right=processor.eval(AST("-1/3 - 2√(24ac + 16a^2 - 120a)/12a")),
+            ),
+            Comparison(
+                left=Term(value=Variable("p")),
+                right=processor.eval(AST("-1/3 + 2√(24ac + 16a^2 - 120a)/12a")),
+            ),
+        }
     )
 
 

@@ -88,9 +88,9 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     return a, b, c
 
 
-def quadratic_formula(a: Term, b: Term, c: Term) -> Term:
+def quadratic_formula(a: Term, b: Term, c: Term) -> tuple[Term]:
     """Apply the quadratic formula: (-b ± (b^2 - 4ac))/2a"""
-    from data_types import Term, Number, Solutions
+    from data_types import Term, Number, System
 
     print(
         f"q(a={a}, b={b}, c={c})",
@@ -99,10 +99,10 @@ def quadratic_formula(a: Term, b: Term, c: Term) -> Term:
     )
     rhs = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number("1/2"))
     den = Term(Number(2)) * a
-    res = {(-b + rhs) / den, (-b - rhs) / den}
+    return (-b + rhs) / den, (-b - rhs) / den
     if len(res) == 1:
         return res.pop()
-    return Solutions(res)
+    return System(res)
 
 
 def primes(n: int) -> dict[int]:

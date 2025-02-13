@@ -5,5 +5,5 @@ from .collection import Collection
 from .polynomial import Polynomial
 from .product import Product
 from .term import Term
-from .solutions import Solutions
+from .system import System
 from .comparison import Comparison, CompRel
