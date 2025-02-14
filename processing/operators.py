@@ -56,7 +56,8 @@ def subs(a: Term | Comparison, var: Variable, value: Any) -> Term | Comparison:
 
 
 def solve(var: Variable, comp: Comparison) -> Comparison:
-    var = var.value
+    if isinstance(var, Term):
+        var = var.value
     res = comp[var]
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
@@ -70,15 +71,17 @@ def solve(var: Variable, comp: Comparison) -> Comparison:
                 subs(comp.left, var, i.right), subs(comp.right, var, i.right), comp.rel
             ):
                 # Atleast check for boundary values
-                if var in i and comp.rel is not CompRel.EQ:
-                    print(
-                        f"Validation skipped: Inequality verification not supported".join(
-                            ("\033[33m", "\033[0m")
-                        )
-                    )
+                if (
+                    var in i
+                    and comp.rel is not CompRel.EQ
+                    and subs(comp.left, var, i.right) == subs(comp.right, var, i.right)
+                ):
+                    print(f"Boundary: {i}".join(("\033[33m", "\033[0m")))
                     continue
+                print(f"Extraneous: {i}".join(("\033[31m", "\033[0m")))
                 sol.remove(i)
         except ZeroDivisionError:
+            print(f"Undefined: {i}".join(("\033[31m", "\033[0m")))
             sol.remove(i)
     if len(sol) == 1:
         sol = sol.pop()
