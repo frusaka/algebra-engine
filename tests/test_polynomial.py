@@ -1,9 +1,8 @@
 import pytest
-from processing import AST
 from data_types import Number, Variable, Polynomial, Product, Term
 
 
-def test_divide_polynomial(processor):
+def test_divide_polynomial(processor, AST):
     # Dividing univariate polynomials
     assert processor.eval(AST("(5.2x^3 + 7x^2 - 31.2x - 42) / (3.5+2.6x)")) == Term(
         value=Polynomial(
@@ -110,7 +109,7 @@ def test_divide_polynomial(processor):
     )
 
 
-def test_divide_multivariate(processor):
+def test_divide_multivariate(processor, AST):
     assert processor.eval(AST("(3n + 3c)/(n+c)")) == Term(Number(3))
     assert processor.eval(AST("(n+c)/(3n+3c)")) == Term(Number(1, 3))
     assert processor.eval(AST("(a^3 + b^3)/(a + b)")) == Term(
@@ -208,7 +207,7 @@ def test_divide_multivariate(processor):
     # fmt:on
 
 
-def test_multiply_polynomial(processor):
+def test_multiply_polynomial(processor, AST):
     # Multiplying univariate polynomials
     assert processor.eval(AST("(2x+3)(0.5x - 5)")) == Term(
         value=Polynomial(
@@ -309,7 +308,7 @@ def test_multiply_polynomial(processor):
     assert processor.eval(AST("(xy+2y)(3x-4)(x+2)^-1")) == expected
 
 
-def test_multiply_rationals(processor):
+def test_multiply_rationals(processor, AST):
     # Multiplying Polynomial rationals
     assert processor.eval(
         AST("((x^4 - 25x^2)/(x^2 + 8x + 15)) * ((x^2 + 2x - 3)/(6x^3 - 36x^2 + 30x))")
@@ -414,7 +413,7 @@ def test_multiply_rationals(processor):
     # fmt:on
 
 
-def test_merge_polynomial(processor):
+def test_merge_polynomial(processor, AST):
     assert processor.eval(AST("(x^2 + 2x + 1) - (x + 1)")) == Term(
         value=Polynomial(
             [

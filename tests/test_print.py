@@ -1,5 +1,4 @@
 import pytest
-from processing import AST
 from utils import print_frac
 from data_types import Number, Fraction, Term, Variable
 
@@ -44,7 +43,7 @@ def test_print_negative_exp():
     assert str(Term(Number("6/7"), Variable("k"), Number(-3))) == "6/7k^3"
 
 
-def test_print_radical(processor):
+def test_print_radical(processor, AST):
     assert str(Term(Number(1), Variable("y"), Number("0.5"))) == "2√y"
     assert str(Term(Number(1), Variable("x"), Number("-1/3"))) == "1/3√x"
     assert str(Term(Number("3.5"), Variable("q"), Number("1/3"))) == "3.5(3√q)"
@@ -57,7 +56,7 @@ def test_print_radical(processor):
     assert str(processor.eval(AST("2 * 2√5 / 3"))) == "2(2√5)/3"
 
 
-def test_print_polynomial(processor):
+def test_print_polynomial(processor, AST):
     assert str(processor.eval(AST("x+1"))) == "(x + 1)"
     assert str(processor.eval(AST("47-600x"))) == "(-600x + 47)"
     assert str(processor.eval(AST("1600+3x^3+y-12y^2"))) == "(3x^3 - 12y^2 + y + 1600)"
@@ -66,7 +65,7 @@ def test_print_polynomial(processor):
 
 
 @pytest.mark.xfail(reason="Fine alternative")
-def test_print_product(processor):
+def test_print_product(processor, AST):
     assert str(processor.eval(AST("-2xb"))) == "-2bx"
     assert str(processor.eval(AST("x^3*y^-5"))) == "x^3/y^5"
     assert str(processor.eval(AST("-10(m^-1*n^-1)"))) == "-10/mn"

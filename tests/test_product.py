@@ -1,9 +1,8 @@
 import pytest
-from processing import AST
 from data_types import Number, Variable, Term, Product, Polynomial
 
 
-def test_divide_product(processor):
+def test_divide_product(processor, AST):
     assert processor.eval(AST("8x / 12x^2b")) == Term(
         Number("2/3"),
         Product(
@@ -27,7 +26,7 @@ def test_divide_product(processor):
     assert processor.eval(AST("6ab / 8ab")) == Term(Number("3/4"))
 
 
-def test_multiply_product(processor):
+def test_multiply_product(processor, AST):
     assert processor.eval(AST("(2xy)^2")) == Term(
         Number(4),
         Product(
@@ -85,7 +84,7 @@ def test_multiply_product(processor):
 
 
 @pytest.mark.skip(reason="Feature not implemented")
-def test_simplify_product(processor):
+def test_simplify_product(processor, AST):
     assert processor.eval(AST("(x + f) / x^3 * 3x^2")) == Term(
         value=Polynomial(
             [

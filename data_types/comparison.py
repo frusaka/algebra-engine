@@ -69,9 +69,9 @@ class Comparison:
             return self.reverse_sub(self.right)[value]
 
         if self.left.coef != 1:
-            return (self.reverse_div(Term(self.left.coef)))[value]
+            return self.reverse_div(Term(self.left.coef))[value]
         if self.left.exp != 1:
-            exp = Term() / Term(value=self.left.exp)
+            exp = Term(value=self.left.exp).inv
             if value in exp:
                 raise NotImplementedError("Cannot isolate variable from exponent")
             return (self**exp)[value]

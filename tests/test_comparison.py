@@ -1,9 +1,8 @@
 from typing import Any
 from data_types import *
-from processing import AST
 
 
-def test_solve_basic(processor):
+def test_solve_basic(processor, AST):
     assert Comparison(processor.eval(AST("5x+3")), Term(Number(13)))[
         Variable("x")
     ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(2)))
@@ -21,7 +20,7 @@ def test_solve_basic(processor):
     ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(10)))
 
 
-def test_solve_medium(processor):
+def test_solve_medium(processor, AST):
     assert Comparison(processor.eval(AST("3(x+2)")), Term(Number(15)))[
         Variable("x")
     ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(3)))
@@ -95,7 +94,7 @@ def test_solve_medium(processor):
     )
 
 
-def test_solve_denominator(processor):
+def test_solve_denominator(processor, AST):
     assert Comparison(
         left=processor.eval(AST("4u - 5/j")), right=processor.eval(AST("u/j - 20"))
     )[Variable("j")] == Comparison(
@@ -128,7 +127,7 @@ def test_solve_denominator(processor):
     )
 
 
-def test_solve_factorization(processor):
+def test_solve_factorization(processor, AST):
     eq = Comparison(
         processor.eval(AST("n(2-3b) + 2 - 4b")), processor.eval(AST("2b - 2"))
     )
@@ -160,7 +159,7 @@ def test_solve_factorization(processor):
     )
 
 
-def test_solve_formulas(processor):
+def test_solve_formulas(processor, AST):
     # a^2 + b^2 = c^2, b = 2√(c^2 - a^2) : b = sqrt(c^2 - a^2)
     # In this case, the engine assigns plus-minus sqrt(c^2 - a^2)
     right = Term(
@@ -223,7 +222,7 @@ def test_solve_formulas(processor):
     )
 
 
-def test_solve_quadratic(processor):
+def test_solve_quadratic(processor, AST):
     assert Comparison(left=processor.eval(AST("2x^2 + 3x - 5")), right=Term(Number(0)))[
         Variable("x")
     ] == System(
@@ -294,7 +293,7 @@ def test_solve_quadratic(processor):
     )
 
 
-def test_solve_edge(processor):
+def test_solve_edge(processor, AST):
     # Extraneous solutions
     assert processor.eval(AST("x -> (x+2)/(x+1) - x/(1-x) = x/(x-1)")).right == Term(
         Number(-2)
@@ -309,7 +308,7 @@ def test_solve_edge(processor):
     assert processor.eval(AST("x -> x > x")).right is None
 
 
-def test_solve_complex(processor):
+def test_solve_complex(processor, AST):
     # Results would be too long to write out in object form
     eq = Comparison(
         left=processor.eval(

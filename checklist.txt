@@ -15,3 +15,4 @@
     3x/(x^3 + 6x^2)
 9. Implement Polynomial division without cancelling common terms
 10. Improve printing of System class
+11. Enhace Systems solver for inequalities and edge cases

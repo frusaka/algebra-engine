@@ -1,8 +1,7 @@
-from processing import AST
 from data_types import Number, Product, Term
 
 
-def test_simplify_constants(processor):
+def test_simplify_constants(processor, AST):
     assert processor.eval(AST("10 + 5 - 3")) == Term(Number(12))
     assert processor.eval(AST("20 - 4 + 2")) == Term(Number(18))
     assert processor.eval(AST("2 * 3 + 4")) == Term(Number(10))
@@ -14,7 +13,7 @@ def test_simplify_constants(processor):
     assert processor.eval(AST("(2 + 3) * (4 + 1)")) == Term(Number(25))
 
 
-def test_merge_complex(processor):
+def test_merge_complex(processor, AST):
     assert processor.eval(AST("(3+4i) + (1+2i)")) == Term(Number(complex(4, 6)))
     assert processor.eval(AST("5 + 3i")) == Term(Number(complex(5, 3)))
     assert processor.eval(AST("(6+2i) + (-6+6i)")) == Term(Number(complex(0, 8)))
@@ -23,14 +22,14 @@ def test_merge_complex(processor):
     assert processor.eval(AST("(12+3i) - (12-1i)")) == Term(Number(complex(0, 4)))
 
 
-def test_multiply_complex(processor):
+def test_multiply_complex(processor, AST):
     assert processor.eval(AST("i*i")) == Term(Number(-1))
     assert processor.eval(AST("(2+3i)(1+4i)")) == Term(Number(complex(-10, 11)))
     assert processor.eval(AST("3(4-5i)")) == Term(Number(complex(12, -15)))
     assert processor.eval(AST("(-2+3i)(-1-4i)")) == Term(Number(complex(14, 5)))
 
 
-def test_divide_complex(processor):
+def test_divide_complex(processor, AST):
     assert processor.eval(AST("(4+6i)/2")) == Term(Number(complex(2, 3)))
     assert processor.eval(AST("(8-4i)/-2")) == Term(Number(complex(-4, 2)))
     assert processor.eval(AST("(4+2i)/(1-i)")) == Term(Number(complex(1, 3)))
@@ -40,7 +39,7 @@ def test_divide_complex(processor):
     assert processor.eval(AST("0/(1+i)")) == Term(Number())
 
 
-def test_numeric_exponentiation(processor):
+def test_numeric_exponentiation(processor, AST):
     # Exponentiation
     assert processor.eval(AST("5 ^ 2")) == Term(Number(25))
     assert processor.eval(AST("-3 ^ 2")) == Term(Number(-9))
@@ -67,7 +66,7 @@ def test_numeric_exponentiation(processor):
     )
 
 
-def test_cancels_radical(processor):
+def test_cancels_radical(processor, AST):
     # Simplify canceling radicals with like exponents
     assert processor.eval(AST("(2 √ -50)^2")) == Term(Number(-50))
     assert processor.eval(AST("(3 √ -81)^3")) == Term(Number(-81))
@@ -87,7 +86,7 @@ def test_cancels_radical(processor):
     assert processor.eval(AST("4(2√2) * 2√8")) == Term(Number(16))
 
 
-def test_multiply_radicals(processor):
+def test_multiply_radicals(processor, AST):
     assert processor.eval(AST("(2√27)(2√2)(1/(6√27))")) == Term(
         Number(3), Number(2), Number(1, 2)
     )

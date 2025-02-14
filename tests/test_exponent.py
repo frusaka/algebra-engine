@@ -1,9 +1,8 @@
 import pytest
-from processing import AST
 from data_types import Term, Number, Variable, Polynomial, Product
 
 
-def test_variable_exponent_number(processor):
+def test_variable_exponent_number(processor, AST):
     assert processor.eval(AST("2^x")) == Term(
         value=Number(2), exp=Term(value=Variable("x"))
     )
@@ -34,7 +33,7 @@ def test_variable_exponent_number(processor):
     )
 
 
-def test_polynomial_exponentiation(processor):
+def test_polynomial_exponentiation(processor, AST):
     # Needs more cases
     assert processor.eval(AST("(x + 1)^2")) == Term(
         value=Polynomial(
@@ -47,7 +46,7 @@ def test_polynomial_exponentiation(processor):
     )
 
 
-def test_variable_exponentiation(processor):
+def test_variable_exponentiation(processor, AST):
     assert processor.eval(AST("x^2 * x^3")) == Term(
         Number(1),
         Variable("x"),
@@ -117,7 +116,7 @@ def test_variable_exponentiation(processor):
     assert processor.eval(AST("y^0")) == Term()
 
 
-def test_polynomial_exponent(processor):
+def test_polynomial_exponent(processor, AST):
     assert processor.eval(AST("4^f*4")) == Term(
         value=Number(4),
         exp=Term(value=Polynomial([Term(value=Variable("f")), Term(value=Number(1))])),
