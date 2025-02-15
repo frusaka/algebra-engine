@@ -15,4 +15,5 @@
     3x/(x^3 + 6x^2)
 9. Implement Polynomial division without cancelling common terms
 10. Improve printing of System class
-11. Enhace Systems solver for inequalities and edge cases
+11. Make Systems solver consider equations by difficulty
+12. Enhace Systems solver for inequalities and edge cases

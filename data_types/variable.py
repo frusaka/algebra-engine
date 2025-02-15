@@ -13,6 +13,12 @@ class Variable(Unknown, str, Atomic):
     def __hash__(self) -> int:
         return str.__hash__(self)
 
+    def __eq__(self, value):
+        return str.__eq__(self, value)
+
+    def __repr__(self) -> str:
+        return super().__str__().replace("'", "")
+
     @dispatch
     def add(b: Proxy[Term], a: Term) -> Term:
         return type(a)(a.coef + b.value.coef, a.value, a.exp)

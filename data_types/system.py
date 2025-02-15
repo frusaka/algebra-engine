@@ -28,7 +28,7 @@ class System(Collection):
 
         eqns = list(self)
         vals = tuple(vals)
-        print(str(vals).replace("'", ""), "→", end=" ")
+        print(vals, "→", end=" ")
         # Solve for each variable separately
         for v in vals:
             idx, org = next((idx, i) for idx, i in enumerate(eqns) if v in i)
@@ -45,11 +45,15 @@ class System(Collection):
             for i in range(len(eqns)):
                 if i == idx:
                     continue
-                eqns[i] = subs(eqns[i], v, eqn.right)
+                eqns[i] = subs(eqns[i], {v: eqn.right})
             # Put the newly solved equation at the end
             eqns.pop(idx)
             eqns.append(eqn)
+        print(System.__str__(eqns))
         return System(eqns)
+
+    def __bool__(self) -> bool:
+        return all(self)
 
     def __add__(self, value: Term):
         return System(t + value for t in self)

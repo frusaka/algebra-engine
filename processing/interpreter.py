@@ -1,5 +1,5 @@
 from functools import lru_cache
-from data_types import Term, Number, Variable, Comparison
+from data_types import Term, Number, Variable, Comparison, System
 from . import operators
 from .operators import Binary, Unary
 
@@ -13,13 +13,17 @@ class Interpreter:
     @lru_cache
     def eval(
         self, node: None | Unary | Binary | Number | Variable
-    ) -> Term | Comparison | None:
+    ) -> Term | Comparison | System | tuple | None:
         if node is None:
             return
         if isinstance(node, (Number, Variable)):
             if str(node) == "i":
                 return Term(value=Number(complex(imag=1)))
             return Term(value=node)
+        if isinstance(node, frozenset):
+            return System(self.eval(i) for i in node)
+        if isinstance(node, tuple):
+            return node
 
         oper = node.oper.type.name.lower()
 

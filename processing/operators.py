@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from operator import *
 from data_types import *
-from typing import Any
+from typing import Any, Sequence
 from utils.constants import SYMBOLS
 
 
@@ -48,33 +48,43 @@ def ge(a: Any, b: Any) -> Comparison:
     return Comparison(a, b, CompRel.GE)
 
 
-def subs(a: Term | Comparison, var: Variable, value: Any) -> Term | Comparison:
+def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparison:
     """Substitute all occurances of `var` with the provided value"""
     from processing import Interpreter, AST
 
-    return Interpreter().eval(AST(str(a).replace(var, str(value).join("()"))))
+    val = str(a)
+    for i in mapping:
+        val = val.replace(i, i.join(("({", "})")))
+    return Interpreter().eval(AST(val.format_map(mapping)))
 
 
-def solve(var: Variable, comp: Comparison) -> Comparison:
+def solve(
+    var: Variable | tuple[Variable], comp: Comparison | System
+) -> Comparison | System:
     if isinstance(var, Term):
         var = var.value
     res = comp[var]
+    print("Verifying solutions...".join(("\033[34m", "\033[0m")))
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
-    print("Verifying solutions...".join(("\033[34m", "\033[0m")))
+    if isinstance(comp, System):
+        res_2 = subs(comp, dict((i.left.value, i.right) for i in res))
+        for i in res_2:
+            if not i:
+                print(f"Extraneous: {i}".join(("\033[31m", "\033[0m")))
+                return System(Comparison(Term(value=Variable(i)), None) for i in var)
+        return res
     sol = set(res) if isinstance(res, System) else {res}
-
-    # Check for extraneous solutions
+    # Verify Solutions
     for i in tuple(sol):
         try:
-            if not Comparison(
-                subs(comp.left, var, i.right), subs(comp.right, var, i.right), comp.rel
-            ):
+            if not subs(comp, {var: i.right}):
                 # Atleast check for boundary values
                 if (
                     var in i
                     and comp.rel is not CompRel.EQ
-                    and subs(comp.left, var, i.right) == subs(comp.right, var, i.right)
+                    and subs(comp.left, {var: i.right})
+                    == subs(comp.right, {var: i.right})
                 ):
                     print(f"Boundary: {i}".join(("\033[33m", "\033[0m")))
                     continue

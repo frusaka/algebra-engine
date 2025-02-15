@@ -1,5 +1,7 @@
 SYMBOLS = {
     "SOLVE": "→",
+    "COMMA": ",",
+    "SEMI_COLON": ";",
     "RATIO": ":",
     "BOOL": "?",
     "EQ": "=",

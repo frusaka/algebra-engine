@@ -9,6 +9,7 @@ class Parser:
 
     def __init__(self, tokens: Sequence[Token]) -> None:
         self.tokens = self.prefix(tokens)
+        self.advance()
 
     def advance(self) -> None:
         try:
@@ -25,19 +26,58 @@ class Parser:
     def paren_error() -> None:
         raise SyntaxError("unmatched parenthesis")
 
-    def parse(self) -> Unary | Binary | Number | Variable | None:
+    def generate_tuple(self) -> tuple:
+        oper = self.curr
+        i = 1
+        while self.curr and self.curr.type is TokenType.COMMA:
+            self.advance()
+            i += 1
+        res = []
+        for j in range(i):
+            if self.curr is None:
+                self.operator_error(oper)
+            if self.curr.type is not TokenType.VAR:
+                raise TypeError(f"Use Tuple only with Variables")
+            res.append(self.curr.value)
+            if j + 1 < i:
+                self.advance()
+        return tuple(res)
+
+    def generate_system(self) -> frozenset[Binary]:
+        oper = self.curr
+        i = 1
+        while self.curr and self.curr.type is TokenType.SEMI_COLON:
+            self.advance()
+            i += 1
+        res = []
+        for j in range(i):
+            if self.curr is None:
+                self.operator_error(oper)
+            if self.curr.priority != 4:  # A comparison
+                raise TypeError(f"Use Systems only with (in)equalities")
+            res.append(self.parse())
+            if j + 1 < i:
+                self.advance()
+        return frozenset(res)
+
+    def parse(self) -> Unary | Binary | Number | Variable | tuple | frozenset | None:
         """Convert from prefix notation to a tree that can be evaluated by the Interpreter"""
-        self.advance()
         if self.curr is None:
             return
         if self.curr.type in (TokenType.VAR, TokenType.NUMBER):
             return self.curr.value
+        if self.curr.type is TokenType.COMMA:
+            return self.generate_tuple()
+        if self.curr.type is TokenType.SEMI_COLON:
+            return self.generate_system()
         oper = self.curr
+        self.advance()
         left = self.parse()
         if left is None:
             self.operator_error(oper)
         if oper.type in (TokenType.NEG, TokenType.POS, TokenType.BOOL):
             return Unary(oper, left)
+        self.advance()
         right = self.parse()
         if right is None:
             self.operator_error(oper)

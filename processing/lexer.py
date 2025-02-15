@@ -8,6 +8,8 @@ class Lexer:
 
     OPERS = {
         "→": Token(TokenType.SOLVE),
+        ",": Token(TokenType.COMMA),
+        ";": Token(TokenType.SEMI_COLON),
         ":": Token(TokenType.RATIO),
         "?": Token(TokenType.BOOL),
         "=": Token(TokenType.EQ),
