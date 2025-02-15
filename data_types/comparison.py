@@ -133,9 +133,6 @@ class Comparison:
     def __contains__(self, value: Variable) -> bool:
         return value in self.left or value in self.right
 
-    def __neg__(self) -> Comparison:
-        return Comparison(-self.left, -self.right)
-
     def __add__(self, value: Term) -> Comparison:
         self.show_operation("+", value)
         return Comparison(self.left + value, self.right + value, self.rel)

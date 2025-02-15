@@ -1,19 +1,13 @@
-1. Streamline the process of operations between terms and non-terms (not urgent)
-    e.g:
-        3-(x=5)
-        5(x=5)
-2. Handle nested (in)equalities
-3. Improve solving for inequalities (sign and extraneous solutions check)
-4. Some valid results get rejected when checking for extraneous solutions due to rooting a Polynomial.
+1. Some valid results get rejected when checking for extraneous solutions due to rooting a Polynomial.
     Add a way to smartly control strictness, or check if a Polynomial has a perfect power
-5. Improve multiplication of Products containing Polynomials
-6. Lookout for string based substitution.
+2. Improve multiplication of Products containing Polynomials
+3. Lookout for string based substitution.
     In case of small decimals, the output string may not be perfectly precise,
     Or in scientific notation
-7. Improve ratio operator output and add related tests
-8. Add simplification for cases such as:
+4. Improve ratio operator output and add related tests
+5. Add simplification for cases such as:
     3x/(x^3 + 6x^2)
-9. Implement Polynomial division without cancelling common terms
-10. Improve printing of System class
-11. Make Systems solver consider equations by difficulty
-12. Enhace Systems solver for inequalities and edge cases
+6. Implement Polynomial division without cancelling common terms
+7. Improve printing of System class
+8. Make Systems solver consider equations by difficulty
+8. Enhace Systems solver for inequalities and edge cases

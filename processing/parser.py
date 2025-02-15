@@ -37,7 +37,7 @@ class Parser:
             if self.curr is None:
                 self.operator_error(oper)
             if self.curr.type is not TokenType.VAR:
-                raise TypeError(f"Use Tuple only with Variables")
+                raise SyntaxError(f"Tuple expected only Variables")
             res.append(self.curr.value)
             if j + 1 < i:
                 self.advance()
@@ -54,7 +54,7 @@ class Parser:
             if self.curr is None:
                 self.operator_error(oper)
             if self.curr.priority != 4:  # A comparison
-                raise TypeError(f"Use Systems only with (in)equalities")
+                raise SyntaxError(f"Systems expected only (in)equalities")
             res.append(self.parse())
             if j + 1 < i:
                 self.advance()
@@ -81,6 +81,37 @@ class Parser:
         right = self.parse()
         if right is None:
             self.operator_error(oper)
+        # Check for valid solving syntax
+        if oper.type is TokenType.SOLVE:
+            if not isinstance(left, (tuple, Variable)):
+                raise SyntaxError("can only solve for Variables")
+            if not isinstance(right, frozenset) and (
+                not isinstance(right, Binary) or right.oper.priority != 4
+            ):
+                raise SyntaxError("can only solve from an (in)equality")
+        # Reject nested (in)equalities
+        elif oper.priority == 4:
+            if (
+                isinstance(left, Binary)
+                and left.oper.priority == 4
+                or isinstance(right, Binary)
+                and right.oper.priority == 4
+            ):
+                raise SyntaxError("nested (in)equality")
+        # Reject operators between terms and non-terms
+        elif oper.priority >= 6:
+            if (
+                isinstance(left, (Binary, Unary))
+                and left.oper.priority == 4
+                or isinstance(left, (tuple, frozenset))
+            ) or (
+                isinstance(right, (Binary, Unary))
+                and right.oper.priority == 4
+                or isinstance(right, (tuple, frozenset))
+            ):
+                raise TypeError(
+                    f"unsupported: {SYMBOLS.get(oper.type.name)} for non-terms"
+                )
         return Binary(oper, left, right)
 
     def postfix(self, tokens: Sequence[Token]) -> Generator[Token, None, None]:

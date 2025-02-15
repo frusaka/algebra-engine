@@ -4,7 +4,7 @@ from processing import Interpreter, AST
 processor = Interpreter()
 while True:
     try:
-        if ast := AST(input("Expression > ")):
+        if (ast := AST(input("Expression > "))) is not None:
             t = timeit(lambda: processor.eval(ast), number=1)
             print(processor.eval(ast))
             print(f"Finished in {int(t*1000)}ms")

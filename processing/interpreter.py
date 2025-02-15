@@ -29,7 +29,8 @@ class Interpreter:
 
         if isinstance(node, Unary):
             return getattr(operators, oper)(self.eval(node.value))
-
-        left, right = self.eval(node.left), self.eval(node.right)
-
+        left = node.left
+        right = self.eval(node.right)
+        if oper != "solve":  # Do not convert lhs to Term when solving
+            left = self.eval(left)
         return getattr(operators, oper)(left, right)

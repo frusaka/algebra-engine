@@ -61,8 +61,6 @@ def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparis
 def solve(
     var: Variable | tuple[Variable], comp: Comparison | System
 ) -> Comparison | System:
-    if isinstance(var, Term):
-        var = var.value
     res = comp[var]
     print("Verifying solutions...".join(("\033[34m", "\033[0m")))
     if var in res and not isinstance(res.left.value, Variable):
