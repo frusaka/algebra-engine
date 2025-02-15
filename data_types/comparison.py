@@ -162,15 +162,13 @@ class Comparison:
         self.show_operation("^", value)
         lhs = self.left**value
         rhs = self.right**value
+        # plus/minus trick for even roots
         if (
             rhs.value != 0
             and value.exp == 1
             and isinstance(value.value, Number)
-            and value.value.denominator == 2
+            and not value.value.denominator % 2
         ):
-            # Assumes the left-hand side containes the variable being solved for
-            # Otherwise it would be {-x, x} = {+n, -n}
-            # sqrt(x) = +-..
             return System(
                 {
                     Comparison(lhs, rhs, self.rel),

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from operator import *
 from data_types import *
-from typing import Any, Sequence
+from typing import Any
+from .tokens import Token
 from utils.constants import SYMBOLS
 
 
@@ -9,7 +10,7 @@ from utils.constants import SYMBOLS
 class Unary:
     """Unary operator: -n, +n, or maybe in the future, n!"""
 
-    oper: Any
+    oper: Token
     value: Any
 
     def __repr__(self) -> str:
@@ -20,7 +21,7 @@ class Unary:
 class Binary:
     """Unary operator: arithmetic (+-*/) or exponetiation"""
 
-    oper: Any
+    oper: Token
     left: Any
     right: Any
 

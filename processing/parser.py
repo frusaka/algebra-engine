@@ -19,46 +19,43 @@ class Parser:
 
     @staticmethod
     def operator_error(oper) -> None:
-        oper = SYMBOLS.get(oper.type.name)
-        raise SyntaxError(f"operator '{oper}' has inadequate operands")
+        raise SyntaxError(
+            f"operator '{SYMBOLS.get(oper.type.name)}' has inadequate operands"
+        )
 
     @staticmethod
     def paren_error() -> None:
         raise SyntaxError("unmatched parenthesis")
 
-    def generate_tuple(self) -> tuple:
+    def generate_tuple(self) -> Generator[Variable, None, None]:
         oper = self.curr
         i = 1
         while self.curr and self.curr.type is TokenType.COMMA:
             self.advance()
             i += 1
-        res = []
         for j in range(i):
             if self.curr is None:
                 self.operator_error(oper)
             if self.curr.type is not TokenType.VAR:
-                raise SyntaxError(f"Tuple expected only Variables")
-            res.append(self.curr.value)
+                raise SyntaxError(f"tuple expected only Variables")
+            yield self.curr.value
             if j + 1 < i:
                 self.advance()
-        return tuple(res)
 
-    def generate_system(self) -> frozenset[Binary]:
+    def generate_system(self) -> Generator[Binary, None, None]:
         oper = self.curr
         i = 1
         while self.curr and self.curr.type is TokenType.SEMI_COLON:
             self.advance()
             i += 1
-        res = []
         for j in range(i):
             if self.curr is None:
                 self.operator_error(oper)
             if self.curr.priority != 4:  # A comparison
-                raise SyntaxError(f"Systems expected only (in)equalities")
-            res.append(self.parse())
+                raise SyntaxError(f"systems expected only (in)equalities")
+            yield self.parse()
             if j + 1 < i:
                 self.advance()
-        return frozenset(res)
 
     def parse(self) -> Unary | Binary | Number | Variable | tuple | frozenset | None:
         """Convert from prefix notation to a tree that can be evaluated by the Interpreter"""
@@ -67,9 +64,9 @@ class Parser:
         if self.curr.type in (TokenType.VAR, TokenType.NUMBER):
             return self.curr.value
         if self.curr.type is TokenType.COMMA:
-            return self.generate_tuple()
+            return tuple(self.generate_tuple())
         if self.curr.type is TokenType.SEMI_COLON:
-            return self.generate_system()
+            return frozenset(self.generate_system())
         oper = self.curr
         self.advance()
         left = self.parse()
@@ -89,8 +86,8 @@ class Parser:
                 not isinstance(right, Binary) or right.oper.priority != 4
             ):
                 raise SyntaxError("can only solve from an (in)equality")
-        # Reject nested (in)equalities
         elif oper.priority == 4:
+            # Reject nested (in)equalities
             if (
                 isinstance(left, Binary)
                 and left.oper.priority == 4
@@ -98,6 +95,13 @@ class Parser:
                 and right.oper.priority == 4
             ):
                 raise SyntaxError("nested (in)equality")
+            # Reject (in)equality if any of the operands are not term expressions
+            if isinstance(left, (tuple, frozenset)) or isinstance(
+                left, (tuple, frozenset)
+            ):
+                raise TypeError(
+                    f"unsupported: '{SYMBOLS.get(oper.type.name)}' for non-term expressions"
+                )
         # Reject operators between terms and non-terms
         elif oper.priority >= 6:
             if (
@@ -110,7 +114,7 @@ class Parser:
                 or isinstance(right, (tuple, frozenset))
             ):
                 raise TypeError(
-                    f"unsupported: {SYMBOLS.get(oper.type.name)} for non-terms"
+                    f"unsupported: '{SYMBOLS.get(oper.type.name)}' for non-term expressions"
                 )
         return Binary(oper, left, right)
 
@@ -156,10 +160,10 @@ class Parser:
                     while token.priority < stack[-1].priority:
                         yield stack.pop()
                 stack.append(token)
-        for i in stack:
+        for i in reversed(stack):
             if i.type is TokenType.RPAREN:
                 self.paren_error()
-        yield from reversed(stack)
+            yield i
 
     def prefix(self, tokens: Sequence[Token]) -> Generator[Token, None, None]:
         """Takes tokens and converts them to prefix notation"""
