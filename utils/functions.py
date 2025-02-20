@@ -90,19 +90,12 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
 
 def quadratic_formula(a: Term, b: Term, c: Term) -> tuple[Term]:
     """Apply the quadratic formula: (-b ± (b^2 - 4ac))/2a"""
-    from data_types import Term, Number, System
+    from data_types import Term, Number
 
-    print(
-        f"q(a={a}, b={b}, c={c})",
-        "(-b ± 2√(b^2 - 4ac))/2a",
-        sep=" = ",
-    )
-    rhs = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number("1/2"))
+    print(f"q(a={a}, b={b}, c={c})", "(-b ± 2√(b^2 - 4ac))/2a", sep=" = ")
+    discr = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number(1, 2))
     den = Term(Number(2)) * a
-    return (-b + rhs) / den, (-b - rhs) / den
-    if len(res) == 1:
-        return res.pop()
-    return System(res)
+    return (-b + discr) / den, (-b - discr) / den
 
 
 def primes(n: int) -> dict[int]:
@@ -149,3 +142,23 @@ def simplify_radical(n: int, root: int = 2) -> Term:
         v *= prime**remainder
 
     return Term(Number(c), Number(v), exp=Number(1, root))
+
+
+def difficulty_weight(term: Term) -> int:
+    from data_types import Number, Collection
+
+    if not isinstance(term.exp, Number) or isinstance(term.exp.numerator, complex):
+        return 10
+    res = 0
+
+    if isinstance(term.value, Collection) and term.exp == 1:
+        seen = {}
+        for t in term.value:
+            if not isinstance(t.exp, Number):
+                seen[t] = 10
+                continue
+            seen[t.value] = max(difficulty_weight(t), seen.get(t.value, res))
+        for i in seen.values():
+            res += i
+        return res
+    return term.exp.numerator * term.exp.denominator

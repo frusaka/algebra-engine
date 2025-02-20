@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import lru_cache
 from operator import *
 from data_types import *
 from typing import Any
@@ -59,14 +60,28 @@ def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparis
     return Interpreter().eval(AST(val.format_map(mapping)))
 
 
+@lru_cache
 def solve(
-    var: Variable | tuple[Variable], comp: Comparison | System
+    var: Variable | tuple[Variable], comp: Comparison | System, reject=True
 ) -> Comparison | System:
     res = comp[var]
-    print("Verifying solutions...".join(("\033[34m", "\033[0m")))
+    if reject:
+        print("Verifying solutions...".join(("\033[34m", "\033[0m")))
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
+    # Nested System: multple solution
     if isinstance(comp, System):
+        if any(isinstance(i, System) for i in res):
+            res = set(res)
+            for i in tuple(res):
+                if not subs(comp, dict((j.left.value, j.right) for j in i)):
+                    print(f"Extraneous: {i}".join(("\033[31m", "\033[0m")))
+                    res.remove(i)
+            if len(res) == 1:
+                return res.pop()
+            if not res:
+                return System(Comparison(Term(value=Variable(i)), None) for i in var)
+            return System(res)
         res_2 = subs(comp, dict((i.left.value, i.right) for i in res))
         for i in res_2:
             if not i:
@@ -86,6 +101,8 @@ def solve(
                     == subs(comp.right, {var: i.right})
                 ):
                     print(f"Boundary: {i}".join(("\033[33m", "\033[0m")))
+                    continue
+                if not reject:
                     continue
                 print(f"Extraneous: {i}".join(("\033[31m", "\033[0m")))
                 sol.remove(i)
