@@ -1,7 +1,8 @@
 from functools import lru_cache
-from data_types import Term, Number, Variable, Comparison, System
+from datatypes import Term, Number, Variable, Comparison, System
 from . import operators
 from .operators import Binary, Unary
+from .parser import AST
 
 
 class Interpreter:
@@ -16,9 +17,9 @@ class Interpreter:
     ) -> Term | Comparison | System | tuple | None:
         if node is None:
             return
+        if type(node) is str:
+            return self.eval(AST(node))
         if isinstance(node, (Number, Variable)):
-            if str(node) == "i":
-                return Term(value=Number(complex(imag=1)))
             return Term(value=node)
         if isinstance(node, frozenset):
             return System(self.eval(i) for i in node)

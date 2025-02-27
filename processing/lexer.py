@@ -1,6 +1,6 @@
 from typing import Generator
 from processing.tokens import Token, TokenType
-from data_types import Number, Variable
+from datatypes import Number, Variable
 
 
 class Lexer:
@@ -47,12 +47,12 @@ class Lexer:
                 self.advance()
                 continue
 
-            if self.curr == "." or self.curr.isdigit():
+            if self.curr in "i." or self.curr.isdigit():
                 # Can be toggled off to experiment with other notations (prefix & postfix)
                 if was_num:
                     if was_num == 3:
                         yield Token(
-                            TokenType.ERROR, SyntaxError("No operator between numbers")
+                            TokenType.ERROR, SyntaxError("no operator between numbers")
                         )
                         return
                     # Implicit multiplication - Parenthesis or consecutive numbers numbers
@@ -92,7 +92,8 @@ class Lexer:
         """Traverse input string to form a single number"""
         decimals = 0
         number_str = ""
-        while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
+        imag = 0
+        while self.curr is not None and (self.curr in "i." or self.curr.isdigit()):
             if self.curr == ".":
                 # Number cannot have multiple decimals
                 if decimals:
@@ -101,12 +102,18 @@ class Lexer:
                         SyntaxError("only one decimal point is allowed in number"),
                     )
                 decimals = 1
-            number_str += self.curr
+            curr = self.curr
             self.advance()
+            if curr == "i":
+                imag = 1
+                break
+            number_str += curr
 
         # Number needs atleast one digit
         if number_str == ".":
             return Token(
                 TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
             )
+        if imag:
+            return Token(TokenType.NUMBER, Number(number_str or 1) * 1j)
         return Token(TokenType.NUMBER, Number(number_str))

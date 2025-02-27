@@ -1,10 +1,10 @@
 import pytest
-from data_types import Number, Variable, Term, Product, Polynomial
+from datatypes import Number, Variable, Term, Product, Polynomial
 
 
-def test_divide_product(processor, AST):
-    assert processor.eval(AST("8x / 12x^2b")) == Term(
-        Number("2/3"),
+def test_divide_product(processor):
+    assert processor.eval("8x / 12x^2b") == Term(
+        Number(2, 3),
         Product(
             [
                 Term(value=Variable("x"), exp=Number(-1)),
@@ -12,8 +12,8 @@ def test_divide_product(processor, AST):
             ]
         ),
     )
-    assert processor.eval(AST("5x^2b / 10axb")) == Term(
-        Number("1/2"),
+    assert processor.eval("5x^2b / 10axb") == Term(
+        Number(1, 2),
         Product(
             [
                 Term(value=Variable("x")),
@@ -21,13 +21,13 @@ def test_divide_product(processor, AST):
             ]
         ),
     )
-    assert processor.eval(AST("6ab / 8a")) == Term(Number("3/4"), Variable("b"))
-    assert processor.eval(AST("3ab / 0.1b")) == Term(Number(30), Variable("a"))
-    assert processor.eval(AST("6ab / 8ab")) == Term(Number("3/4"))
+    assert processor.eval("6ab / 8a") == Term(Number(3, 4), Variable("b"))
+    assert processor.eval("3ab / 0.1b") == Term(Number(30), Variable("a"))
+    assert processor.eval("6ab / 8ab") == Term(Number(3, 4))
 
 
-def test_multiply_product(processor, AST):
-    assert processor.eval(AST("(2xy)^2")) == Term(
+def test_multiply_product(processor):
+    assert processor.eval("(2xy)^2") == Term(
         Number(4),
         Product(
             [
@@ -36,7 +36,7 @@ def test_multiply_product(processor, AST):
             ]
         ),
     )
-    assert processor.eval(AST("x^3 * z^3")) == Term(
+    assert processor.eval("x^3 * z^3") == Term(
         value=Product(
             [
                 Term(value=Variable("x"), exp=Number(3)),
@@ -44,8 +44,8 @@ def test_multiply_product(processor, AST):
             ]
         )
     )
-    assert processor.eval(AST("3x^2b * 0.1ax^2")) == Term(
-        Number("3/10"),
+    assert processor.eval("3x^2b * 0.1ax^2") == Term(
+        Number(3, 10),
         Product(
             [
                 Term(value=Variable("a")),
@@ -54,7 +54,7 @@ def test_multiply_product(processor, AST):
             ]
         ),
     )
-    assert processor.eval(AST("3xab(3ay-12b)")) == Term(
+    assert processor.eval("3xab(3ay-12b)") == Term(
         value=Polynomial(
             [
                 Term(
@@ -84,8 +84,8 @@ def test_multiply_product(processor, AST):
 
 
 @pytest.mark.skip(reason="Feature not implemented")
-def test_simplify_product(processor, AST):
-    assert processor.eval(AST("(x + f) / x^3 * 3x^2")) == Term(
+def test_simplify_product(processor):
+    assert processor.eval("(x + f) / x^3 * 3x^2") == Term(
         value=Polynomial(
             [
                 Term(
@@ -101,7 +101,7 @@ def test_simplify_product(processor, AST):
             ]
         )
     )
-    assert processor.eval(AST("(3x - 21)/x^2 / 3")) == Term(
+    assert processor.eval("(3x - 21)/x^2 / 3") == Term(
         value=Product(
             [
                 Term(value=Polynomial([Term(value=Variable("x")), Term(Number(-7))])),
@@ -110,7 +110,7 @@ def test_simplify_product(processor, AST):
         )
     )
 
-    assert processor.eval(AST("3(2√2)(1/(3√12))2(2√6)")) == Term(
+    assert processor.eval("3(2√2)(1/(3√12))2(2√6)") == Term(
         Number(2),
         Product(
             [

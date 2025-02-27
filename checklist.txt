@@ -1,13 +1,10 @@
 1. Some valid results get rejected when checking for extraneous solutions due to rooting a Polynomial.
     Add a way to smartly control strictness, or check if a Polynomial has a perfect power
 2. Improve multiplication of Products containing Polynomials
-3. Lookout for string based substitution.
-    In case of small decimals, the output string may not be perfectly precise,
-    Or in scientific notation
-4. Improve ratio operator output and add related tests
-5. Add simplification for cases such as:
+3. Improve ratio operator output and add related tests
+4. Add simplification for cases such as:
     3x/(x^3 + 6x^2)
-6. Implement Polynomial division without cancelling common terms
-7. Improve printing of System class
-8. Make Systems solver consider equations by difficulty
+5. Implement Polynomial division without cancelling common terms
+6. Improve printing of System class
+7. Make Systems solver consider equations by difficulty
 8. Enhace Systems solver for inequalities and edge cases

@@ -1,7 +1,8 @@
 from typing import Generator, Sequence
-from data_types import Number, Variable
+from datatypes import Number, Variable
 from .tokens import Token, TokenType
 from .operators import SYMBOLS, Unary, Binary
+from .lexer import Lexer
 
 
 class Parser:
@@ -37,7 +38,7 @@ class Parser:
             if self.curr is None:
                 self.operator_error(oper)
             if self.curr.type is not TokenType.VAR:
-                raise SyntaxError(f"tuple expected only Variables")
+                raise SyntaxError(f"tuple expects variables only")
             yield self.curr.value
             if j + 1 < i:
                 self.advance()
@@ -52,7 +53,7 @@ class Parser:
             if self.curr is None:
                 self.operator_error(oper)
             if self.curr.priority != 4:  # A comparison
-                raise SyntaxError(f"systems expected only (in)equalities")
+                raise SyntaxError(f"system expects (in)equalities only")
             yield self.parse()
             if j + 1 < i:
                 self.advance()
@@ -168,3 +169,7 @@ class Parser:
     def prefix(self, tokens: Sequence[Token]) -> Generator[Token, None, None]:
         """Takes tokens and converts them to prefix notation"""
         return reversed(list(self.postfix(tokens)))
+
+
+def AST(expr: str):
+    return Parser(Lexer(expr).generate_tokens()).parse()

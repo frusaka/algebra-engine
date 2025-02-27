@@ -1,6 +1,6 @@
 import pytest
 from processing import AST, Token, TokenType, Binary, Unary
-from data_types import Variable, Number
+from datatypes import Variable, Number
 
 
 @pytest.mark.parametrize("expr", ["9+", "-4+", "3()", "(()", ")", "()^2"])

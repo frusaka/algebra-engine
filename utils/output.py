@@ -6,8 +6,8 @@ def print_frac(frac):
         denominator //= 2
     while denominator % 5 == 0:
         denominator //= 5
-    if denominator == 1:
-        return str(frac.numerator / frac.denominator)
+    if denominator == 1 and "e" not in (v := str(frac.numerator / frac.denominator)):
+        return v
     return "/".join((str(frac.numerator), str(frac.denominator)))
 
 

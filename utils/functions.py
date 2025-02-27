@@ -4,12 +4,12 @@ import math
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
-    from data_types import Term, Number, Collection, Comparison, Variable
+    from datatypes import Term, Number, Collection, Comparison, Variable
 
 
 @cache
 def lexicographic_weight(term: Term, alphabetic=True) -> Number:
-    from data_types import Number, Variable, Collection
+    from datatypes import Number, Variable, Collection
 
     if not isinstance(term.exp, Number) or (
         isinstance(term.value, Number) and term.exp == 1
@@ -53,7 +53,7 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     Given that the lhs is a Polynomial,
     check whether it can be considered quadratic in terms of `value` and return a tuple (a, b, c)
     """
-    from data_types import Term
+    from datatypes import Term
 
     a, b = None, None
     x = Term(value=var)
@@ -90,7 +90,7 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
 
 def quadratic_formula(a: Term, b: Term, c: Term) -> tuple[Term]:
     """Apply the quadratic formula: (-b ± (b^2 - 4ac))/2a"""
-    from data_types import Term, Number
+    from datatypes import Term, Number
 
     print(f"q(a={a}, b={b}, c={c})", "(-b ± 2√(b^2 - 4ac))/2a", sep=" = ")
     discr = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number(1, 2))
@@ -115,7 +115,7 @@ def primes(n: int) -> dict[int]:
 
 
 def simplify_radical(n: int, root: int = 2) -> Term:
-    from data_types import Term, Number
+    from datatypes import Term, Number
 
     if n == 0:
         return Term(value=Number(0))
@@ -145,7 +145,7 @@ def simplify_radical(n: int, root: int = 2) -> Term:
 
 
 def difficulty_weight(term: Term) -> int:
-    from data_types import Number, Collection
+    from datatypes import Number, Collection
 
     if not isinstance(term.exp, Number) or isinstance(term.exp.numerator, complex):
         return 10

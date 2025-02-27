@@ -35,8 +35,8 @@ class Number(Atomic):
                 obj,
                 "numerator",
                 complex(
-                    (den / real.denominator) * real.numerator,
-                    (den / imag.denominator) * imag.numerator,
+                    (den // real.denominator) * real.numerator,
+                    (den // imag.denominator) * imag.numerator,
                 ),
             )
             object.__setattr__(obj, "denominator", den)
@@ -58,17 +58,12 @@ class Number(Atomic):
             res = res.replace("1i", "i")
         return res
 
-    def __repr__(self) -> str:
-        return "Number(numerator={0}, denominator={1})".format(
-            repr(self.numerator), repr(self.denominator)
-        )
-
     def __add__(self, other: Number | SupportsFloat | SupportsComplex) -> Number:
         if not isinstance(other, Number):
             return self + Number(other)
         den = math.lcm(self.denominator, other.denominator)
-        num_a = (den / self.denominator) * self.numerator
-        num_b = (den / other.denominator) * other.numerator
+        num_a = (den // self.denominator) * self.numerator
+        num_b = (den // other.denominator) * other.numerator
         return Number(num_a + num_b, den)
 
     def __sub__(self, other: Number | SupportsFloat | SupportsComplex) -> Number:
@@ -165,9 +160,7 @@ class Number(Atomic):
             b = b.value * b.coef
         else:
             b = b.value
-        if a.exp == 1:
-            return type(a)(value=a.value / b)
-        return type(a)(a.coef / b, a.value, a.exp)
+        return a.scale(b**-1)
 
     @dispatch
     def add(b: Proxy[Term], a: Term) -> None:
@@ -213,11 +206,14 @@ class Number(Atomic):
 
     @staticmethod
     def resolve_pow(a: Term, b: Term) -> Term:
+        from .polynomial import Polynomial
+
         c = type(a)(a.coef) ** type(a)(b.to_const())
         v = type(a)(a.value) ** type(a)(b.to_const())
-        return c * type(a)(
-            v.coef, v.value, type(a)(value=a.exp) * b.canonical() * type(a)(v.exp)
-        )
+        e = type(a)(value=a.exp) * b.canonical()
+        if isinstance(e.value, Polynomial) and e.exp == 1:
+            return Atomic.poly_pow(Proxy(e), v) * c
+        return c * type(a)(v.coef, v.value, e.scale(v.exp))
 
     @dispatch
     def pow(b: Proxy[Term], a: Term) -> Term:
@@ -245,6 +241,8 @@ class Number(Atomic):
                 )
             # Complex radicals converted to floating-point
             return type(a)(value=a.value**b.value).scale(a.coef**b.value)
+        # if isinstance(b.exp, Number) and b.to_const() < 0:
+        #     return Number.frac_radical(type(a)(), a**-b)
         return Number.resolve_pow(a, b)
 
     pow.register(polynomial)(Atomic.poly_pow)

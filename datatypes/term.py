@@ -22,7 +22,7 @@ class Term:
     """
 
     coef: Number
-    value: Atomic[Number, Variable, Product, Polynomial]
+    value: Number | Variable | Product | Polynomial
     exp: Number | Term
 
     def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)) -> Term:
@@ -62,12 +62,11 @@ class Term:
             return "{0}/{1}".format(self.numerator, self.denominator)
         # Numbers with symbolic exponents
         if isinstance(self.value, Number) and self.exp != 1:
-            val = str(Term(value="$", exp=self.exp)).replace("$", str(self.value))
-            if self.coef not in (1, -1):
-                val = val.join("()")
             return "{0}{1}".format(
                 print_coef(self.coef),
-                val,
+                str(Term(value="$", exp=self.exp))
+                .replace("$", str(self.value))
+                .join("()"),
             )
         # Negative exponets: ax^-n -> a/x^n
         if self.exp_const() < 0:
