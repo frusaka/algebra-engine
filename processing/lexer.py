@@ -58,7 +58,7 @@ class Lexer:
                     # Implicit multiplication - Parenthesis or consecutive numbers numbers
                     yield self.OPERS["*"][was_num >> 1]
                 yield self.generate_number()
-                was_num = 3
+                was_num = 3 - (self.curr == "i")
                 continue
 
             # A variable
@@ -91,9 +91,11 @@ class Lexer:
     def generate_number(self) -> Token:
         """Traverse input string to form a single number"""
         decimals = 0
+        if self.curr == "i":
+            self.advance()
+            return Token(TokenType.NUMBER, Number(1j))
         number_str = ""
-        imag = 0
-        while self.curr is not None and (self.curr in "i." or self.curr.isdigit()):
+        while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
             if self.curr == ".":
                 # Number cannot have multiple decimals
                 if decimals:
@@ -102,18 +104,12 @@ class Lexer:
                         SyntaxError("only one decimal point is allowed in number"),
                     )
                 decimals = 1
-            curr = self.curr
+            number_str += self.curr
             self.advance()
-            if curr == "i":
-                imag = 1
-                break
-            number_str += curr
 
         # Number needs atleast one digit
         if number_str == ".":
             return Token(
                 TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
             )
-        if imag:
-            return Token(TokenType.NUMBER, Number(number_str or 1) * 1j)
         return Token(TokenType.NUMBER, Number(number_str))

@@ -1,5 +1,6 @@
 1. Some valid results get rejected when checking for extraneous solutions due to rooting a Polynomial.
     Add a way to smartly control strictness, or check if a Polynomial has a perfect power
+    e.g x -> x^2 - 5x + 2√(y^2 - 10y + 25) = y - 5
 2. Improve multiplication of Products containing Polynomials
 3. Improve ratio operator output and add related tests
 4. Add simplification for cases such as:

@@ -1,7 +1,7 @@
 from typing import Generator, Sequence
 from datatypes import Number, Variable
 from .tokens import Token, TokenType
-from .operators import SYMBOLS, Unary, Binary
+from .nodes import SYMBOLS, Unary, Binary
 from .lexer import Lexer
 
 
@@ -28,6 +28,12 @@ class Parser:
     def paren_error() -> None:
         raise SyntaxError("unmatched parenthesis")
 
+    @staticmethod
+    def operand_error(oper) -> None:
+        raise TypeError(
+            f"unsupported: '{SYMBOLS.get(oper.type.name)}' for non-term expressions"
+        )
+
     def generate_tuple(self) -> Generator[Variable, None, None]:
         oper = self.curr
         i = 1
@@ -52,8 +58,8 @@ class Parser:
         for j in range(i):
             if self.curr is None:
                 self.operator_error(oper)
-            if self.curr.priority != 4:  # A comparison
-                raise SyntaxError(f"system expects (in)equalities only")
+            if self.curr.type.name != "EQ":
+                raise SyntaxError(f"system expects equations only")
             yield self.parse()
             if j + 1 < i:
                 self.advance()
@@ -74,6 +80,19 @@ class Parser:
         if left is None:
             self.operator_error(oper)
         if oper.type in (TokenType.NEG, TokenType.POS, TokenType.BOOL):
+            if oper.type is TokenType.BOOL:
+                if (
+                    isinstance(left, frozenset)
+                    or isinstance(left, Binary)
+                    and left.oper.priority != 4
+                ):
+                    raise SyntaxError("truth evluation expected (in)equalities")
+            elif (
+                isinstance(left, frozenset)
+                or hasattr(left, "oper")
+                and left.oper.priority < 5
+            ):
+                self.operand_error(oper)
             return Unary(oper, left)
         self.advance()
         right = self.parse()
@@ -100,23 +119,19 @@ class Parser:
             if isinstance(left, (tuple, frozenset)) or isinstance(
                 left, (tuple, frozenset)
             ):
-                raise TypeError(
-                    f"unsupported: '{SYMBOLS.get(oper.type.name)}' for non-term expressions"
-                )
+                self.operand_error(oper)
         # Reject operators between terms and non-terms
         elif oper.priority >= 6:
             if (
                 isinstance(left, (Binary, Unary))
-                and left.oper.priority == 4
+                and left.oper.priority < 5
                 or isinstance(left, (tuple, frozenset))
             ) or (
                 isinstance(right, (Binary, Unary))
-                and right.oper.priority == 4
+                and right.oper.priority < 5
                 or isinstance(right, (tuple, frozenset))
             ):
-                raise TypeError(
-                    f"unsupported: '{SYMBOLS.get(oper.type.name)}' for non-term expressions"
-                )
+                self.operand_error(oper)
         return Binary(oper, left, right)
 
     def postfix(self, tokens: Sequence[Token]) -> Generator[Token, None, None]:

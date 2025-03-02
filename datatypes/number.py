@@ -241,8 +241,6 @@ class Number(Atomic):
                 )
             # Complex radicals converted to floating-point
             return type(a)(value=a.value**b.value).scale(a.coef**b.value)
-        # if isinstance(b.exp, Number) and b.to_const() < 0:
-        #     return Number.frac_radical(type(a)(), a**-b)
         return Number.resolve_pow(a, b)
 
     pow.register(polynomial)(Atomic.poly_pow)

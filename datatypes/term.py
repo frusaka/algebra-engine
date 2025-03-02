@@ -26,17 +26,14 @@ class Term:
     exp: Number | Term
 
     def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)) -> Term:
-        obj = super().__new__(cls)
         if isinstance(value, Term):
-            object.__setattr__(obj, "coef", value.coef)
-            object.__setattr__(obj, "value", value.value)
-            object.__setattr__(obj, "exp", value.exp)
-            return obj
+            return value
+        obj = super().__new__(cls)
         # Cases when operations with exponents simplify to a constant
         if isinstance(exp, Term) and isinstance(exp.value, Number) and exp.exp == 1:
             exp = exp.value
         # Aplying basic known algebraic rules to validate the term
-        if coef == 0:
+        if coef == 0 or value == 0:
             value = Number(0)
             coef = exp = Number(1)
         elif coef != 1 and value == 1:
@@ -45,7 +42,7 @@ class Term:
         elif exp == 0:
             value = coef
             exp = coef = Number(1)
-        # 1^n = 1 for any value of n
+        # # 1^n = 1 for any value of n
         elif value == 1:
             exp = value
         object.__setattr__(obj, "coef", coef)
@@ -62,12 +59,12 @@ class Term:
             return "{0}/{1}".format(self.numerator, self.denominator)
         # Numbers with symbolic exponents
         if isinstance(self.value, Number) and self.exp != 1:
-            return "{0}{1}".format(
-                print_coef(self.coef),
-                str(Term(value="$", exp=self.exp))
-                .replace("$", str(self.value))
-                .join("()"),
+            v = str(Term(value="$", exp=self.exp)).replace(
+                "$", v if not "/" in (v := str(self.value)) else v.join("()")
             )
+            if not v.startswith("(") and abs(self.coef) != 1:
+                v = v.join("()")
+            return "{0}{1}".format(print_coef(self.coef), v)
         # Negative exponets: ax^-n -> a/x^n
         if self.exp_const() < 0:
             return "{0}/{1}".format(self.numerator, self.denominator)
@@ -156,6 +153,8 @@ class Term:
     def __pow__(a, b: Term) -> Term:
         if b.value == 0:
             return Term()
+        if a.value == 0 or a.value == 1:
+            return a
         return a.value.pow(Proxy(b), a) or (
             Term(a.coef) ** b * Term(value=a.value, exp=Term(value=a.exp) * b)
         )

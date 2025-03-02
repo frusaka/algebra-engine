@@ -1,7 +1,7 @@
 from functools import lru_cache
 from datatypes import Term, Number, Variable, Comparison, System
 from . import operators
-from .operators import Binary, Unary
+from .nodes import Binary, Unary
 from .parser import AST
 
 

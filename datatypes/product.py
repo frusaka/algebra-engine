@@ -20,9 +20,11 @@ class Product(Collection):
         num, den = [], []
         for t in reversed(standard_form(self)):
             if t.exp_const() < 0:
-                den.append(str(type(t)(value=t.value, exp=abs(t.exp))))
+                den.append(str(type(t)(value=t.value, exp=-t.exp)))
             else:
                 num.append(str(t))
+            if type(t.value).__name__ == "Number":
+                num[-1] = num[-1].join("()")
         a, b = "".join(num), "".join(den)
         if len(num) > 1 and den:
             a = a.join("()")

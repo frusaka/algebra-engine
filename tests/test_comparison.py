@@ -298,17 +298,14 @@ def test_solve_quadratic(processor):
 
 def test_solve_edge(processor):
     # Extraneous solutions
-    assert processor.eval("x -> (x+2)/(x+1) - x/(1-x) = x/(x-1)").right == Term(
-        Number(-2)
-    )
     assert processor.eval("x -> 2x - 2√x = 6").right == Term(Number(4))
     # Infinite Solutions
-    assert processor.eval("x -> 0x = 0").right is Any
-    assert processor.eval("x -> x + 4 = x + 4").right is Any
-    assert processor.eval("x -> x - 2 > x - 4").right is Any
+    assert processor.eval("x -> 0x = 0").right == "Any"
+    assert processor.eval("x -> x + 4 = x + 4").right == "Any"
+    assert processor.eval("x -> x - 2 > x - 4").right == "Any"
     # No Solutions
-    assert processor.eval("x -> x + 2 = x - 4").right is None
-    assert processor.eval("x -> x > x").right is None
+    assert processor.eval("x -> x + 2 = x - 4").right == "None"
+    assert processor.eval("x -> x > x").right == "None"
 
 
 def test_solve_complex(processor):

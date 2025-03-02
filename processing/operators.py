@@ -1,33 +1,7 @@
-from dataclasses import dataclass
 from functools import lru_cache
+from typing import Any
 from operator import *
 from datatypes import *
-from typing import Any
-from .tokens import Token
-from utils.constants import SYMBOLS
-
-
-@dataclass(frozen=True)
-class Unary:
-    """Unary operator: -n, +n, or maybe in the future, n!"""
-
-    oper: Token
-    value: Any
-
-    def __repr__(self) -> str:
-        return f"{SYMBOLS.get(self.oper.type.name)}{self.value}"
-
-
-@dataclass(frozen=True)
-class Binary:
-    """Unary operator: arithmetic (+-*/) or exponetiation"""
-
-    oper: Token
-    left: Any
-    right: Any
-
-    def __repr__(self) -> str:
-        return f"({self.left} {SYMBOLS.get(self.oper.type.name)} {self.right})"
 
 
 def eq(a: Any, b: Any) -> Comparison:
@@ -60,12 +34,37 @@ def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparis
     return Interpreter().eval(AST(val.format_map(mapping)))
 
 
+def log_extr(sol) -> bool:
+    print(
+        f"Extraneous: {sol}".join(("\033[31m", "\033[0m")),
+        sep="\n",
+    )
+    return False
+
+
+def validate_solution(
+    org: System | Comparison, sol: System | Comparison, mapping: dict
+) -> bool:
+    try:
+        if not subs(org.normalize(), mapping):
+            return log_extr(sol)
+        if isinstance(sol, Comparison) and not sol:
+            if not isinstance(sol.left.value, Variable):
+                return log_extr(sol)
+            if sol.rel is not CompRel.EQ:
+                print(f"Boundary: {sol}".join(("\033[33m", "\033[0m")))
+        return True
+    except ZeroDivisionError:
+        print(f"Zero division: {sol}".join(("\033[31m", "\033[0m")))
+    return False
+
+
 @lru_cache
 def solve(
-    var: Variable | tuple[Variable], comp: Comparison | System, reject=True
+    var: Variable | tuple[Variable], comp: Comparison | System, verbose=True
 ) -> Comparison | System:
     res = comp[var]
-    if reject:
+    if verbose:
         print("Verifying solutions...".join(("\033[34m", "\033[0m")))
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
@@ -74,51 +73,35 @@ def solve(
         if any(isinstance(i, System) for i in res):
             res = set(res)
             for i in tuple(res):
-                if not subs(comp, dict((j.left.value, j.right) for j in i)):
-                    print(f"Extraneous: {i}".join(("\033[31m", "\033[0m")))
+                if not validate_solution(
+                    comp, i, dict((j.left.value, j.right) for j in i)
+                ):
                     res.remove(i)
             if len(res) == 1:
                 return res.pop()
             if not res:
                 return System(Comparison(Term(value=Variable(i)), None) for i in var)
             return System(res)
-        res_2 = subs(comp, dict((i.left.value, i.right) for i in res))
-        for i in res_2:
-            if not i:
-                print(f"Extraneous: {i}".join(("\033[31m", "\033[0m")))
-                return System(Comparison(Term(value=Variable(i)), None) for i in var)
+        if not validate_solution(comp, res, dict((j.left.value, j.right) for j in res)):
+            return System(Comparison(Term(value=Variable(i)), None) for i in var)
         return res
     sol = set(res) if isinstance(res, System) else {res}
     # Verify Solutions
     for i in tuple(sol):
-        try:
-            if not subs(comp, {var: i.right}):
-                # Atleast check for boundary values
-                if (
-                    var in i
-                    and comp.rel is not CompRel.EQ
-                    and subs(comp.left, {var: i.right})
-                    == subs(comp.right, {var: i.right})
-                ):
-                    print(f"Boundary: {i}".join(("\033[33m", "\033[0m")))
-                    continue
-                if not reject:
-                    continue
-                print(f"Extraneous: {i}".join(("\033[31m", "\033[0m")))
-                sol.remove(i)
-        except ZeroDivisionError:
-            print(f"Undefined: {i}".join(("\033[31m", "\033[0m")))
+        if not validate_solution(comp, i, {var: i.right}):
             sol.remove(i)
     if len(sol) == 1:
         sol = sol.pop()
         # Infinite solutions
-        if isinstance(res, Comparison) and res:
-            return Comparison(Term(value=var), Any)
+        if sol:
+            return Comparison(Term(value=var), "Any")
         # One solution
-        return sol
+        elif var in sol:
+            return sol
+        sol = None
     # No solutions
     if not sol:
-        return Comparison(Term(value=var), None)
+        return Comparison(Term(value=var), "None")
     # Multiple solutions
     return System(sol)
 

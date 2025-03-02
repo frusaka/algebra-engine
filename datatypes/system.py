@@ -53,7 +53,7 @@ class System(Collection):
                     break
             else:
                 raise ValueError(
-                    f"Could not find independent (in)equality containing '{v}'"
+                    f"Could not find independent equation containing '{v}'"
                 )
             print(v, "→", org)
             eqn = solve(v, org, 0)
@@ -98,3 +98,6 @@ class System(Collection):
             else:
                 res.append(str(i))
         return "; ".join(res)
+
+    def normalize(self) -> System:
+        return System(i.normalize() for i in self)

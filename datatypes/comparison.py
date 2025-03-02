@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from utils.constants import SYMBOLS
 from .system import System
 from .polynomial import Polynomial
 from .product import Product
 from .number import Number
 from .variable import Variable
 from .term import Term
+from utils.constants import SYMBOLS
 from utils import quadratic, quadratic_formula
 
 
@@ -39,9 +39,7 @@ class Comparison:
     rel: CompRel = CompRel.EQ
 
     def __str__(self) -> str:
-        return "{0} {2} {1}".format(self.left, self.right, self.rel).replace(
-            "typing.", ""
-        )
+        return "{0} {2} {1}".format(self.left, self.right, self.rel)
 
     def __getitem__(self, value: Variable) -> Comparison:
         """
@@ -199,3 +197,11 @@ class Comparison:
     def show_operation(self, operator: str, value: Term) -> None:
         """A convinent method to show the user the solving process"""
         print(" " * str(self).index(str(self.rel)), operator + " ", value, sep="")
+
+    def normalize(self) -> Comparison:
+        """Put all terms on the lhs"""
+        return Comparison(
+            self.left - self.right,
+            Term(Number(0)),
+            getattr(CompRel, self.rel.name.replace("T", "E")),
+        )
