@@ -100,6 +100,9 @@ class Term:
             exp = exp.join("()")
         return "{0}^{1}".format(res, exp)
 
+    def __repr__(self) -> str:
+        return str(self)
+
     @cache
     def __contains__(self, value: Variable) -> bool:
         return value in str(self)

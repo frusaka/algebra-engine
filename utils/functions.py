@@ -145,20 +145,20 @@ def simplify_radical(n: int, root: int = 2) -> Term:
 
 
 def difficulty_weight(term: Term) -> int:
-    from datatypes import Number, Collection
+    from datatypes import Number, Collection, Product
 
     if not isinstance(term.exp, Number) or isinstance(term.exp.numerator, complex):
         return 10
     res = 0
 
     if isinstance(term.value, Collection) and term.exp == 1:
+        if isinstance(term.value, Product):
+            res += len(term.value) * 0.65
         seen = {}
         for t in term.value:
             if not isinstance(t.exp, Number):
                 seen[t] = 10
                 continue
             seen[t.value] = max(difficulty_weight(t), seen.get(t.value, res))
-        for i in seen.values():
-            res += i
-        return res
-    return term.exp.numerator * term.exp.denominator
+        return sum(seen.values())
+    return abs(term.exp.numerator * term.exp.denominator)

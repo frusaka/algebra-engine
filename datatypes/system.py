@@ -22,6 +22,7 @@ class System(Collection):
     def __getitem__(self, vals: Sequence[Variable]) -> System:
         """Solve for a system of (in)equalities"""
         from processing import solve, subs
+        from .comparison import Comparison
 
         # Assumeably from internal solving process
         if isinstance(vals, Variable):
@@ -58,20 +59,23 @@ class System(Collection):
             print(v, "→", org)
             eqn = solve(v, org, 0)
             old = v.join(("\033[31m", "\033[0m"))
-            if isinstance(eqn, System):
-                new = ", ".join(str(i.right).join(("\033[32m", "\033[0m")) for i in eqn)
+            if isinstance(eqn.right, Collection):
+                new = ", ".join(str(i).join(("\033[32m", "\033[0m")) for i in eqn.right)
                 print(f"Substitute {old} with {new}")
                 for i in range(len(eqns)):
                     if i == idx:
                         continue
                     eqns[i] = System(
-                        System({j, subs(eqns[i], {v: j.right})}) for j in eqn
+                        System({Comparison(Term(value=v), j), subs(eqns[i], {v: j})})
+                        for j in eqn.right
                     )
                 eqns.pop(idx)
                 if len(eqns) == 1:
                     eqns = eqns.pop()
 
             else:
+                if eqn.right is None:
+                    return
                 # Substitute in the rest of equations
                 new = str(eqn.right).join(("\033[32m", "\033[0m"))
                 print(f"Substitute {old} with {new}")

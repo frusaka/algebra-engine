@@ -126,13 +126,15 @@ def test_solve_denominator(processor):
 
 
 def test_solve_proportions(processor):
-    assert processor.eval(
-        "x -> 7/(x + 5) + x/(x + 4) = x/(x^2 + 9x + 20)"
-    ) == Comparison(left=Term(value=Variable("x")), right=Term(Number(-7)))
-    assert processor.eval("x -> 5/(x + 7) + x/(x - 7) = 7/(x - 7)") == Comparison(
-        left=Term(value=Variable("x")), right=Term(Number(-12))
-    )
-    assert processor.eval("x -> 1 + 2/(x + 1) = (3x + 7)/(x^2 + 10x + 9)") == System(
+    assert processor.eval("7/(x + 5) + x/(x + 4) = x/(x^2 + 9x + 20)")[
+        Variable("x")
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(-7)))
+    assert processor.eval("5/(x + 7) + x/(x - 7) = 7/(x - 7)")[
+        Variable("x")
+    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(-12)))
+    assert processor.eval("1 + 2/(x + 1) = (3x + 7)/(x^2 + 10x + 9)")[
+        Variable("x")
+    ] == System(
         {
             Comparison(left=Term(value=Variable("x")), right=Term(Number(-4))),
             Comparison(left=Term(value=Variable("x")), right=Term(Number(-5))),
@@ -304,8 +306,8 @@ def test_solve_edge(processor):
     assert processor.eval("x -> x + 4 = x + 4").right == "Any"
     assert processor.eval("x -> x - 2 > x - 4").right == "Any"
     # No Solutions
-    assert processor.eval("x -> x + 2 = x - 4").right == "None"
-    assert processor.eval("x -> x > x").right == "None"
+    assert processor.eval("x -> x + 2 = x - 4").right is None
+    assert processor.eval("x -> x > x").right is None
 
 
 def test_solve_complex(processor):

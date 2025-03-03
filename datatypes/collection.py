@@ -14,6 +14,9 @@ class Collection(Unknown, frozenset, Atomic):
     def __hash__(self) -> int:
         return frozenset.__hash__(self)
 
+    def __str__(self):
+        return ", ".join(str(i) for i in self).join("{}")
+
     @classmethod
     def flatten(cls, term: Term) -> Generator[Term, None, None]:
         """Unnest the given term if the type matches the `cls`"""

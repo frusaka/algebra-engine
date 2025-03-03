@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from .collection import Collection
 from .system import System
 from .polynomial import Polynomial
 from .product import Product
@@ -39,7 +40,10 @@ class Comparison:
     rel: CompRel = CompRel.EQ
 
     def __str__(self) -> str:
-        return "{0} {2} {1}".format(self.left, self.right, self.rel)
+        rel = self.rel
+        if isinstance(self.right, Collection):
+            rel = "∈"
+        return "{0} {2} {1}".format(self.left, self.right, rel)
 
     def __getitem__(self, value: Variable) -> Comparison:
         """

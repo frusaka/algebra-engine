@@ -51,7 +51,7 @@ def validate_solution(
         if isinstance(sol, Comparison) and not sol:
             if not isinstance(sol.left.value, Variable):
                 return log_extr(sol)
-            if sol.rel is not CompRel.EQ:
+            if sol.rel in {CompRel.LT, CompRel.GT}:
                 print(f"Boundary: {sol}".join(("\033[33m", "\033[0m")))
         return True
     except ZeroDivisionError:
@@ -61,11 +61,17 @@ def validate_solution(
 
 @lru_cache
 def solve(
-    var: Variable | tuple[Variable], comp: Comparison | System, verbose=True
+    var: Variable | tuple[Variable], comp: Comparison | System, finalize=True
 ) -> Comparison | System:
     res = comp[var]
-    if verbose:
-        print("Verifying solutions...".join(("\033[34m", "\033[0m")))
+    if res is None:
+        return Comparison(var, None)
+    if finalize:
+        print(
+            f"Verifying solution{"s"*(isinstance(res, System))}...".join(
+                ("\033[34m", "\033[0m")
+            )
+        )
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
     # Nested System: multple solution
@@ -73,18 +79,23 @@ def solve(
         if any(isinstance(i, System) for i in res):
             res = set(res)
             for i in tuple(res):
-                if not validate_solution(
-                    comp, i, dict((j.left.value, j.right) for j in i)
-                ):
-                    res.remove(i)
+                res.remove(i)
+                if validate_solution(comp, i, dict((j.left.value, j.right) for j in i)):
+                    res.add(
+                        tuple(
+                            next(j.right for j in i if j.left.value == k) for k in var
+                        )
+                    )
             if len(res) == 1:
-                return res.pop()
+                return Comparison(var, res.pop())
             if not res:
-                return System(Comparison(Term(value=Variable(i)), None) for i in var)
-            return System(res)
+                return Comparison(var, None)
+            return Comparison(var, Collection(res))
         if not validate_solution(comp, res, dict((j.left.value, j.right) for j in res)):
-            return System(Comparison(Term(value=Variable(i)), None) for i in var)
-        return res
+            return Comparison(var, None)
+        return Comparison(
+            var, tuple(next(j.right for j in res if j.left.value == k) for k in var)
+        )
     sol = set(res) if isinstance(res, System) else {res}
     # Verify Solutions
     for i in tuple(sol):
@@ -94,16 +105,20 @@ def solve(
         sol = sol.pop()
         # Infinite solutions
         if sol:
-            return Comparison(Term(value=var), "Any")
+            return Comparison(var, "Any")
         # One solution
         elif var in sol:
+            if finalize:
+                return Comparison(var, sol.right, sol.rel)
             return sol
         sol = None
     # No solutions
     if not sol:
-        return Comparison(Term(value=var), "None")
+        return Comparison(var, None)
     # Multiple solutions
-    return System(sol)
+    if comp.rel is CompRel.EQ:
+        return Comparison(var, Collection(i.right for i in sol))
+    return Comparison(var, Range(sol, comp.rel.name.startswith("L")))
 
 
 def root(a: Term, b: Term) -> Term:

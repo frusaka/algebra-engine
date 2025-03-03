@@ -20,3 +20,14 @@ def print_coef(coef):
     if coef == -1:
         res = "-"
     return res
+
+
+def ineq_to_range(ineq):
+    left, right = "(", ")"
+    if ineq.rel.name.startswith("G"):
+        if ineq.rel.name.endswith("E"):
+            left = "["
+        return left + str(ineq.right)
+    if ineq.rel.name.endswith("E"):
+        right = "]"
+    return str(ineq.right) + right
