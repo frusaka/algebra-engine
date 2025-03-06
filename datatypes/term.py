@@ -143,7 +143,7 @@ class Term:
                             a = Polynomial._long_division(a, gcd)
                             b = Polynomial._long_division(b, gcd)
                 else:
-                    gcd_b = Term.gcd(gcd_a, b)
+                    gcd_b = Term.gcd(gcd_a, b).canonical()
                     if gcd_b.value != 1:
                         b /= gcd_b
 
@@ -156,7 +156,7 @@ class Term:
     def __pow__(a, b: Term) -> Term:
         if b.value == 0:
             return Term()
-        if a.value == 0 or a.value == 1:
+        if a.value == 1:
             return a
         return a.value.pow(Proxy(b), a) or (
             Term(a.coef) ** b * Term(value=a.value, exp=Term(value=a.exp) * b)
@@ -345,8 +345,9 @@ class Term:
         """Given a : b, express a and b such that neither a nor b contain fractions"""
         # Removing symbolic fractions
         for i in (a.fractional.denominator, b.fractional.denominator):
-            a *= i
-            b *= i
+            if i.value != 1:
+                a *= i
+                b *= i
         den = a.denominator * b.denominator
         a *= den
         b *= den

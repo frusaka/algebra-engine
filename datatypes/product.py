@@ -1,10 +1,11 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING, Sequence, Set, Tuple
+
+import itertools
 
 from .collection import Collection
-from utils import *
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence, Set, Tuple
-import itertools
+from utils import *
 
 if TYPE_CHECKING:
     from .term import Term
@@ -23,7 +24,7 @@ class Product(Collection):
                 den.append(str(type(t)(value=t.value, exp=-t.exp)))
             else:
                 num.append(str(t))
-            if type(t.value).__name__ == "Number":
+            if str(t)[0].isdigit():
                 num[-1] = num[-1].join("()")
         a, b = "".join(num), "".join(den)
         if len(num) > 1 and den:

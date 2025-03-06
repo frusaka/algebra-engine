@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Generator, Sequence, TYPE_CHECKING
 from collections import defaultdict
 from functools import cache, cached_property
 import itertools
@@ -6,7 +7,6 @@ from .bases import Atomic
 from .collection import Collection
 from .number import Number, Fraction
 from utils import *
-from typing import Generator, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .term import Term
@@ -26,7 +26,7 @@ class Polynomial(Collection):
                 # Needs fix to account for complex number or values like x + (-2x+3)/ab
                 if rep.startswith("-"):
                     res += " - "
-                    rep = str(-term)
+                    rep = rep[1:]
                 else:
                     res += " + "
             res += rep
@@ -65,6 +65,7 @@ class Polynomial(Collection):
             if len(res) == 1:
                 return next(iter(res))
             return type(a)(value=res)
+
         # Combining like terms
         if a.like(b, 0):
             return type(a)(
@@ -72,6 +73,11 @@ class Polynomial(Collection):
             )
         if isinstance(b.value, Polynomial) and b.exp == 1:
             return b * a
+        if a.exp == b.exp:
+            return (
+                (type(a)(value=a.value) * type(a)(value=b.value))
+                ** type(a)(value=a.exp)
+            ).scale(a.coef * b.coef)
 
         # Multiplication with a fraction Polynomial
         if a.exp == -1:
@@ -93,7 +99,10 @@ class Polynomial(Collection):
     @pow.register(number)
     def _(b: Proxy[Term], a: Term) -> Term | None:
         if a.exp == -1 and abs(b.value.value) != 1:
-            return Polynomial.scalar_pow(b.value, type(a)(value=a.value)).inv
+            return (
+                Polynomial.scalar_pow(b.value, type(a)(value=a.value)).inv
+                * type(a)(value=a.coef) ** b.value
+            )
         return Polynomial.scalar_pow(b.value, a)
 
     @staticmethod
@@ -114,12 +123,32 @@ class Polynomial(Collection):
             res *= a
         exp = Fraction(1, b.denominator)
         if b < 0:
-            if b.denominator == 1:
-                num, den = type(a).rationalize(type(a)(), res)
-                den = type(a)(value=den.value, exp=-den.exp)
-                return num * den
             exp = -exp
-        res = type(a)(value=res.value, exp=res.exp * exp)
+        if b.denominator != 1 or b < 0:
+            num, den = type(a).rationalize(res / type(a)(), type(a)())
+            if isinstance(num.value, Polynomial):
+                # Perfect square trinomials
+                ok = False
+                if b.numerator == 1 and b.denominator == 2 and len(num.value) == 3:
+                    a, b, c = standard_form(num.value)
+                    root = type(a)(Number(1, 2))
+                    a **= root
+                    for b, c in [(b, c), (c, b)]:
+                        c = (c**root).scale(-1 if b.to_const() < 0 else 1)
+                        if (a + c) ** root.inv == num:
+                            num = a + c
+                            if exp < 0:
+                                num = type(a)(
+                                    value=num.value, exp=num.exp * exp.numerator
+                                )
+                            ok = True
+                            break
+                if not ok:
+                    num = type(a)(value=num.value, exp=num.exp * exp)
+            else:
+                print(a, b, num, den)
+                num **= type(a)(Number(exp))
+            return num * den ** type(a)(Number(-exp))
         return res
 
     pow.register(polynomial)(Atomic.poly_pow)
@@ -133,10 +162,12 @@ class Polynomial(Collection):
         """Get all the the terms that have a degree equivalent to the leading term's degree"""
         leading = self.leading
         return tuple(
-            standard_form(
-                i
-                for i in self
-                if lexicographic_weight(i, 0) == lexicographic_weight(leading, 0)
+            reversed(
+                standard_form(
+                    i
+                    for i in self
+                    if lexicographic_weight(i, 0) == lexicographic_weight(leading, 0)
+                )
             )
         )
 
@@ -173,14 +204,21 @@ class Polynomial(Collection):
                 res += a * b.inv
                 break
             for leading_a in a.value.leading_options():
-                fac = leading_a / leading_b
-                if not fac.remainder.value:
+                if not (fac := leading_a / leading_b).fractional.value:
                     break
             else:
+                # Has to be a non-terminating polynomial division
+                # E.g (-a^3 + ab)/(b - a) => (b^2 + a^2 + ab + (-b^3 + ab)/(b - a))
+                # The remainder gets a higher degree than the divisor.
+                # But trying to simplify (-b^3 + ab)/(b - a) => (-b^2 - a^2 - ab + (-a^3 + ab)/(b - a))
+                # And so on (-a^3 + ab)/(b - a) => (b^2 + a^2 + ab + (-b^3 + ab)/(b - a))
+                if lexicographic_weight(leading_a, 0) > lexicographic_weight(
+                    leading_b, 0
+                ):
+                    return Product.resolve(org, b.inv)
                 if not res.value and options_b:
                     leading_b = options_b.pop()
                     a = org
-                    res = Term(Number(0))
                     continue
                 res += Product.resolve(a, b.inv)
                 break
@@ -198,6 +236,12 @@ class Polynomial(Collection):
 
         if not isinstance(a.value, Polynomial):
             return a * b.inv
+        if a.exp != 1 and a.exp == b.exp:
+            return (
+                Polynomial.long_division(type(a)(value=a.value), type(b)(value=b.value))
+                ** type(a)(value=a.exp)
+            ).scale(a.coef / b.coef)
+        # TODO: Make this degree based
         if lexicographic_weight(b, 0) > lexicographic_weight(a, 0) and isinstance(
             b.value, Polynomial
         ):

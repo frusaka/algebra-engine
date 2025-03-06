@@ -8,10 +8,13 @@ from utils import ineq_to_range
 class Range(Collection):
     """A prettifier for inequality solutions"""
 
-    def __new__(cls, ineqs: Sequence[Comparison], continuous=False):
+    def __new__(cls, ineqs: Sequence[Comparison] = tuple(), continuous=False):
         obj = super().__new__(cls, ineqs)
         object.__setattr__(obj, "continuous", continuous)
         return obj
+
+    def __bool__(self):
+        return True
 
     def __str__(self) -> str:
         ineq1, ineq2 = self

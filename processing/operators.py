@@ -34,44 +34,31 @@ def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparis
     return Interpreter().eval(AST(val.format_map(mapping)))
 
 
-def log_extr(sol) -> bool:
-    print(
-        f"Extraneous: {sol}".join(("\033[31m", "\033[0m")),
-        sep="\n",
-    )
-    return False
-
-
 def validate_solution(
     org: System | Comparison, sol: System | Comparison, mapping: dict
 ) -> bool:
     try:
-        if not subs(org.normalize(), mapping):
-            return log_extr(sol)
-        if isinstance(sol, Comparison) and not sol:
-            if not isinstance(sol.left.value, Variable):
-                return log_extr(sol)
-            if sol.rel in {CompRel.LT, CompRel.GT}:
-                print(f"Boundary: {sol}".join(("\033[33m", "\033[0m")))
+        if not (subs(org.normalize(), mapping) if mapping else sol.normalize(False)):
+            title = "Extraneous" if mapping else "Contradiction"
+            print(f"{title}: {sol}".join(("\033[31m", "\033[0m")))
+            return False
         return True
     except ZeroDivisionError:
         print(f"Zero division: {sol}".join(("\033[31m", "\033[0m")))
+    except AttributeError:
+        print(f"Malformed: {sol}".join(("\033[31m", "\033[0m")))
     return False
 
 
 @lru_cache
 def solve(
-    var: Variable | tuple[Variable], comp: Comparison | System, finalize=True
+    var: Variable | tuple[Variable], comp: Comparison | System
 ) -> Comparison | System:
     res = comp[var]
     if res is None:
         return Comparison(var, None)
-    if finalize:
-        print(
-            f"Verifying solution{"s"*(isinstance(res, System))}...".join(
-                ("\033[34m", "\033[0m")
-            )
-        )
+    s = "s" * isinstance(res, System)
+    print(f"Verifying solution{s}...".join(("\033[34m", "\033[0m")))
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
     # Nested System: multple solution
@@ -83,38 +70,52 @@ def solve(
                 if validate_solution(comp, i, dict((j.left.value, j.right) for j in i)):
                     res.add(
                         tuple(
-                            next(j.right for j in i if j.left.value == k) for k in var
+                            j.right
+                            for j in sorted(i, key=lambda k: var.index(k.left.value))
                         )
                     )
             if len(res) == 1:
                 return Comparison(var, res.pop())
             if not res:
-                return Comparison(var, None)
+                return Comparison(var, Collection())
             return Comparison(var, Collection(res))
         if not validate_solution(comp, res, dict((j.left.value, j.right) for j in res)):
-            return Comparison(var, None)
+            return Comparison(var, Collection())
         return Comparison(
-            var, tuple(next(j.right for j in res if j.left.value == k) for k in var)
+            var,
+            tuple(j.right for j in sorted(res, key=lambda k: var.index(k.left.value))),
         )
     sol = set(res) if isinstance(res, System) else {res}
     # Verify Solutions
     for i in tuple(sol):
-        if not validate_solution(comp, i, {var: i.right}):
+        if not validate_solution(
+            comp, i, {var: i.right} if i.left.value == var else {}
+        ):
             sol.remove(i)
     if len(sol) == 1:
         sol = sol.pop()
-        # Infinite solutions
-        if sol:
-            return Comparison(var, "Any")
         # One solution
-        elif var in sol:
-            if finalize:
-                return Comparison(var, sol.right, sol.rel)
-            return sol
+        if var in sol:
+            return Comparison(var, sol.right, sol.rel)
+        # Infinite solutions
+        if sol.normalize(0):
+            if sol.rel is CompRel.EQ or var not in comp:
+                return Comparison(var, Collection("ℂ"))
+            return Comparison(var, Collection("ℝ"))
         sol = None
+    # Making sense of perfect radical solutions
+    elif len({i.right for i in sol}) == 1:
+        if comp.rel is CompRel.LE:
+            return Comparison(var, sol.pop().right)
+        if comp.rel is CompRel.GT:
+            return Comparison(var, sol.pop().right, CompRel.NE)
+        if comp.rel is CompRel.GE:
+            return Comparison(var, Collection("ℝ"))
+        sol = None
+
     # No solutions
     if not sol:
-        return Comparison(var, None)
+        return Comparison(var, Collection())
     # Multiple solutions
     if comp.rel is CompRel.EQ:
         return Comparison(var, Collection(i.right for i in sol))
@@ -126,7 +127,7 @@ def root(a: Term, b: Term) -> Term:
 
 
 def bool(a: Term | Comparison) -> bool:
-    return getattr(a, "__bool__", lambda: a.value != 0)()
+    return a.__bool__()
 
 
 def ratio(a: Term, b: Term) -> Term:

@@ -81,10 +81,10 @@ class Parser:
             self.operator_error(oper)
         if oper.type in (TokenType.NEG, TokenType.POS, TokenType.BOOL):
             if oper.type is TokenType.BOOL:
-                if (
+                if not (
                     isinstance(left, frozenset)
                     or isinstance(left, Binary)
-                    and left.oper.priority != 4
+                    and left.oper.priority == 4
                 ):
                     raise SyntaxError("truth evluation expected (in)equalities")
             elif (

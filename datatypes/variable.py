@@ -1,7 +1,8 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from .bases import Unknown, Atomic
 from utils import *
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .term import Term

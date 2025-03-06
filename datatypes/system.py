@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Sequence
 
 from utils import difficulty_weight
 
@@ -6,8 +7,6 @@ from .collection import Collection
 from .variable import Variable
 from .term import Term
 from .number import Number
-
-from typing import Sequence
 
 
 def plus_minus_key(t: Term) -> Term:
@@ -21,17 +20,15 @@ class System(Collection):
 
     def __getitem__(self, vals: Sequence[Variable]) -> System:
         """Solve for a system of (in)equalities"""
-        from processing import solve, subs
-        from .comparison import Comparison
+        from processing import subs
 
         # Assumeably from internal solving process
         if isinstance(vals, Variable):
             print(self)
             return self
-        eqns = list(self)
         eqns = sorted(
             self,
-            key=lambda eqn: difficulty_weight(eqn.left + eqn.right),
+            key=lambda eqn: difficulty_weight(eqn.normalize().left),
         )
         print(vals, "→", end=" ")
         if isinstance(vals, str):
@@ -39,11 +36,11 @@ class System(Collection):
         # Solve for each variable separately
         for v in vals:
             print(System.__str__(eqns))
-            if isinstance(eqns, System):
-                eqns = System(eqn[str(v)] for eqn in eqns)
+            if isinstance(eqns[0], System):
+                eqns = list(eqn[str(v)] for eqn in eqns)
                 # Flatten when necessary (most cases)
                 if isinstance(next(iter(next(iter(eqns)))), System):
-                    eqns = System(j for i in eqns for j in i)
+                    eqns = list(j for i in eqns for j in i)
                 continue
             # Find an (in)equality with an independent target variable
             for idx, org in enumerate(eqns):
@@ -57,34 +54,32 @@ class System(Collection):
                     f"Could not find independent equation containing '{v}'"
                 )
             print(v, "→", org)
-            eqn = solve(v, org, 0)
+            eqn = org[v]
+            eqns.pop(idx)
             old = v.join(("\033[31m", "\033[0m"))
-            if isinstance(eqn.right, Collection):
-                new = ", ".join(str(i).join(("\033[32m", "\033[0m")) for i in eqn.right)
+            if isinstance(eqn, System):
+                new = ", ".join(str(i.right).join(("\033[32m", "\033[0m")) for i in eqn)
                 print(f"Substitute {old} with {new}")
-                for i in range(len(eqns)):
-                    if i == idx:
-                        continue
-                    eqns[i] = System(
-                        System({Comparison(Term(value=v), j), subs(eqns[i], {v: j})})
-                        for j in eqn.right
+                eqns = [
+                    System(
+                        res | {j}
+                        if isinstance(res := subs(System(eqns), {v: j.right}), System)
+                        else {res, j}
                     )
-                eqns.pop(idx)
+                    for j in eqn
+                ]
                 if len(eqns) == 1:
-                    eqns = eqns.pop()
-
+                    eqns = list(eqns[0])
             else:
-                if eqn.right is None:
-                    return
+                # Need a check for infinite solutions
+                if eqn.left.value != v:
+                    return System(eqns + [eqn])
                 # Substitute in the rest of equations
                 new = str(eqn.right).join(("\033[32m", "\033[0m"))
                 print(f"Substitute {old} with {new}")
                 for i in range(len(eqns)):
-                    if i == idx:
-                        continue
                     eqns[i] = subs(eqns[i], {v: eqn.right})
                 # Put the newly solved equation at the end
-                eqns.pop(idx)
                 eqns.append(eqn)
         print(System.__str__(eqns))
         if len(eqns) == 1:
@@ -97,11 +92,11 @@ class System(Collection):
     def __str__(self) -> str:
         res = []
         for i in self:
-            if isinstance(i, type(self)):
+            if isinstance(i, frozenset):
                 res.append(str(i).join("()"))
             else:
                 res.append(str(i))
         return "; ".join(res)
 
-    def normalize(self) -> System:
-        return System(i.normalize() for i in self)
+    def normalize(self, weaken=True) -> System:
+        return System(i.normalize(weaken) for i in self)

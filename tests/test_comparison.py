@@ -302,12 +302,12 @@ def test_solve_edge(processor):
     # Extraneous solutions
     assert processor.eval("x -> 2x - 2√x = 6").right == Term(Number(4))
     # Infinite Solutions
-    assert processor.eval("x -> 0x = 0").right == "Any"
-    assert processor.eval("x -> x + 4 = x + 4").right == "Any"
-    assert processor.eval("x -> x - 2 > x - 4").right == "Any"
+    assert processor.eval("x -> 0x = 0").right == Collection({"ℂ"})
+    assert processor.eval("x -> x + 4 = x + 4").right == Collection({"ℂ"})
+    assert processor.eval("x -> x - 2 > x - 4").right == Collection({"ℝ"})
     # No Solutions
-    assert processor.eval("x -> x + 2 = x - 4").right is None
-    assert processor.eval("x -> x > x").right is None
+    assert not processor.eval("x -> x + 2 = x - 4").right
+    assert not processor.eval("x -> x > x").right
 
 
 def test_solve_complex(processor):

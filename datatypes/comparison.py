@@ -166,7 +166,7 @@ class Comparison:
         rhs = self.right**value
         # plus/minus trick for even roots
         if (
-            rhs.value != 0
+            (rhs.value != 0 or self.rel is not CompRel.EQ)
             and value.exp == 1
             and isinstance(value.value, Number)
             and not value.value.denominator % 2
@@ -202,10 +202,12 @@ class Comparison:
         """A convinent method to show the user the solving process"""
         print(" " * str(self).index(str(self.rel)), operator + " ", value, sep="")
 
-    def normalize(self) -> Comparison:
+    def normalize(self, weaken=True) -> Comparison:
         """Put all terms on the lhs"""
+        from processing import ratio
+
         return Comparison(
-            self.left - self.right,
+            ratio(self.left - self.right, Term()),
             Term(Number(0)),
-            getattr(CompRel, self.rel.name.replace("T", "E")),
+            CompRel.EQ if weaken else self.rel,
         )

@@ -188,18 +188,18 @@ def test_divide_multivariate(processor):
     assert processor.eval("((x-y)/(x+y))^2 + ((x+y)/(x-y))^2")==Term(
         value=Polynomial([
         Term(Number(2)),
-        Term(Number(-16),
+        Term(Number(16),
             Product([
                 Term(value=Variable("x"),exp=Number(2)),
                 Term(value=Variable("y"),exp=Number(2)),
                 Term(value=Polynomial([
-                        Term(Number(2),
+                        Term(value=Variable("y"),exp=Number(4)),
+                        Term(value=Variable("x"),exp=Number(4)),
+                        Term(Number(-2),
                             Product([
                                 Term(value=Variable("x"),exp=Number(2)),
                                 Term(value=Variable("y"),exp=Number(2)),
                         ])),
-                        Term(Number(-1),Variable("x"),Number(4)),
-                        Term(Number(-1),Variable("y"),Number(4)),
                     ]),
                     exp=Number(-1))
         ]))

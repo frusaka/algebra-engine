@@ -7,4 +7,4 @@
     3x/(x^3 + 6x^2)
 5. Implement Polynomial division without cancelling common terms
 6. Enhace Systems solver for edge cases
-7. Fails:(a-2b)^2/(a+b^2) -> RecursionError
+7. Make long-division degree-based

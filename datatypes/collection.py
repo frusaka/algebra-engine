@@ -1,6 +1,6 @@
 from __future__ import annotations
-from .bases import *
 from typing import Generator, TYPE_CHECKING
+from .bases import *
 
 if TYPE_CHECKING:
     from .term import Term
@@ -15,6 +15,10 @@ class Collection(Unknown, frozenset, Atomic):
         return frozenset.__hash__(self)
 
     def __str__(self):
+        if not self:
+            return "∅"
+        if len(self) == 1:
+            return str(next(iter(self)))
         return ", ".join(str(i) for i in self).join("{}")
 
     @classmethod

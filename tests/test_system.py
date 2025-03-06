@@ -119,6 +119,17 @@ def test_solve_quadratic_linear(processor):
             }
         ),
     )
+    assert processor.eval(
+        "(x, y, z) -> xy = z; x + y = -7; x + z = -3y - 1"
+    ) == Comparison(
+        (x, y, z),
+        Collection(
+            {
+                (Term(Number(-4)), Term(Number(-3)), Term(Number(12))),
+                (Term(Number(-5)), Term(Number(-2)), Term(Number(10))),
+            }
+        ),
+    )
 
 
 def test_solve_2_quadratic(processor):

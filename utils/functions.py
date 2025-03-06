@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 @cache
 def lexicographic_weight(term: Term, alphabetic=True) -> Number:
-    from datatypes import Number, Variable, Collection
+    from datatypes import Number, Variable, Collection, Product
 
     if not isinstance(term.exp, Number) or (
         isinstance(term.value, Number) and term.exp == 1
@@ -19,18 +19,22 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
 
     if isinstance(term.value, Collection) and term.exp == 1:
         if alphabetic and term.fractional.value:
-            return res - 10000
+            return res - 100
         # Calling sum() does not work
         seen = {}
         for t in term.value:
             if not isinstance(t.exp, Number):
                 continue
-            seen[t.value] = max(
-                lexicographic_weight(t, alphabetic), seen.get(t.value, res)
-            )
+            v = lexicographic_weight(t, 0)
+            if alphabetic:
+                ext = lexicographic_weight(t, 1) - v
+                if isinstance(term.value, Product):
+                    v *= 0.9
+                    ext *= 0.6
+                v += ext
+            seen[t.value] = max(v, seen.get(t.value, res))
         for i in seen.values():
             res += i
-
         return res
     res = term.exp
     if isinstance(term.value, Variable) and alphabetic:
@@ -89,10 +93,10 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
 
 
 def quadratic_formula(a: Term, b: Term, c: Term) -> tuple[Term]:
-    """Apply the quadratic formula: (-b ± (b^2 - 4ac))/2a"""
+    """Apply the quadratic formula"""
     from datatypes import Term, Number
 
-    print(f"q(a={a}, b={b}, c={c})", "(-b ± 2√(b^2 - 4ac))/2a", sep=" = ")
+    print(f"quadratic({a=}, {b=}, {c=})")
     discr = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number(1, 2))
     den = Term(Number(2)) * a
     return (-b + discr) / den, (-b - discr) / den
@@ -152,13 +156,14 @@ def difficulty_weight(term: Term) -> int:
     res = 0
 
     if isinstance(term.value, Collection) and term.exp == 1:
-        if isinstance(term.value, Product):
-            res += len(term.value) * 0.65
         seen = {}
         for t in term.value:
             if not isinstance(t.exp, Number):
                 seen[t] = 10
                 continue
             seen[t.value] = max(difficulty_weight(t), seen.get(t.value, res))
-        return sum(seen.values())
+        res += sum(seen.values())
+        if isinstance(term.value, Product):
+            res *= 1.6
+        return res
     return abs(term.exp.numerator * term.exp.denominator)
