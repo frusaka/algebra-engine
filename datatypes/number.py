@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from functools import lru_cache
 import math
 from typing import Any, SupportsFloat, SupportsComplex, TYPE_CHECKING
 from .bases import Atomic, Fraction
@@ -21,29 +22,25 @@ class Number(Atomic):
     numerator: SupportsFloat | SupportsComplex | str
     denominator: SupportsFloat
 
+    @lru_cache
     def __new__(
         cls,
         numerator: SupportsFloat | SupportsComplex | str = 0,
         denominator: SupportsFloat = 1,
     ) -> Number:
         obj = super().__new__(cls)
-        if isinstance(numerator, complex) and numerator.imag:
-            real = Fraction(Fraction(numerator.real), Fraction(denominator))
-            imag = Fraction(Fraction(numerator.imag), Fraction(denominator))
-            den = math.lcm(real.denominator, imag.denominator)
-            object.__setattr__(
-                obj,
-                "numerator",
-                complex(
-                    (den // real.denominator) * real.numerator,
-                    (den // imag.denominator) * imag.numerator,
-                ),
-            )
-            object.__setattr__(obj, "denominator", den)
+        if numerator.__class__ is complex and numerator.imag:
+            if (
+                gcd := math.gcd(denominator, int(numerator.real), int(numerator.imag))
+            ) != 1:
+                numerator /= gcd
+                denominator //= gcd
+            object.__setattr__(obj, "numerator", numerator)
+            object.__setattr__(obj, "denominator", denominator)
             return obj
-        if isinstance(numerator, complex):
+        if numerator.__class__ is complex:
             numerator = numerator.real
-        val = Fraction(Fraction(numerator), Fraction(denominator))
+        val = Fraction(numerator) / denominator
         object.__setattr__(obj, "numerator", val.numerator)
         object.__setattr__(obj, "denominator", val.denominator)
         return obj
@@ -58,44 +55,46 @@ class Number(Atomic):
             res = res.replace("1i", "i")
         return res
 
-    def __add__(self, other: Number | SupportsFloat | SupportsComplex) -> Number:
-        if not isinstance(other, Number):
-            return self + Number(other)
-        den = math.lcm(self.denominator, other.denominator)
-        num_a = (den // self.denominator) * self.numerator
-        num_b = (den // other.denominator) * other.numerator
-        return Number(num_a + num_b, den)
-
-    def __sub__(self, other: Number | SupportsFloat | SupportsComplex) -> Number:
-        return self + -other
-
-    def __mul__(self, other: Number | SupportsFloat | SupportsComplex) -> Number:
-        if not isinstance(other, Number):
-            return self * Number(other)
+    def __add__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
+        if not value.__class__ is Number:
+            value = Number(value)
+        den = math.lcm(self.denominator, value.denominator)
         return Number(
-            self.numerator * other.numerator, self.denominator * other.denominator
+            (den // self.denominator) * self.numerator
+            + (den // value.denominator) * value.numerator,
+            den,
         )
 
-    def __truediv__(self, other: Number | SupportsFloat | SupportsComplex) -> Number:
-        if not isinstance(other, Number):
-            return self / Number(other)
-        num = self.numerator * other.denominator
-        den = self.denominator * other.numerator
+    def __sub__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
+        return self + -value
+
+    def __mul__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
+        if not value.__class__ is Number:
+            value = Number(value)
+        return Number(
+            self.numerator * value.numerator, self.denominator * value.denominator
+        )
+
+    def __truediv__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
+        if not value.__class__ is Number:
+            value = Number(value)
+        num = self.numerator * value.denominator
+        den = self.denominator * value.numerator
         if den.imag:
             conjugate = complex(den.real, -den.imag)
             num *= conjugate
             den *= conjugate
-            return Number(num, den.real)
+            return Number(num, int(den.real))
         return Number(num, den)
 
-    def __pow__(self, other: Number | SupportsFloat | SupportsComplex) -> Number:
-        if not isinstance(other, Number):
-            return self ** Number(other)
-        if other.numerator < 0:
-            return Number(1) / (self**-other)
+    def __pow__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
+        if not value.__class__ is Number:
+            value = Number(value)
+        if value.numerator < 0:
+            return Number(1) / (self**-value)
         # Needs saftey checks. The numerator can be too large.
-        num = self.nth_root(self.numerator**other.numerator, other.denominator)
-        den = self.nth_root(self.denominator**other.numerator, other.denominator)
+        num = self.nth_root(self.numerator**value.numerator, value.denominator)
+        den = self.nth_root(self.denominator**value.numerator, value.denominator)
         num = complex(round(num.real, 10), round(num.imag, 10))
         den = complex(round(den.real, 10), round(den.imag, 10))
         return Number(num) / Number(den)
@@ -112,8 +111,8 @@ class Number(Atomic):
     def __eq__(self, value: Any) -> bool:
         if not isinstance(value, (float, int, complex, Fraction, Number)):
             return False
-        if not isinstance(value, Number):
-            return self == Number(value)
+        if not value.__class__ is Number:
+            value = Number(value)
         return (
             self.numerator == value.numerator and self.denominator == value.denominator
         )
@@ -122,8 +121,8 @@ class Number(Atomic):
         return not self == value
 
     def __gt__(self, value: Number | SupportsFloat | SupportsComplex) -> bool:
-        if not isinstance(value, Number):
-            return self > Number(value)
+        if not value.__class__ is Number:
+            value = Number(value)
         if self.numerator.imag or value.numerator.imag:
             return False
         return Fraction(self.numerator, self.denominator) > Fraction(
@@ -134,8 +133,8 @@ class Number(Atomic):
         return self > value or self == value
 
     def __lt__(self, value: Number | SupportsFloat | SupportsComplex) -> bool:
-        if not isinstance(value, Number):
-            return self < Number(value)
+        if not value.__class__ is Number:
+            value = Number(value)
         if self.numerator.imag or value.numerator.imag:
             return False
         return Fraction(self.numerator, self.denominator) < Fraction(
@@ -147,7 +146,7 @@ class Number(Atomic):
 
     @staticmethod
     def nth_root(x: SupportsFloat | SupportsComplex, n: int) -> float:
-        if not isinstance(x, complex) and n % 2 == 1 and x < 0:
+        if not x.__class__ is complex and n % 2 == 1 and x < 0:
             return -abs(x) ** (1 / n)
         else:
             return x ** (1 / n)
@@ -186,8 +185,8 @@ class Number(Atomic):
             # Radicals that are left as is to preserve accuracy
             if (
                 (a.exp != 1 or b.exp != 1)
-                and isinstance(a.exp, Number)
-                and isinstance(b.exp, Number)
+                and a.exp.__class__ is Number
+                and b.exp.__class__ is Number
             ):
                 if a.value == b.value:
                     return (
@@ -211,7 +210,7 @@ class Number(Atomic):
         c = type(a)(a.coef) ** type(a)(b.to_const())
         v = type(a)(a.value) ** type(a)(b.to_const())
         e = type(a)(value=a.exp) * b.canonical()
-        if isinstance(e.value, Polynomial) and e.exp == 1:
+        if e.value.__class__ is Polynomial and e.exp == 1:
             return Atomic.poly_pow(Proxy(e), v) * c
         return c * type(a)(v.coef, v.value, e.scale(v.exp))
 
@@ -222,7 +221,7 @@ class Number(Atomic):
     @pow.register(number)
     def _(b: Proxy[Term], a: Term) -> Term:
         b = b.value
-        if b.exp == 1 and isinstance(a.exp, Number):
+        if b.exp == 1 and a.exp.__class__ is Number:
             c = a.coef**b.value.numerator
             den = den_a = b.value.denominator
             if a.exp != 1:

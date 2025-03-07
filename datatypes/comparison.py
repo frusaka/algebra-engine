@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from enum import Enum
 
 from .collection import Collection
@@ -10,8 +11,7 @@ from .product import Product
 from .number import Number
 from .variable import Variable
 from .term import Term
-from utils.constants import SYMBOLS
-from utils import quadratic, quadratic_formula
+from utils import quadratic, SYMBOLS
 
 
 class CompRel(Enum):
@@ -41,26 +41,29 @@ class Comparison:
 
     def __str__(self) -> str:
         rel = self.rel
-        if isinstance(self.right, Collection):
+        if self.right.__class__ is Collection:
             rel = "∈"
         return "{0} {2} {1}".format(self.left, self.right, rel)
 
+    @lru_cache
     def __getitem__(self, value: Variable) -> Comparison:
         """
         This method will be called when solving for a variable
         """
         # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
         print(self)
-        if not (value in self.left or value in self.right):
+        if value not in self:
             return self
 
         # Rewrite the comparison to put the target variable on the left
         if value in self.right and not value in self.left:
             self = self.reverse()
             print(self)
-
+        # Power lhs if it is a radical
+        if value in self.left and (exp := self.left.exp_const().denominator) != 1:
+            return (self ** Term(Number(exp)))[value]
         # Moving target terms to the left
-        if isinstance(self.right.value, Polynomial):
+        if self.right.value.__class__ is Polynomial:
             if value in self.right:
                 if self.right.exp != 1:
                     return self.reverse_sub(self.right)[value]
@@ -78,18 +81,22 @@ class Comparison:
                 raise NotImplementedError("Cannot isolate variable from exponent")
             return (self**exp)[value]
 
-        if isinstance(self.left.value, Polynomial):
+        if self.left.value.__class__ is Polynomial:
             # Brute-force factorization
-            t = self.left / Term(value=value, exp=self.left.get_exp(value))
-            if not value in t:
-                return self.reverse_div(t)[value]
+
+            if (gcd := self.left.value.gcd()).value != 1:
+                if value not in (t := self.left / gcd):
+                    return self.reverse_div(t)[value]
+                elif value not in gcd:
+                    return self.reverse_div(gcd)[value]
+
             remove = None
             for i in self.left.value:
                 if not value in i:
                     remove = i  # Not moving it yet, need to check for quadratics
                     continue
                 # Term is in a fraction
-                if isinstance(i.value, Product):
+                if i.value.__class__ is Product:
                     for t in i.value:
                         if t.exp_const() < 0:
                             return (self * t.inv)[value]
@@ -105,8 +112,8 @@ class Comparison:
                     )[value]
 
             # Solving using the quadratic formuala
-            if (res := quadratic(self, value)) is not None:
-                pos, neg = quadratic_formula(*res)
+            if res := quadratic(self, value):
+                pos, neg = res
                 lhs = Term(value=value)
                 if pos == neg and self.rel is CompRel.EQ:
                     res = Comparison(lhs, pos, self.rel)
@@ -124,7 +131,7 @@ class Comparison:
                 return self.reverse_sub(remove)[value]
 
         # Isolation by division
-        if isinstance(self.left.value, Product):
+        if self.left.value.__class__ is Product:
             for t in self.left.value:
                 exp = t.exp_const()
                 if not value in t or exp < 0:
@@ -168,7 +175,7 @@ class Comparison:
         if (
             (rhs.value != 0 or self.rel is not CompRel.EQ)
             and value.exp == 1
-            and isinstance(value.value, Number)
+            and value.value.__class__ is Number
             and not value.value.denominator % 2
         ):
             return System(
@@ -200,7 +207,7 @@ class Comparison:
 
     def show_operation(self, operator: str, value: Term) -> None:
         """A convinent method to show the user the solving process"""
-        print(" " * str(self).index(str(self.rel)), operator + " ", value, sep="")
+        print(" " * (len(str(self.left)) + 1), operator + " ", value, sep="")
 
     def normalize(self, weaken=True) -> Comparison:
         """Put all terms on the lhs"""

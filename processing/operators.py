@@ -50,7 +50,7 @@ def validate_solution(
     return False
 
 
-@lru_cache
+@lru_cache(maxsize=20)
 def solve(
     var: Variable | tuple[Variable], comp: Comparison | System
 ) -> Comparison | System:

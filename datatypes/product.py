@@ -62,8 +62,10 @@ class Product(Collection):
         from .polynomial import Polynomial
 
         # Expanding fractional polynomials
-        if isinstance(a.denominator.value, Polynomial) or isinstance(
-            b.denominator.value, Polynomial
+        if (
+            (a.denominator.value.__class__ is Polynomial and a.denominator.exp == 1)
+            or b.denominator.value.__class__ is Polynomial
+            and b.denominator.exp == 1
         ):
             num = a.numerator * b.numerator
             den = a.denominator * b.denominator
@@ -128,7 +130,7 @@ class Product(Collection):
         c = Number(1)
         if b.value == 1:
             return c, objs
-        rem = set(b.value) if isinstance(b.value, Product) else {b}
+        rem = set(b.value) if b.value.__class__ is Product else {b}
         for a in tuple(objs):
             for b in tuple(rem):
                 if not objs:

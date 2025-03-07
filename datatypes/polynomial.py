@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Generator, Sequence, TYPE_CHECKING
 from collections import defaultdict
-from functools import cache, cached_property
+from functools import cache, cached_property, lru_cache
 import itertools
 from .bases import Atomic
 from .collection import Collection
@@ -71,7 +71,7 @@ class Polynomial(Collection):
             return type(a)(
                 a.coef * b.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp)
             )
-        if isinstance(b.value, Polynomial) and b.exp == 1:
+        if b.value.__class__ is Polynomial and b.exp == 1:
             return b * a
         if a.exp == b.exp:
             return (
@@ -82,14 +82,14 @@ class Polynomial(Collection):
         # Multiplication with a fraction Polynomial
         if a.exp == -1:
             num, den = a.rationalize(b, a.inv)
-            if isinstance(num.value, Polynomial):
+            if num.value.__class__ is Polynomial:
                 return num / den  # -> Will perform long division
-            if isinstance(num.value, Number) and num.exp == 1:
+            if num.value.__class__ is Number and num.exp == 1:
                 return type(a)(num.value, den.value, a.exp)
             return Product.resolve(num, den.inv)
 
         # Scalar multiplication
-        if isinstance(b.value, Number) and b.exp == 1:
+        if b.value.__class__ is Number and b.exp == 1:
             return a.scale(b.value)
 
     @dispatch
@@ -126,27 +126,15 @@ class Polynomial(Collection):
             exp = -exp
         if b.denominator != 1 or b < 0:
             num, den = type(a).rationalize(res / type(a)(), type(a)())
-            if isinstance(num.value, Polynomial):
+            if num.value.__class__ is Polynomial:
                 # Perfect square trinomials
-                ok = False
-                if b.numerator == 1 and b.denominator == 2 and len(num.value) == 3:
-                    a, b, c = standard_form(num.value)
-                    root = type(a)(Number(1, 2))
-                    a **= root
-                    for b, c in [(b, c), (c, b)]:
-                        c = (c**root).scale(-1 if b.to_const() < 0 else 1)
-                        if (a + c) ** root.inv == num:
-                            num = a + c
-                            if exp < 0:
-                                num = type(a)(
-                                    value=num.value, exp=num.exp * exp.numerator
-                                )
-                            ok = True
-                            break
-                if not ok:
+                if b.denominator == 2 and (v := perfect_square(num.value)):
+                    num = v
+                    if exp < 0:
+                        num = type(a)(value=num.value, exp=num.exp * exp.numerator)
+                else:
                     num = type(a)(value=num.value, exp=num.exp * exp)
             else:
-                print(a, b, num, den)
                 num **= type(a)(Number(exp))
             return num * den ** type(a)(Number(-exp))
         return res
@@ -186,13 +174,13 @@ class Polynomial(Collection):
         from .product import Product
         from .term import Term
 
-        if a.exp != 1 or not isinstance(b.exp, Number):
-            if isinstance(b.value, Number) and b.exp == 1:
+        if a.exp != 1 or not b.exp.__class__ is Number:
+            if b.value.__class__ is Number and b.exp == 1:
                 return a.scale(b.inv.value)
             return Product.resolve(a, b.inv)
         leading_b = b
         options_b = []
-        if isinstance(b.value, Polynomial):
+        if b.value.__class__ is Polynomial:
             options_b = list(b.value.leading_options())
             leading_b = options_b.pop()
 
@@ -200,7 +188,7 @@ class Polynomial(Collection):
         res = Term(Number(0))
         while a.value:
             # Remainder
-            if not isinstance(a.value, Polynomial) or a.exp != 1:
+            if not a.value.__class__ is Polynomial or a.exp != 1:
                 res += a * b.inv
                 break
             for leading_a in a.value.leading_options():
@@ -227,14 +215,13 @@ class Polynomial(Collection):
         return res
 
     @staticmethod
-    @cache
     def long_division(a: Term, b: Term) -> Term:
         """
         Perform Polynomial division on `a` with `b`, no matter which one has a higher degree.
         """
         from .product import Product
 
-        if not isinstance(a.value, Polynomial):
+        if not a.value.__class__ is Polynomial:
             return a * b.inv
         if a.exp != 1 and a.exp == b.exp:
             return (
@@ -242,19 +229,21 @@ class Polynomial(Collection):
                 ** type(a)(value=a.exp)
             ).scale(a.coef / b.coef)
         # TODO: Make this degree based
-        if lexicographic_weight(b, 0) > lexicographic_weight(a, 0) and isinstance(
-            b.value, Polynomial
+        if (
+            lexicographic_weight(b, 0) > lexicographic_weight(a, 0)
+            and b.value.__class__ is Polynomial
         ):
             res = Polynomial._long_division(b, a)
             a, b = a.rationalize(type(a)(), res)
-            if not isinstance(a.value, Polynomial):
+            if not a.value.__class__ is Polynomial:
                 return a * b.inv
             return Product.resolve(a, b.inv)
         res = Polynomial._long_division(a, b)
         # Basic super-simplification of remainders
         # E.g ((x-3)(x+3))/(x-3)^2 => 1 + 6/(x-3)
-        if isinstance(res.value, Polynomial) and isinstance(
-            res.remainder.value, Polynomial
+        if (
+            res.value.__class__ is Polynomial
+            and res.remainder.value.__class__ is Polynomial
         ):
             rem = res.remainder
             res -= res.fractional
@@ -273,7 +262,7 @@ class Polynomial(Collection):
             if t.value == 0:
                 continue
             # Symbolic fractions
-            if not isinstance(t.denominator.value, Number) or t.denominator.exp != 1:
+            if not t.denominator.value.__class__ is Number or t.denominator.exp != 1:
                 fracs[t.canonical()] += t.to_const()
             else:
                 res[t.canonical()] += t.to_const()

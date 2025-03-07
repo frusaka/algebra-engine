@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import lru_cache
 from typing import Sequence
 
 from utils import difficulty_weight
@@ -10,7 +11,7 @@ from .number import Number
 
 
 def plus_minus_key(t: Term) -> Term:
-    if not isinstance(t.value, Number) or not t.value.numerator.imag:
+    if not t.value.__class__ is Number or not t.value.numerator.imag:
         return abs(t)
     return t
 
@@ -18,28 +19,41 @@ def plus_minus_key(t: Term) -> Term:
 class System(Collection):
     """A system of equations or inequalities"""
 
+    @lru_cache
     def __getitem__(self, vals: Sequence[Variable]) -> System:
         """Solve for a system of (in)equalities"""
         from processing import subs
 
         # Assumeably from internal solving process
-        if isinstance(vals, Variable):
+        if vals.__class__ is Variable:
             print(self)
             return self
         eqns = sorted(
             self,
             key=lambda eqn: difficulty_weight(eqn.normalize().left),
         )
-        print(vals, "→", end=" ")
-        if isinstance(vals, str):
+
+        if vals.__class__ is str:
             vals = (Variable(vals),)
         # Solve for each variable separately
         for v in vals:
             print(System.__str__(eqns))
-            if isinstance(eqns[0], System):
-                eqns = list(eqn[str(v)] for eqn in eqns)
+            if eqns[0].__class__ is System:
+                eqns = list(
+                    (
+                        print(
+                            f"(Start Branch)\n".join(("\033[30m", "\033[0m")),
+                            f"{v} →",
+                            end=" ",
+                            sep="",
+                        ),
+                        eqn[str(v)],
+                        print("(End Branch)".join(("\033[30m", "\033[0m"))),
+                    )[1]
+                    for eqn in eqns
+                )
                 # Flatten when necessary (most cases)
-                if isinstance(next(iter(next(iter(eqns)))), System):
+                if next(iter(next(iter(eqns)))).__class__ is System:
                     eqns = list(j for i in eqns for j in i)
                 continue
             # Find an (in)equality with an independent target variable
@@ -53,17 +67,18 @@ class System(Collection):
                 raise ValueError(
                     f"Could not find independent equation containing '{v}'"
                 )
-            print(v, "→", org)
+            if len(vals) - 1:
+                print(v, "→", org)
             eqn = org[v]
             eqns.pop(idx)
             old = v.join(("\033[31m", "\033[0m"))
-            if isinstance(eqn, System):
+            if eqn.__class__ is System:
                 new = ", ".join(str(i.right).join(("\033[32m", "\033[0m")) for i in eqn)
                 print(f"Substitute {old} with {new}")
                 eqns = [
                     System(
                         res | {j}
-                        if isinstance(res := subs(System(eqns), {v: j.right}), System)
+                        if (res := subs(System(eqns), {v: j.right})).__class__ is System
                         else {res, j}
                     )
                     for j in eqn
@@ -92,7 +107,7 @@ class System(Collection):
     def __str__(self) -> str:
         res = []
         for i in self:
-            if isinstance(i, frozenset):
+            if i.__class__ is System:
                 res.append(str(i).join("()"))
             else:
                 res.append(str(i))

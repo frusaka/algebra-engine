@@ -1,4 +1,5 @@
 from .classes import *
-from .output import *
+from .print_ import *
 from .functions import *
+from .analysis import *
 from .constants import *

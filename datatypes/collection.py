@@ -24,7 +24,7 @@ class Collection(Unknown, frozenset, Atomic):
     @classmethod
     def flatten(cls, term: Term) -> Generator[Term, None, None]:
         """Unnest the given term if the type matches the `cls`"""
-        if term.exp != 1 or not isinstance(term.value, cls):
+        if term.exp != 1 or not term.value.__class__ is cls:
             yield term
             return
 

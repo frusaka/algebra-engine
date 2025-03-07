@@ -1,9 +1,8 @@
 from __future__ import annotations
 from typing import Any
 from dataclasses import dataclass
-from functools import cache, cached_property
+from functools import cache, cached_property, lru_cache
 import math
-from .bases import Atomic
 from .number import Number
 from .variable import Variable
 from .collection import Collection
@@ -25,12 +24,13 @@ class Term:
     value: Number | Variable | Product | Polynomial
     exp: Number | Term
 
+    @lru_cache(maxsize=500)
     def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)) -> Term:
-        if isinstance(value, Term):
+        if value.__class__ is Term:
             return value
         obj = super().__new__(cls)
         # Cases when operations with exponents simplify to a constant
-        if isinstance(exp, Term) and isinstance(exp.value, Number) and exp.exp == 1:
+        if exp.__class__ is Term and exp.value.__class__ is Number and exp.exp == 1:
             exp = exp.value
         # Aplying basic known algebraic rules to validate the term
         if coef == 0 or value == 0:
@@ -53,12 +53,12 @@ class Term:
     def __str__(self) -> str:
         if (
             "/" in str(self.coef)
-            or isinstance(self.value, Product)
-            and not isinstance(self.denominator.value, Number)
+            or self.value.__class__ is Product
+            and not self.denominator.value.__class__ is Number
         ):
             return "{0}/{1}".format(self.numerator, self.denominator)
         # Numbers with symbolic exponents
-        if isinstance(self.value, Number) and self.exp != 1:
+        if self.value.__class__ is Number and self.exp != 1:
             v = str(Term(value="$", exp=self.exp)).replace(
                 "$", v if not "/" in (v := str(self.value)) else v.join("()")
             )
@@ -71,8 +71,9 @@ class Term:
         res = print_coef(self.coef)
         # Cases when a Polynomial or Product has no variable numerator
         # Instead of 3(1/(abc)), prints 3/(abc)
-        if isinstance(self.value, Collection) and isinstance(
-            self.numerator.value, Number
+        if (
+            isinstance(self.value, Collection)
+            and self.numerator.value.__class__ is Number
         ):
             if not res or res == "-":
                 res = str(self.coef)
@@ -96,7 +97,7 @@ class Term:
 
         # Symbolic exponent representation
         exp = str(self.exp)
-        if isinstance(self.exp, Term) and (self.exp.coef != 1 or self.exp.exp != 1):
+        if self.exp.__class__ is Term and (self.exp.coef != 1 or self.exp.exp != 1):
             exp = exp.join("()")
         return "{0}^{1}".format(res, exp)
 
@@ -119,23 +120,23 @@ class Term:
 
     @cache
     def __mul__(a, b: Term) -> Term:
-        if v := a.split_const_from_exp():
+        if a.value.__class__ is Number and (v := a.split_const_from_exp()):
             return b * v * Term(a.coef, a.value, a.exp - Term())
-        if v := b.split_const_from_exp():
+        if b.value.__class__ is Number and (v := b.split_const_from_exp()):
             return a * v * Term(b.coef, b.value, b.exp - Term())
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     @cache
     def __truediv__(a, b: Term) -> Term:
-        if isinstance(a.value, Polynomial):
+        if a.value.__class__ is Polynomial:
             # Light rationalization
             a, b = Term.rationalize(a, b)
             gcd_a = gcd_b = Term()
 
-            if isinstance(a.value, Polynomial) and a.exp == 1:
+            if a.value.__class__ is Polynomial and a.exp == 1:
                 gcd_a = a.value.gcd()
                 a = Polynomial._long_division(a, gcd_a)
-                if isinstance(b.value, Polynomial):
+                if b.value.__class__ is Polynomial:
                     if b.exp == 1:
                         gcd_b = b.value.gcd()
                         b = Polynomial.long_division(b, gcd_b)
@@ -176,10 +177,10 @@ class Term:
         It assumes in the cases of unkowns, get the absolute value of their coefficients.
         This method is not meant to be used outside the internal backend.
         """
-        if not isinstance(self.value, Number) or self.exp != 1:
+        if not self.value.__class__ is Number or self.exp != 1:
             return Term(abs(self.coef), self.value, self.exp)
         if (
-            isinstance(self.value, Polynomial)
+            self.value.__class__ is Polynomial
             and abs(self.exp) == 1
             and next(iter(self.value.leading_options())).to_const() < 0
         ):
@@ -189,7 +190,7 @@ class Term:
     @cache
     def scale(a, b: Number) -> Term:
         """Scale a by constant b"""
-        if isinstance(a.value, Number) and a.exp == 1:
+        if a.value.__class__ is Number and a.exp == 1:
             return Term(a.value * b)
         return Term(a.coef * b, a.value, a.exp)
 
@@ -199,7 +200,7 @@ class Term:
         A minimalist version of the input that has 1 as the coefficient.
         This can be used to group like terms for Polynomials
         """
-        if isinstance(self.value, Number) and self.exp == 1:
+        if self.value.__class__ is Number and self.exp == 1:
             return Term()
         return Term(value=self.value, exp=self.exp)
 
@@ -220,7 +221,7 @@ class Term:
             was_imag = 1
 
         # Get the constants inside a polynomial with a constant exponent
-        if isinstance(self.value, Polynomial) and abs(self.exp) == 1:
+        if self.value.__class__ is Polynomial and abs(self.exp) == 1:
             for i in self.value:
                 res.extend(i.gcd_coefs())
             if self.exp == 1:
@@ -232,9 +233,9 @@ class Term:
     @cached_property
     def numerator(self) -> Term:
         """Get the numerator of a term"""
-        if isinstance(self.value, Product):
+        if self.value.__class__ is Product:
             return self.value.numerator * Term(Number(self.coef.numerator))
-        if isinstance(self.value, Number) and self.exp == 1:
+        if self.value.__class__ is Number and self.exp == 1:
             return Term(Number(self.value.numerator))
         if self.exp_const() > 0:
             return Term(Number(self.to_const().numerator), self.value, self.exp)
@@ -243,9 +244,9 @@ class Term:
     @cached_property
     def denominator(self) -> Term:
         """Get the denominator of a term"""
-        if isinstance(self.value, Product):
+        if self.value.__class__ is Product:
             return self.value.denominator * Term(Number(self.coef.denominator))
-        if isinstance(self.value, Number) and self.exp == 1:
+        if self.value.__class__ is Number and self.exp == 1:
             return Term(Number(self.value.denominator))
         if self.exp_const() < 0:
             return Term(Number(self.coef.denominator), self.value, -self.exp)
@@ -259,11 +260,11 @@ class Term:
     @cached_property
     def fractional(self) -> Term:
         """Get the term with a non-constant denominator"""
-        if not isinstance(self.denominator.value, Number) or self.denominator.exp != 1:
+        if not self.denominator.value.__class__ is Number or self.denominator.exp != 1:
             return self
         if self.exp != 1:
             return Term(Number(0))
-        if isinstance(self.value, Polynomial):
+        if self.value.__class__ is Polynomial:
             for i in self.value:
                 if (r := i.fractional).value:
                     return r
@@ -275,8 +276,8 @@ class Term:
         return self.fractional.numerator
 
     def exp_const(self) -> Number:
-        """Get the constant in a terms exponent"""
-        return self.exp if isinstance(self.exp, Number) else self.exp.coef
+        """Get the constant in a term's exponent"""
+        return self.exp if self.exp.__class__ is Number else self.exp.coef
 
     @cache
     def get_exp(self, value: Variable) -> Number | Term:
@@ -286,12 +287,10 @@ class Term:
         """
         if self.value == value:
             return self.exp
-        if isinstance(self.value, Collection):
+        if isinstance(self.value, Collection) and self.exp == 1:
             for t in self.value:
                 if v := t.get_exp(value):
                     return v
-        if isinstance(self.exp, Term):
-            return self.exp.get_exp(value)
         return Number()
 
     def to_const(self) -> Number:
@@ -299,7 +298,7 @@ class Term:
         Get the constant value associated with a term.
         For a number, itself, and for an unkown, the coefficient
         """
-        if isinstance(self.value, Number) and self.exp == 1:
+        if self.value.__class__ is Number and self.exp == 1:
             return self.value
         return self.coef
 
@@ -308,9 +307,9 @@ class Term:
         If a term is in the form x^(y + n), where n is a constant,
         return x^n
         """
-        if isinstance(self.exp, Number):
+        if self.exp.__class__ is Number:
             return
-        if isinstance(self.exp.value, Polynomial) and self.exp.exp == 1:
+        if self.exp.value.__class__ is Polynomial and self.exp.exp == 1:
             for i in self.exp.value:
                 if i.value == 1:
                     return Term(value=self.value)
@@ -318,7 +317,7 @@ class Term:
     @cache
     def like(self, b: Any, exp=1) -> bool:
         """Determine whether a term is like another"""
-        if not isinstance(b, Term):
+        if not b.__class__ is Term:
             return False
         # Assumes in the case of multiplications, values with the same base are like terms
         if not exp and self.value == b.value:
@@ -326,16 +325,16 @@ class Term:
         # Check list to declare two terms like
         if (
             not self.exp.like(b.exp)
-            or not isinstance(b.value, type(self.value))
+            or not b.value.__class__ is self.value.__class__
             or (exp)
             and (
                 self.exp != b.exp
-                or isinstance(b.value, Number)
+                or b.value.__class__ is Number
                 and (self.exp != 1 and self.value != b.value)
             )
         ):
             return False
-        if not isinstance(b.value, Number):
+        if not b.value.__class__ is Number:
             return self.value == b.value
         return True
 
@@ -352,12 +351,12 @@ class Term:
         a *= den
         b *= den
         # Fractions inside a polynomial
-        if a.exp == 1 and isinstance(a.value, Polynomial):
+        if a.exp == 1 and a.value.__class__ is Polynomial:
             for i in a.value:
                 if i.denominator.value != 1:
                     a *= i.denominator
                     b *= i.denominator
-        if p := b.exp == 1 and isinstance(b.value, Polynomial):
+        if p := b.exp == 1 and b.value.__class__ is Polynomial:
             for i in b.value:
                 if i.denominator.value != 1:
                     a *= i.denominator
@@ -381,10 +380,10 @@ class Term:
         """Greatest Common Divisor of a & b"""
         if lexicographic_weight(b, 0) > lexicographic_weight(a, 0):
             a, b = b, a
-        if isinstance(b.value, Number) and not isinstance(a.value, Number):
+        if b.value.__class__ is Number and not a.value.__class__ is Number:
             return Term()
         # To prevent infinite recursion, call long division when applicable
-        if isinstance(a.value, Polynomial):
+        if a.value.__class__ is Polynomial:
             div = Polynomial.long_division
         else:
             div = lambda a, b: a / b
