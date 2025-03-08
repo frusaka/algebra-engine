@@ -129,28 +129,30 @@ class Term:
     @cache
     def __truediv__(a, b: Term) -> Term:
         if a.value.__class__ is Polynomial:
-            # Light rationalization
             a, b = Term.rationalize(a, b)
             gcd_a = gcd_b = Term()
 
             if a.value.__class__ is Polynomial and a.exp == 1:
                 gcd_a = a.value.gcd()
-                a = Polynomial._long_division(a, gcd_a)
+                if gcd_a.value != 1:
+                    a = Polynomial.long_division(a, gcd_a)
                 if b.value.__class__ is Polynomial:
-                    if b.exp == 1:
-                        gcd_b = b.value.gcd()
+                    if b.exp == 1 and (gcd_b := b.value.gcd().canonical()).value != 1:
                         b = Polynomial.long_division(b, gcd_b)
-                        if (gcd := Term.gcd(a, b)).value != 1:
-                            a = Polynomial._long_division(a, gcd)
-                            b = Polynomial._long_division(b, gcd)
                 else:
                     gcd_b = Term.gcd(gcd_a, b).canonical()
                     if gcd_b.value != 1:
                         b /= gcd_b
+            fac = gcd_a / gcd_b
+            if not fac.remainder.value:
+                return Polynomial.long_division(a * fac, b)
+            # First step: Cancels common terms, returns a single fraction
+            res = Polynomial.long_division(a, b, 0)
+            # Last step: puts factors back and divides
+            return Polynomial.long_division(
+                res.numerator * fac.numerator, res.denominator * fac.denominator
+            )
 
-            frac = gcd_a / gcd_b
-            a, b = Term.rationalize(a, b)
-            return Polynomial.long_division(a * frac.numerator, frac.denominator * b)
         return a * b.inv
 
     @cache
@@ -179,22 +181,16 @@ class Term:
         """
         if not self.value.__class__ is Number or self.exp != 1:
             return Term(abs(self.coef), self.value, self.exp)
-        if (
-            self.value.__class__ is Polynomial
-            and abs(self.exp) == 1
-            and next(iter(self.value.leading_options())).to_const() < 0
-        ):
-            return -self
         return Term(value=abs(self.value), exp=self.exp)
 
-    @cache
+    @lru_cache
     def scale(a, b: Number) -> Term:
         """Scale a by constant b"""
         if a.value.__class__ is Number and a.exp == 1:
             return Term(a.value * b)
         return Term(a.coef * b, a.value, a.exp)
 
-    @cache
+    @lru_cache
     def canonical(self) -> Term:
         """
         A minimalist version of the input that has 1 as the coefficient.
@@ -204,7 +200,7 @@ class Term:
             return Term()
         return Term(value=self.value, exp=self.exp)
 
-    @cache
+    @lru_cache
     def gcd_coefs(self) -> tuple[int]:
         """
         Get all the constants associated with a term (coefficient or value).
@@ -258,7 +254,7 @@ class Term:
         return self ** -Term()
 
     @cached_property
-    def fractional(self) -> Term:
+    def remainder(self) -> Term:
         """Get the term with a non-constant denominator"""
         if not self.denominator.value.__class__ is Number or self.denominator.exp != 1:
             return self
@@ -266,20 +262,14 @@ class Term:
             return Term(Number(0))
         if self.value.__class__ is Polynomial:
             for i in self.value:
-                if (r := i.fractional).value:
+                if (r := i.remainder).value:
                     return r
         return Term(Number(0))
-
-    @cached_property
-    def remainder(self) -> Term:
-        """The numerator of the term that has non constant denominator"""
-        return self.fractional.numerator
 
     def exp_const(self) -> Number:
         """Get the constant in a term's exponent"""
         return self.exp if self.exp.__class__ is Number else self.exp.coef
 
-    @cache
     def get_exp(self, value: Variable) -> Number | Term:
         """
         Get the exponent of the given variable.
@@ -339,11 +329,11 @@ class Term:
         return True
 
     @staticmethod
-    @cache
+    @lru_cache
     def rationalize(a: Term, b: Term) -> tuple[Term]:
         """Given a : b, express a and b such that neither a nor b contain fractions"""
         # Removing symbolic fractions
-        for i in (a.fractional.denominator, b.fractional.denominator):
+        for i in (a.remainder.denominator, b.remainder.denominator):
             if i.value != 1:
                 a *= i
                 b *= i
@@ -375,7 +365,7 @@ class Term:
         return a, b
 
     @staticmethod
-    @cache
+    @lru_cache
     def gcd(a: Term, b: Term) -> Term:
         """Greatest Common Divisor of a & b"""
         if lexicographic_weight(b, 0) > lexicographic_weight(a, 0):
@@ -384,12 +374,12 @@ class Term:
             return Term()
         # To prevent infinite recursion, call long division when applicable
         if a.value.__class__ is Polynomial:
-            div = Polynomial.long_division
+            div = lambda a, b: Polynomial.long_division(a, b, 0)
         else:
             div = lambda a, b: a / b
         b2 = b
         while b.value != 1:
-            if (d := div(a, b).fractional.denominator) == b:
+            if (d := div(a, b).remainder.denominator) == b:
                 return Term()
             a, b = b, d
         if a.value != 1 and a != b2:
@@ -397,7 +387,7 @@ class Term:
         return a
 
     @staticmethod
-    @cache
+    @lru_cache
     def lcm(a: Term, b: Term) -> Term:
         """Lowest Common Multiple of a & b"""
         if a == b:

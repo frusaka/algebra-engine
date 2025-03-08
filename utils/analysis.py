@@ -37,6 +37,7 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     # For values like x^2-9=0, they can be solved without the quadratic formula
     if not (a and b):
         return
+    left = comp.left
     # Make the rhs 0
     if comp.right.value:
         comp = comp.reverse_sub(comp.right)
@@ -73,7 +74,7 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     res = Number(0)
 
     if isinstance(term.value, Collection) and term.exp == 1:
-        if alphabetic and term.fractional.value:
+        if alphabetic and term.remainder.value:
             return res - 100
         # Calling sum() does not work
         seen = {}

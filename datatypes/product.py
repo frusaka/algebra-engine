@@ -54,7 +54,7 @@ class Product(Collection):
         res = Term()
         for t in self:
             if t.exp_const() < 0:
-                res *= t.inv
+                res *= Term(value=t.value, exp=-t.exp)
         return res
 
     @staticmethod

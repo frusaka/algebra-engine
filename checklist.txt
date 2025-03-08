@@ -5,6 +5,5 @@
 3. Improve ratio operator output and add related tests
 4. Add simplification for cases such as:
     3x/(x^3 + 6x^2)
-5. Implement Polynomial division without cancelling common terms
-6. Enhace Systems solver for edge cases
-7. Make long-division degree-based
+5. Enhace Systems solver for edge cases
+6. Fails: (4y+3/(x+5))^2
