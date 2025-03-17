@@ -11,10 +11,6 @@ class Atomic:
     """Base class for all atomic objects"""
 
     def like(self, other: Any) -> bool:
-        if type(self) is not type(other):
-            return False
-        if hasattr(self, "imag"):
-            return True
         return self == other
 
     @staticmethod

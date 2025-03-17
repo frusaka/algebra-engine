@@ -2,9 +2,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence, Set, Tuple
 
 import itertools
-
-from .collection import Collection
 from functools import cached_property
+from .collection import Collection
 from utils import *
 
 if TYPE_CHECKING:
@@ -69,6 +68,8 @@ class Product(Collection):
         ):
             num = a.numerator * b.numerator
             den = a.denominator * b.denominator
+            if num.value.__class__ is Polynomial:
+                return Polynomial.long_division(num, den)
             num, den = a.rationalize(num, den)
             return Product.resolve(num, den.inv)
 
@@ -108,10 +109,10 @@ class Product(Collection):
 
     @dispatch
     def pow(b: Proxy[Term], a: Term) -> Term:
-        res = type(a)()
-        for i in a.value:
-            res *= i**b.value
-        return res * type(a)(value=a.coef) ** b.value
+        return (
+            type(a)(value=Product(i**b.value for i in a.value))
+            * type(a)(value=a.coef) ** b.value
+        )
 
     @staticmethod
     def resolve(b: Term, a: Term) -> Term:

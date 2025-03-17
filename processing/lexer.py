@@ -10,8 +10,6 @@ class Lexer:
         "→": Token(TokenType.SOLVE),
         ",": Token(TokenType.COMMA),
         ";": Token(TokenType.SEMI_COLON),
-        ":": Token(TokenType.RATIO),
-        "?": Token(TokenType.BOOL),
         "=": Token(TokenType.EQ),
         ">": Token(TokenType.GT),
         "≥": Token(TokenType.GE),
@@ -50,15 +48,20 @@ class Lexer:
             if self.curr in "i." or self.curr.isdigit():
                 # Can be toggled off to experiment with other notations (prefix & postfix)
                 if was_num:
-                    if was_num == 3:
+                    if self.curr != "i" and was_num != 1:
                         yield Token(
-                            TokenType.ERROR, SyntaxError("no operator between numbers")
+                            TokenType.ERROR,
+                            SyntaxError(
+                                "no operator between numbers"
+                                if was_num == 3
+                                else "variable preceeding digit"
+                            ),
                         )
                         return
-                    # Implicit multiplication - Parenthesis or consecutive numbers numbers
+                    # Implicit multiplication - Parenthesis or consecutive numbers and variables
                     yield self.OPERS["*"][was_num >> 1]
-                yield self.generate_number()
                 was_num = 3 - (self.curr == "i")
+                yield self.generate_number()
                 continue
 
             # A variable

@@ -1,4 +1,4 @@
-from typing import Generator, Sequence
+from typing import Any, Generator, Sequence
 from datatypes import Number, Variable
 from .tokens import Token, TokenType
 from .nodes import SYMBOLS, Unary, Binary
@@ -34,33 +34,25 @@ class Parser:
             f"unsupported: '{SYMBOLS.get(oper.type.name)}' for non-term expressions"
         )
 
-    def generate_tuple(self) -> Generator[Variable, None, None]:
+    def generate_iterable(
+        self, sep, type, error_msg, parse=True
+    ) -> Generator[Any, None, None]:
         oper = self.curr
         i = 1
-        while self.curr and self.curr.type is TokenType.COMMA:
+        while self.curr and self.curr.type is sep:
             self.advance()
             i += 1
+        seen = set()
         for j in range(i):
             if self.curr is None:
                 self.operator_error(oper)
-            if self.curr.type is not TokenType.VAR:
-                raise SyntaxError(f"tuple expects variables only")
-            yield self.curr.value
-            if j + 1 < i:
-                self.advance()
-
-    def generate_system(self) -> Generator[Binary, None, None]:
-        oper = self.curr
-        i = 1
-        while self.curr and self.curr.type is TokenType.SEMI_COLON:
-            self.advance()
-            i += 1
-        for j in range(i):
-            if self.curr is None:
-                self.operator_error(oper)
-            if self.curr.type.name != "EQ":
-                raise SyntaxError(f"system expects equations only")
-            yield self.parse()
+            if self.curr.type is not type:
+                raise SyntaxError(error_msg)
+            val = self.parse() if parse else self.curr.value
+            if val in seen:
+                raise SyntaxError(error_msg)
+            seen.add(val)
+            yield val
             if j + 1 < i:
                 self.advance()
 
@@ -71,23 +63,29 @@ class Parser:
         if self.curr.type in (TokenType.VAR, TokenType.NUMBER):
             return self.curr.value
         if self.curr.type is TokenType.COMMA:
-            return tuple(self.generate_tuple())
+            return tuple(
+                self.generate_iterable(
+                    TokenType.COMMA,
+                    TokenType.VAR,
+                    "tuple expects unique variables only",
+                    0,
+                )
+            )
         if self.curr.type is TokenType.SEMI_COLON:
-            return frozenset(self.generate_system())
+            return frozenset(
+                self.generate_iterable(
+                    TokenType.SEMI_COLON,
+                    TokenType.EQ,
+                    "system expects unique equations only",
+                )
+            )
         oper = self.curr
         self.advance()
         left = self.parse()
         if left is None:
             self.operator_error(oper)
-        if oper.type in (TokenType.NEG, TokenType.POS, TokenType.BOOL):
-            if oper.type is TokenType.BOOL:
-                if not (
-                    isinstance(left, frozenset)
-                    or isinstance(left, Binary)
-                    and left.oper.priority == 4
-                ):
-                    raise SyntaxError("truth evluation expected (in)equalities")
-            elif (
+        if oper.type in (TokenType.NEG, TokenType.POS):
+            if (
                 isinstance(left, frozenset)
                 or hasattr(left, "oper")
                 and left.oper.priority < 5

@@ -11,14 +11,11 @@ if TYPE_CHECKING:
 class Variable(Unknown, str, Atomic):
     """An unknown in an experssion"""
 
-    def __hash__(self) -> int:
-        return str.__hash__(self)
-
-    def __eq__(self, value):
-        return str.__eq__(self, value)
+    __hash__ = str.__hash__
+    __eq__ = str.__eq__
 
     def __repr__(self) -> str:
-        return super().__str__().replace("'", "")
+        return self
 
     @dispatch
     def add(b: Proxy[Term], a: Term) -> Term:

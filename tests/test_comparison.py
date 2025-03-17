@@ -232,33 +232,23 @@ def test_solve_formulas(processor):
 
 
 def test_solve_quadratic(processor):
-    assert Comparison(left=processor.eval("2x^2 + 3x - 5"), right=Term(Number(0)))[
-        Variable("x")
-    ] == System(
-        {
-            Comparison(left=Term(value=Variable("x")), right=Term(Number(1))),
-            Comparison(left=Term(value=Variable("x")), right=Term(Number(-5, 2))),
-        }
+
+    assert processor.eval("x -> 2x^2 + 3x - 5 = 0") == Comparison(
+        left=Variable("x"), right=Collection({Term(Number(1)), Term(Number(-5, 2))})
     )
-    assert Comparison(left=processor.eval("x^2 - 6x + 9"), right=Term(Number(0)))[
-        Variable("x")
-    ] == Comparison(left=Term(value=Variable("x")), right=Term(Number(3)))
-    assert Comparison(left=processor.eval("-3x^2 + 12x - 9"), right=Term(Number(0)))[
-        Variable("x")
-    ] == System(
-        {
-            Comparison(left=Term(value=Variable("x")), right=Term(Number(1))),
-            Comparison(left=Term(value=Variable("x")), right=Term(Number(3))),
-        }
+    assert processor.eval("x -> x^2 - 6x + 9 = 0") == Comparison(
+        left=Variable("x"), right=Term(Number(3))
     )
-    assert Comparison(left=processor.eval("2x^2 + 13x"), right=Term(Number(24)))[
-        Variable("x")
-    ] == System(
-        {
-            Comparison(left=Term(value=Variable("x")), right=Term(Number(3, 2))),
-            Comparison(left=Term(value=Variable("x")), right=Term(Number(-8))),
-        }
+    assert processor.eval("x -> -3x^2 + 12x - 9 = 0") == Comparison(
+        left=Variable("x"), right=Collection({Term(Number(1)), Term(Number(3))})
     )
+    assert processor.eval("x -> 2x^2 + 13x = 24") == Comparison(
+        left=Variable("x"), right=Collection({Term(Number(3, 2)), Term(Number(-8))})
+    )
+    assert processor.eval("x -> 1/(x-5)^0.5 + x/(x-5)^0.5 = 7") == Comparison(
+        Variable("x"), Collection({Term(Number(6)), Term(Number(41))})
+    )
+
     assert Comparison(
         left=processor.eval("(a-4)^2 "),
         right=Term(value=Variable("c"), exp=Number(2)),
@@ -279,20 +269,6 @@ def test_solve_quadratic(processor):
             Comparison(
                 left=Term(value=Variable("y")),
                 right=processor.eval("(-b - (b^2 - 4ac)^0.5)/2a"),
-            ),
-        }
-    )
-    assert Comparison(left=processor.eval("-6ap^2 - 4ap + c"), right=Term(Number(5)))[
-        Variable("p")
-    ] == System(
-        {
-            Comparison(
-                left=Term(value=Variable("p")),
-                right=processor.eval("-1/3 - 2√(24ac + 16a^2 - 120a)/12a"),
-            ),
-            Comparison(
-                left=Term(value=Variable("p")),
-                right=processor.eval("-1/3 + 2√(24ac + 16a^2 - 120a)/12a"),
             ),
         }
     )

@@ -3,16 +3,17 @@ from processing import AST, Token, TokenType, Binary, Unary
 from datatypes import Variable, Number
 
 
-@pytest.mark.parametrize("expr", ["9+", "-4+", "3()", "(()", ")", "()^2"])
-def test_invalid(expr):
-    with pytest.raises(SyntaxError):
-        AST(expr)
+def test_invalid():
+    # Uses for-loop to avoid inflating test count
+    for expr in ["9+", "-4+", "3()", "(()", ")", "()^2", "()()", "j6"]:
+        with pytest.raises(SyntaxError):
+            AST(expr)
 
 
-@pytest.mark.parametrize("expr", ["3 4", "2 3y", "3 4+5", "3/4 5x"])
-def test_spaced_numbers(expr):
-    with pytest.raises(SyntaxError):
-        AST(expr)
+def test_spaced_numbers():
+    for expr in ["3 4", "2 3y", "3 4+5", "3/4 5x"]:
+        with pytest.raises(SyntaxError):
+            AST(expr)
 
 
 def test_unary():

@@ -8,7 +8,7 @@ from .collection import Collection
 from .system import System
 from .polynomial import Polynomial
 from .product import Product
-from .number import Number
+from .number import Number, ONE, ZERO
 from .variable import Variable
 from .term import Term
 from utils import quadratic, SYMBOLS
@@ -60,21 +60,29 @@ class Comparison:
             self = self.reverse()
             print(self)
         # Power lhs if it is a radical
-        if value in self.left and (exp := self.left.exp_const().denominator) != 1:
+        if value in self.left and (exp := self.left.exp.denominator) != 1:
             return (self ** Term(Number(exp)))[value]
+        remove = []
         # Moving target terms to the left
         if self.right.value.__class__ is Polynomial:
+
             if value in self.right:
                 if self.right.exp != 1:
-                    return self.reverse_sub(self.right)[value]
+                    return (self - self.right)[value]
                 for t in self.right.value:
                     if value in t:
-                        return self.reverse_sub(t)[value]
+                        remove.append(t)
+                if remove:
+                    if len(remove) == 1:
+                        remove = remove.pop()
+                    else:
+                        remove = Term(value=Polynomial(remove))
+                    return (self - remove)[value]
         if value in self.right:
-            return self.reverse_sub(self.right)[value]
+            return (self - self.right)[value]
 
         if self.left.coef != 1:
-            return self.reverse_div(Term(self.left.coef))[value]
+            return (self / Term(self.left.coef))[value]
         if self.left.exp != 1:
             exp = Term(value=self.left.exp).inv
             if value in exp:
@@ -86,32 +94,25 @@ class Comparison:
 
             if (gcd := self.left.value.gcd()).value != 1:
                 if value not in (t := self.left / gcd):
-                    return self.reverse_div(t)[value]
+                    return (self / t)[value]
                 elif value not in gcd:
-                    return self.reverse_div(gcd)[value]
+                    return (self / gcd)[value]
 
-            remove = None
             for i in self.left.value:
                 if not value in i:
-                    remove = i  # Not moving it yet, need to check for quadratics
+                    remove.append(i)  # Not moving it yet, need to check for quadratics
                     continue
-                # Term is in a fraction
-                if i.value.__class__ is Product:
-                    for t in i.value:
-                        if t.exp_const() < 0:
-                            return (self * t.inv)[value]
-                elif (exp := i.exp_const()) < 0:
-                    return (self * Term(value=i.value, exp=i.exp).inv)[value]
                 # Term is in radical form
-                elif exp.denominator != 1:
-                    self = self.reverse_sub(self.left - i)
+                if i.exp.denominator != 1:
+                    self -= self.left - i
                     print(self)
                     return (
                         Comparison(self.right, self.left, self.rel.reverse())
-                        ** Term(Number(exp.denominator))
+                        ** Term(Number(i.exp.denominator))
                     )[value]
 
-            # Solving using the quadratic formuala
+            # Solving using the quadratic formula
+            # Moved to the right anyway to reduce redundancy
             if res := quadratic(self, value):
                 pos, neg = res
                 lhs = Term(value=value)
@@ -126,45 +127,41 @@ class Comparison:
                     )
                 print(res)
                 return res
-
             if remove:
-                return self.reverse_sub(remove)[value]
+                if len(remove) == 1:
+                    remove = remove.pop()
+                else:
+                    remove = Term(value=Polynomial(remove))
+                return (self - remove)[value]
 
         # Isolation by division
         if self.left.value.__class__ is Product:
             for t in self.left.value:
                 exp = t.exp_const()
                 if not value in t or exp < 0:
-                    return self.reverse_div(t)[value]
+                    return (self / t)[value]
 
         return self
 
     def __contains__(self, value: Variable) -> bool:
         return value in self.left or value in self.right
 
-    def __add__(self, value: Term) -> Comparison:
-        self.show_operation("+", value)
-        return Comparison(self.left + value, self.right + value, self.rel)
-
     def __sub__(self, value: Term) -> Comparison:
-        self.show_operation("-", value)
-        return Comparison(self.left - value, self.right - value, self.rel)
-
-    def __mul__(self, value: Term) -> Comparison:
-        self.show_operation("*", value)
-        # Reverse the signs when multiplying by a negative number
-        return Comparison(
-            self.left * value,
-            self.right * value,
-            self.rel if value.to_const() >= 0 else self.rel.reverse(),
-        )
+        if value.to_const() > 0:
+            self.show_operation("-", value)
+        else:
+            self.show_operation("+", -value)
+        return Comparison(self.left + -value, self.right + -value, self.rel)
 
     def __truediv__(self, value: Term) -> Comparison:
-        self.show_operation("/", value)
+        if value.denominator.value == 1:
+            self.show_operation("/", value)
+        else:
+            self.show_operation("*", value.inv)
         return Comparison(
             self.left / value,
             self.right / value,
-            self.rel if value.to_const() > 0 else self.rel.reverse(),
+            self.reverse_sign(value),
         )
 
     def __pow__(self, value: Term) -> Comparison:
@@ -193,28 +190,24 @@ class Comparison:
         """Write the comparison in reverse"""
         return Comparison(self.right, self.left, self.rel.reverse())
 
-    def reverse_sub(self, value: Term) -> Comparison:
-        """Intuitively Log inverse subtration"""
-        if value.to_const() > 0:
-            return self - value
-        return self + -value
-
-    def reverse_div(self, value: Term) -> Comparison:
-        """Intuitively Log inverse division"""
-        if value.denominator.value != 1:
-            return self * value.inv
-        return self / value
-
     def show_operation(self, operator: str, value: Term) -> None:
         """A convinent method to show the user the solving process"""
         print(" " * (len(str(self.left)) + 1), operator + " ", value, sep="")
 
     def normalize(self, weaken=True) -> Comparison:
         """Put all terms on the lhs"""
-        from processing import ratio
-
         return Comparison(
-            ratio(self.left - self.right, Term()),
-            Term(Number(0)),
+            self.left - self.right,
+            Term(ZERO),
             CompRel.EQ if weaken else self.rel,
         )
+
+    def reverse_sign(self, value: Term) -> CompRel:
+        if self.rel is CompRel.EQ:
+            return self.rel
+        # Cannot assume the sign of the value is always positive
+        if value.value.__class__ is not Number:
+            raise ValueError(f"unknown sign of {value}")
+        if value.value < 0:
+            return self.rel.reverse()
+        return self.rel

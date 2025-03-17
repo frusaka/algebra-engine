@@ -27,6 +27,4 @@ class Collection(Unknown, frozenset, Atomic):
         if term.exp != 1 or not term.value.__class__ is cls:
             yield term
             return
-
-        for i in term.value:
-            yield from cls.flatten(i)
+        yield from term.value

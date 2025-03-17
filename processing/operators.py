@@ -1,26 +1,26 @@
 from functools import lru_cache
-from typing import Any
+from typing import Any, Sequence
 from operator import *
 from datatypes import *
 
 
-def eq(a: Any, b: Any) -> Comparison:
+def eq(a: Term, b: Term) -> Comparison:
     return Comparison(a, b)
 
 
-def gt(a: Any, b: Any) -> Comparison:
+def gt(a: Term, b: Term) -> Comparison:
     return Comparison(a, b, CompRel.GT)
 
 
-def lt(a: Any, b: Any) -> Comparison:
+def lt(a: Term, b: Term) -> Comparison:
     return Comparison(a, b, CompRel.LT)
 
 
-def le(a: Any, b: Any) -> Comparison:
+def le(a: Term, b: Term) -> Comparison:
     return Comparison(a, b, CompRel.LE)
 
 
-def ge(a: Any, b: Any) -> Comparison:
+def ge(a: Term, b: Term) -> Comparison:
     return Comparison(a, b, CompRel.GE)
 
 
@@ -43,7 +43,7 @@ def validate_solution(
             print(f"{title}: {sol}".join(("\033[31m", "\033[0m")))
             return False
         return True
-    except ZeroDivisionError:
+    except ZeroDivisionError:  # Higly unlikely
         print(f"Zero division: {sol}".join(("\033[31m", "\033[0m")))
     except AttributeError:
         print(f"Malformed: {sol}".join(("\033[31m", "\033[0m")))
@@ -52,13 +52,11 @@ def validate_solution(
 
 @lru_cache(maxsize=20)
 def solve(
-    var: Variable | tuple[Variable], comp: Comparison | System
+    var: Variable | Sequence[Variable], comp: Comparison | System
 ) -> Comparison | System:
     res = comp[var]
-    if res is None:
-        return Comparison(var, None)
     s = "s" * isinstance(res, System)
-    print(f"Verifying solution{s}...".join(("\033[34m", "\033[0m")))
+    print(f"Verifying solution{s}".join(("\033[34m", "\033[0m")))
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
     # Nested System: multple solution
@@ -124,16 +122,3 @@ def solve(
 
 def root(a: Term, b: Term) -> Term:
     return b**a.inv
-
-
-def bool(a: Term | Comparison) -> bool:
-    return a.__bool__()
-
-
-def ratio(a: Term, b: Term) -> Term:
-    a, b = Term.rationalize(a / b, Term())
-    if not isinstance(b.value, Number) and not isinstance(a.value, Number):
-        return Product.resolve(a, b.inv)
-    if isinstance(b.value, Number):
-        return a.scale(b.inv.value)
-    return a * b.inv

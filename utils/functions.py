@@ -1,4 +1,5 @@
 from __future__ import annotations
+from fractions import Fraction
 import math
 from typing import TYPE_CHECKING
 
@@ -39,14 +40,18 @@ def simplify_radical(n: int, root: int = 2) -> Term:
     # **Detect if further simplification is possible**
     cd = math.gcd(root, sum(factors.values()))
     if cd > 1 and cd != root:
-        return simplify_radical(round(n ** (1 / cd)), root // cd)
+        return simplify_radical(int(n ** (1 / cd)), root // cd)
 
-    c = 1  # Extracted part; coeffiecient
-    v = 1  # Remains under radical; value
+    c = Fraction(1)  # Extracted part; coeffiecient
+    v = Fraction(1)  # Remains under radical; value
 
     for prime, exp in factors.items():
+        prime = Fraction(prime)
         whole, remainder = divmod(exp, root)
         c *= prime**whole
         v *= prime**remainder
-
-    return Term(Number(c), Number(v), exp=Number(1, root))
+    return Term(
+        Number(c.numerator, c.denominator),
+        Number(v.numerator, v.denominator),
+        exp=Number(1, root),
+    )

@@ -35,15 +35,22 @@ class Number(Atomic):
             ) != 1:
                 numerator /= gcd
                 denominator //= gcd
-            object.__setattr__(obj, "numerator", numerator)
-            object.__setattr__(obj, "denominator", denominator)
-            return obj
-        if numerator.__class__ is complex:
-            numerator = numerator.real
-        val = Fraction(numerator) / denominator
-        object.__setattr__(obj, "numerator", val.numerator)
-        object.__setattr__(obj, "denominator", val.denominator)
+        else:
+            if numerator.__class__ is complex:
+                numerator = numerator.real
+            val = Fraction(numerator) / denominator
+            numerator = val.numerator
+            denominator = val.denominator
+        object.__setattr__(obj, "numerator", numerator)
+        object.__setattr__(obj, "denominator", denominator)
+        object.__setattr__(obj, "_hash", hash((numerator, denominator)))
         return obj
+
+    def __hash__(self):
+        return self._hash
+
+    def __float__(self) -> float:
+        return self.numerator / self.denominator
 
     def __bool__(self) -> bool:
         return bool(self.numerator)
@@ -51,11 +58,14 @@ class Number(Atomic):
     def __str__(self) -> str:
         # Lazy print
         res = print_frac(self).replace("j", "i")
+        # Python quirk: -(1j) -> (-0-1j): (0-1j) -> 1j
+        if res.startswith("(-0-"):
+            res = res[3:-1]
         if abs(self.numerator.imag) == 1:
-            res = res.replace("1i", "i")
+            return res.replace("1i", "i")
         return res
 
-    def __add__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
+    def __add__(self, value: Number) -> Number:
         if not value.__class__ is Number:
             value = Number(value)
         den = math.lcm(self.denominator, value.denominator)
@@ -65,19 +75,15 @@ class Number(Atomic):
             den,
         )
 
-    def __sub__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
+    def __sub__(self, value: Number) -> Number:
         return self + -value
 
-    def __mul__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
-        if not value.__class__ is Number:
-            value = Number(value)
+    def __mul__(self, value: Number) -> Number:
         return Number(
             self.numerator * value.numerator, self.denominator * value.denominator
         )
 
-    def __truediv__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
-        if not value.__class__ is Number:
-            value = Number(value)
+    def __truediv__(self, value: Number) -> Number:
         num = self.numerator * value.denominator
         den = self.denominator * value.numerator
         if den.imag:
@@ -87,11 +93,9 @@ class Number(Atomic):
             return Number(num, int(den.real))
         return Number(num, den)
 
-    def __pow__(self, value: Number | SupportsFloat | SupportsComplex) -> Number:
-        if not value.__class__ is Number:
-            value = Number(value)
+    def __pow__(self, value: Number) -> Number:
         if value.numerator < 0:
-            return Number(1) / (self**-value)
+            return ONE / (self**-value)
         # Needs saftey checks. The numerator can be too large.
         num = self.nth_root(self.numerator**value.numerator, value.denominator)
         den = self.nth_root(self.denominator**value.numerator, value.denominator)
@@ -105,43 +109,33 @@ class Number(Atomic):
     def __neg__(self) -> Number:
         return Number(-self.numerator, self.denominator)
 
-    def __pos__(self) -> Number:
-        return self
-
     def __eq__(self, value: Any) -> bool:
-        if not isinstance(value, (float, int, complex, Fraction, Number)):
+        if value.__class__ not in {Number, int}:
             return False
-        if not value.__class__ is Number:
-            value = Number(value)
         return (
             self.numerator == value.numerator and self.denominator == value.denominator
         )
 
-    def __ne__(self, value: Any) -> bool:
-        return not self == value
-
-    def __gt__(self, value: Number | SupportsFloat | SupportsComplex) -> bool:
-        if not value.__class__ is Number:
-            value = Number(value)
+    def __gt__(self, value: Number) -> bool:
         if self.numerator.imag or value.numerator.imag:
             return False
-        return Fraction(self.numerator, self.denominator) > Fraction(
-            value.numerator, value.denominator
+        den = math.lcm(self.denominator, value.denominator)
+        return (den // self.denominator * self.numerator) > (
+            den // value.denominator * value.numerator
         )
 
-    def __ge__(self, value: Number | SupportsFloat | SupportsComplex) -> bool:
+    def __ge__(self, value: Number) -> bool:
         return self > value or self == value
 
-    def __lt__(self, value: Number | SupportsFloat | SupportsComplex) -> bool:
-        if not value.__class__ is Number:
-            value = Number(value)
+    def __lt__(self, value: Number) -> bool:
         if self.numerator.imag or value.numerator.imag:
             return False
-        return Fraction(self.numerator, self.denominator) < Fraction(
-            value.numerator, value.denominator
+        den = math.lcm(self.denominator, value.denominator)
+        return (den // self.denominator * self.numerator) < (
+            den // value.denominator * value.numerator
         )
 
-    def __le__(self, value: Number | SupportsFloat | SupportsComplex) -> bool:
+    def __le__(self, value: Number) -> bool:
         return self < value or self == value
 
     @staticmethod
@@ -154,7 +148,7 @@ class Number(Atomic):
     @staticmethod
     def frac_radical(a: Term, b: Term) -> Term:
         if b.exp != 1:
-            exp = Number(1) - b.exp
+            exp = ONE - b.exp
             a *= simplify_radical(b.value.numerator**exp.numerator, exp.denominator)
             b = b.value * b.coef
         else:
@@ -163,10 +157,6 @@ class Number(Atomic):
 
     @dispatch
     def add(b: Proxy[Term], a: Term) -> None:
-        pass
-
-    @add.register(number)
-    def _(b: Proxy[Term], a: Term) -> Term:
         b = b.value
         if a.exp == b.exp == 1:
             return type(a)(value=a.value + b.value)
@@ -243,3 +233,6 @@ class Number(Atomic):
         return Number.resolve_pow(a, b)
 
     pow.register(polynomial)(Atomic.poly_pow)
+
+
+ZERO, ONE = Number(), Number(1)

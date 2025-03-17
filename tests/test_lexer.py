@@ -5,6 +5,7 @@ from datatypes import Number, Variable
 
 def test_unknown():
     assert list(Lexer("~").generate_tokens())[1].type is TokenType.ERROR
+    assert list(Lexer("?").generate_tokens())[1].type is TokenType.ERROR
     assert list(Lexer("$").generate_tokens())[1].type is TokenType.ERROR
     assert list(Lexer("@").generate_tokens())[1].type is TokenType.ERROR
     assert list(Lexer("!").generate_tokens())[1].type is TokenType.ERROR

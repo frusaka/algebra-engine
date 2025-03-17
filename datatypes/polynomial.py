@@ -5,7 +5,7 @@ from functools import cache, cached_property, lru_cache
 import itertools
 from .bases import Atomic
 from .collection import Collection
-from .number import Number, Fraction
+from .number import Number, Fraction, ONE, ZERO
 from utils import *
 
 if TYPE_CHECKING:
@@ -15,8 +15,10 @@ if TYPE_CHECKING:
 class Polynomial(Collection):
     """A collection of unique terms that cannot be further be combined by addition or subtraction"""
 
-    def __new__(cls, objs: Sequence[Term]) -> Polynomial:
-        return super().__new__(cls, cls.merge(itertools.chain(*map(cls.flatten, objs))))
+    def __new__(cls, objs: Sequence[Term], merge=True) -> Polynomial:
+        if merge:
+            objs = cls.merge(itertools.chain(*map(cls.flatten, objs)))
+        return super().__new__(cls, objs)
 
     def __str__(self):
         res = ""
@@ -37,7 +39,7 @@ class Polynomial(Collection):
         """A default fallback if two terms are not like"""
         val = Polynomial([b.value, a])
         if not val:
-            return type(a)(value=Number(0))
+            return type(a)(value=ZERO)
         if len(val) == 1:
             return next(iter(val))
         return type(a)(value=val)
@@ -58,39 +60,56 @@ class Polynomial(Collection):
 
         b = b.value
         # Distributive property of Multiplication
+        if b.value == ZERO:
+            return type(a)(value=ZERO)
         if a.exp == 1:
-            res = Polynomial(t * b for t in a.value)
-            if not res:
-                return type(a)(value=Number(0))
+            res = Polynomial((t * b for t in a.value))
             if len(res) == 1:
                 return next(iter(res))
             return type(a)(value=res)
 
+        # if a.exp == b.exp:
+        #     return (
+        #         (type(a)(value=a.value) * type(a)(value=b.value))
+        #         ** type(a)(value=a.exp)
+        #     ).scale(a.coef * b.coef)
+
+        # Scalar multiplication
+        if b.value.__class__ is Number and b.exp == 1:
+            if a.exp == -1 and a.value.leading.to_const() < 0:
+                return type(a)(
+                    b.value * -a.coef,
+                    Polynomial((x.scale(-1) for x in a.value), 0),
+                    a.exp,
+                )
+            return a.scale(b.value)
+        # Multiplication with a fraction Polynomial
+        if (
+            a.exp_const() < 0
+            and b.value.__class__ is Product
+            and b.value.numerator.value.__class__ is Polynomial
+        ):
+            return b.numerator / (a.inv * b.denominator)
+
+    @mul.register(polynomial)
+    def _(b: Proxy[Term], a: Term) -> None:
+        b = b.value
+        if a.exp == 1:
+            if b.exp == 1:
+                # Faster expansion
+                return type(a)(
+                    value=Polynomial(i * j for i in a.value for j in b.value)
+                )
+            if b.exp_const().numerator < 0:
+                return a / b.inv
+            return type(a)(value=Polynomial((i * b for i in a.value), 0))
+        if b.exp == 1:
+            return b * a
         # Combining like terms
         if a.like(b, 0):
             return type(a)(
                 a.coef * b.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp)
             )
-        if b.value.__class__ is Polynomial and b.exp == 1:
-            return b * a
-        if a.exp == b.exp:
-            return (
-                (type(a)(value=a.value) * type(a)(value=b.value))
-                ** type(a)(value=a.exp)
-            ).scale(a.coef * b.coef)
-
-        # Multiplication with a fraction Polynomial
-        if a.exp == -1:
-            num, den = a.rationalize(b, a.inv)
-            if num.value.__class__ is Polynomial:
-                return num / den  # -> Will perform long division
-            if num.value.__class__ is Number and num.exp == 1:
-                return type(a)(num.value, den.value, a.exp)
-            return Product.resolve(num, den.inv)
-
-        # Scalar multiplication
-        if b.value.__class__ is Number and b.exp == 1:
-            return a.scale(b.value)
 
     @dispatch
     def pow(b: Proxy[Term], a: Term) -> None:
@@ -159,7 +178,7 @@ class Polynomial(Collection):
             )
         )
 
-    @cache
+    @lru_cache
     def gcd(self) -> Term:
         """GCD of a polynomial. Ignores the coefficients"""
         terms = iter(self)
@@ -169,13 +188,14 @@ class Polynomial(Collection):
         return gcd.canonical()
 
     @staticmethod
-    def _long_division(a: Term, b: Term) -> Term:
+    @lru_cache
+    def _long_division(a: Term, b: Term) -> tuple:
         """
         Backend long division algorithm. `a` must have a higher degree than `b`.
         Returns Q -> Quotient, r -> remainder
         """
 
-        org, q, r = a, [], None
+        org, q = a, []
         leading_b = b if b.value.__class__ is not Polynomial else b.value.leading
 
         while a.value:
@@ -186,8 +206,7 @@ class Polynomial(Collection):
                     and not (fac := a / b).remainder.value
                 ):
                     q.append(fac)
-                else:
-                    r = a
+                    a = type(a)(Number())
                 break
             for leading_a in a.value.leading_options():
                 if not (fac := leading_a / leading_b).remainder.value:
@@ -200,31 +219,27 @@ class Polynomial(Collection):
                     leading_b, 0
                 ):
                     q = []
-                    r = org
-                else:
-                    r = a
+                    a = org
                 break
             q.append(fac)
-            a -= b * fac
-        return q, r
+            a += -b * fac
+        return q, a
 
     @staticmethod
-    def long_division(a: Term, b: Term, mixed=True) -> Term:
+    def long_division(a: Term, b: Term, combine=True) -> Term:
         """
         Perform Polynomial division on `a` with `b`, no matter which one has a higher degree.
         """
         from .product import Product
 
         if not a.value.__class__ is Polynomial:
+            if not combine:
+                return a, b
             return a * b.inv
 
-        if a.exp != 1 and a.exp == b.exp:
-            return (
-                Polynomial.long_division(type(a)(value=a.value), type(b)(value=b.value))
-                ** type(a)(value=a.exp)
-            ).scale(a.coef / b.coef)
-
-        if a.exp != 1 or not b.exp.__class__ is Number:
+        if a.exp != 1 or b.value.__class__ is Polynomial and b.exp != 1:
+            if not combine:
+                return a, b
             if b.value.__class__ is Number and b.exp == 1:
                 return a.scale(b.inv.value)
             return Product.resolve(a, b.inv)
@@ -233,45 +248,38 @@ class Polynomial(Collection):
         if b.value.__class__ is Polynomial and lexicographic_weight(
             b.value.leading, 0
         ) > lexicographic_weight(a.value.leading, 0):
-            res = Polynomial.long_division(b, a, 0)
-            n, d = res.numerator, res.denominator
+            n, d = Polynomial.long_division(b, a, 0)
+            if not combine:
+                return d, n
             if d.value == 1:
                 return n.inv
+            n, d = n.rationalize(n, d)
             return Product.resolve(d, n.inv)
 
-        q, r = Polynomial._long_division(a, b)
-        if not q:
-            return Product.resolve(a, b.inv)
-
-        if len(q) == 1:
-            q = q[0]
-        else:
-            q = type(a)(value=Polynomial(q))
-        if not r:
-            return q
-        d = b
-        if r.value.__class__ is Polynomial:
-            # Super-simplification of remainders
-            n, r2 = Polynomial._long_division(b, r)
-            if r2 is None:
-                r = type(a)(value=Polynomial(n)).inv
-            else:
-                # No Common factor cancelled
-                if not mixed:
-                    return Product.resolve(a, b.inv)
-                r = Product.resolve(r, b.inv)
-        else:
-            # No Common factor cancelled
-            if not mixed:
+        # Find common factor
+        b2 = b
+        a2 = a
+        while b.value:
+            q, r = Polynomial._long_division(a, b)
+            if not q or r.value and r.value.__class__ is not Polynomial:
+                if not combine:
+                    return a2, b2
+                a, b = a.rationalize(a2, b2)
                 return Product.resolve(a, b.inv)
-            r /= b
-        # Rewrite Q + r/d as N/D
-        if not mixed:
-            d = r.denominator
-            r = r.numerator
-            n, d = d.rationalize(q * d + r, d)
-            return Product.resolve(n, d.inv)
-        return q + r
+            a, b = b, r
+        # Cancel common factor
+        a2 = Polynomial._long_division(a2, a)[0]
+        b = Polynomial._long_division(b2, a)[0]
+        a = a2[0] if len(a2) == 1 else type(a)(value=Polynomial(a2, 0))
+        b = b[0] if len(b) == 1 else type(a)(value=Polynomial(b, 0))
+
+        if not combine:
+            return a, b
+        # Combine the simplified fraction
+        if b.value.__class__ is not Number:
+            a, b = a.rationalize(a, b)
+            return Product.resolve(a, b.inv)
+        return a * b.inv
 
     @staticmethod
     def merge(objs: Sequence[Term]) -> Generator[Term, None, None]:
@@ -279,44 +287,35 @@ class Polynomial(Collection):
         from .term import Term
 
         res = defaultdict(Number)
-        fracs = defaultdict(Number)
+        frac = False
 
         for t in objs:
             if t.value == 0:
                 continue
+            res[t.canonical()] += t.to_const()
             # Symbolic fractions
-            if not t.denominator.value.__class__ is Number or t.denominator.exp != 1:
-                fracs[t.canonical()] += t.to_const()
-            else:
-                res[t.canonical()] += t.to_const()
-        # One remainder
-        if len(fracs) == 1:
-            k, v = fracs.popitem()
-            res[k] += v
+            if t.remainder.value:
+                frac = True
 
         # Multiple Symbolic fractions
-        elif len(fracs) > 1:
-            num = defaultdict(Number)
-            vals = set()
+        if frac and len(res) > 1:
+            num = []
             den = Term()
 
             # Compute the lcm of the fractions
-            for k, v in fracs.items():
-                den = den.lcm(den, k.denominator)
-                vals.add(k.scale(v))
+            for k in res:
+                den = den if k.denominator._hash == den._hash else den*k.denominator
+                # den *= k.denominator
+                # den = den.lcm(den, k.denominator)
 
             # Compute the new numerator of each fraction
-            for t in vals:
+            for k, v in res.items():
+                t = k.scale(v)
                 t = (den / t.denominator) * t.numerator
-                num[t.canonical()] += t.to_const()
+                num.append(t)
 
-            # A hashtable was used to prevent excessive recursion
-            num = Term(value=Polynomial(k.scale(v) for k, v in num.items()))
-
-            # Combine with the rest of the results
-            if num.value:
-                for t in Polynomial.flatten(num / den):
-                    res[t.canonical()] += t.to_const()
-
+            if num := Polynomial(num):
+                yield from Polynomial.flatten(Term(value=num) / den)
+            return
         # Return them back into Term form and ignore 0's
-        return (k.scale(v) for k, v in res.items() if v != 0)
+        yield from (k.scale(v) for k, v in res.items() if v != 0)

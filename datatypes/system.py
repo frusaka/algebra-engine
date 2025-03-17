@@ -64,9 +64,7 @@ class System(Collection):
                 ):
                     break
             else:
-                raise ValueError(
-                    f"Could not find independent equation containing '{v}'"
-                )
+                return System(eqns)
             if len(vals) - 1:
                 print(v, "→", org)
             eqn = org[v]
@@ -97,8 +95,6 @@ class System(Collection):
                 # Put the newly solved equation at the end
                 eqns.append(eqn)
         print(System.__str__(eqns))
-        if len(eqns) == 1:
-            return eqns.pop()
         return System(eqns)
 
     def __bool__(self) -> bool:

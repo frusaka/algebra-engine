@@ -3,7 +3,7 @@ from typing import Any
 from dataclasses import dataclass
 from functools import cache, cached_property, lru_cache
 import math
-from .number import Number
+from .number import Number, ONE, ZERO
 from .variable import Variable
 from .collection import Collection
 from .product import Product
@@ -25,7 +25,7 @@ class Term:
     exp: Number | Term
 
     @lru_cache(maxsize=500)
-    def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)) -> Term:
+    def __new__(cls, coef=ONE, value=ONE, exp=ONE) -> Term:
         if value.__class__ is Term:
             return value
         obj = super().__new__(cls)
@@ -33,22 +33,26 @@ class Term:
         if exp.__class__ is Term and exp.value.__class__ is Number and exp.exp == 1:
             exp = exp.value
         # Aplying basic known algebraic rules to validate the term
-        if coef == 0 or value == 0:
-            value = Number(0)
-            coef = exp = Number(1)
+        if coef == ZERO or value == ZERO:
+            value = ZERO
+            coef = exp = ONE
         elif coef != 1 and value == 1:
             value, coef = coef, value
             exp = coef
-        elif exp == 0:
+        elif exp == ZERO:
             value = coef
-            exp = coef = Number(1)
+            exp = coef = ONE
         # # 1^n = 1 for any value of n
         elif value == 1:
             exp = value
         object.__setattr__(obj, "coef", coef)
         object.__setattr__(obj, "value", value)
         object.__setattr__(obj, "exp", exp)
+        object.__setattr__(obj, "_hash", hash((coef, value, exp)))
         return obj
+
+    def __hash__(self):
+        return self._hash
 
     def __str__(self) -> str:
         if (
@@ -104,21 +108,20 @@ class Term:
     def __repr__(self) -> str:
         return str(self)
 
-    @cache
+    @lru_cache
     def __contains__(self, value: Variable) -> bool:
         return value in str(self)
 
-    @cache
+    @lru_cache
     def __add__(a, b: Term) -> Term:
         if a.like(b):
             return a.value.add(Proxy(b), a)
         return Polynomial.resolve(Proxy(b), a)
 
-    @cache
     def __sub__(a, b: Term) -> Term:
         return a + -b
 
-    @cache
+    @lru_cache
     def __mul__(a, b: Term) -> Term:
         if a.value.__class__ is Number and (v := a.split_const_from_exp()):
             return b * v * Term(a.coef, a.value, a.exp - Term())
@@ -126,36 +129,35 @@ class Term:
             return a * v * Term(b.coef, b.value, b.exp - Term())
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
-    @cache
+    @lru_cache
     def __truediv__(a, b: Term) -> Term:
         if a.value.__class__ is Polynomial:
-            a, b = Term.rationalize(a, b)
+            # Light rationalization
+            if b.denominator.value.__class__ is not Number:
+                a *= b.denominator
+                b = b.numerator
+            # Cancel gcd in each operand to remove distractions from long divisions
+            # Having extra data will make long division limited due to degree constraints
             gcd_a = gcd_b = Term()
-
-            if a.value.__class__ is Polynomial and a.exp == 1:
-                gcd_a = a.value.gcd()
-                if gcd_a.value != 1:
-                    a = Polynomial.long_division(a, gcd_a)
-                if b.value.__class__ is Polynomial:
-                    if b.exp == 1 and (gcd_b := b.value.gcd().canonical()).value != 1:
-                        b = Polynomial.long_division(b, gcd_b)
-                else:
-                    gcd_b = Term.gcd(gcd_a, b).canonical()
-                    if gcd_b.value != 1:
-                        b /= gcd_b
-            fac = gcd_a / gcd_b
-            if not fac.remainder.value:
-                return Polynomial.long_division(a * fac, b)
-            # First step: Cancels common terms, returns a single fraction
-            res = Polynomial.long_division(a, b, 0)
-            # Last step: puts factors back and divides
-            return Polynomial.long_division(
-                res.numerator * fac.numerator, res.denominator * fac.denominator
-            )
+            if a.exp == 1:
+                if (gcd_a := a.value.gcd()).value != 1:
+                    a = Term(value=Polynomial((i * gcd_a.inv for i in a.value), 0))
+                if not b.value.__class__ is Polynomial:
+                    return Polynomial.long_division(a, b * gcd_a.inv)
+                if b.exp == 1 and (gcd_b := b.value.gcd()).value != 1:
+                    b = Term(value=Polynomial((i * gcd_b.inv for i in b.value), 0))
+                fac = gcd_a * gcd_b.inv
+                # Simple case when the denominator of the gcd is a constant
+                if fac.value == 1:
+                    return Polynomial.long_division(a, b)
+                # Multi-step division
+                # Simplify bare Polynomials then put factors back and divide
+                a, b = Polynomial.long_division(a, b, 0)
+                return Polynomial.long_division(a * fac.numerator, b * fac.denominator)
 
         return a * b.inv
 
-    @cache
+    @lru_cache
     def __pow__(a, b: Term) -> Term:
         if b.value == 0:
             return Term()
@@ -168,11 +170,10 @@ class Term:
     def __pos__(self) -> Term:
         return self
 
-    @cache
+    @lru_cache
     def __neg__(self) -> Term:
         return self * Term(Number(-1))
 
-    @cache
     def __abs__(self) -> Term:
         """
         Gets the absolute of a term.
@@ -234,8 +235,8 @@ class Term:
         if self.value.__class__ is Number and self.exp == 1:
             return Term(Number(self.value.numerator))
         if self.exp_const() > 0:
-            return Term(Number(self.to_const().numerator), self.value, self.exp)
-        return Term(Number(self.to_const().numerator))
+            return Term(Number(self.coef.numerator), self.value, self.exp)
+        return Term(Number(self.coef.numerator))
 
     @cached_property
     def denominator(self) -> Term:
@@ -251,20 +252,14 @@ class Term:
     @cached_property
     def inv(self) -> Term:
         """The inverse of a term (x^-1)"""
-        return self ** -Term()
+        return self ** Term(Number(-1))
 
     @cached_property
     def remainder(self) -> Term:
         """Get the term with a non-constant denominator"""
         if not self.denominator.value.__class__ is Number or self.denominator.exp != 1:
             return self
-        if self.exp != 1:
-            return Term(Number(0))
-        if self.value.__class__ is Polynomial:
-            for i in self.value:
-                if (r := i.remainder).value:
-                    return r
-        return Term(Number(0))
+        return Term(ZERO)
 
     def exp_const(self) -> Number:
         """Get the constant in a term's exponent"""
@@ -332,14 +327,10 @@ class Term:
     @lru_cache
     def rationalize(a: Term, b: Term) -> tuple[Term]:
         """Given a : b, express a and b such that neither a nor b contain fractions"""
-        # Removing symbolic fractions
-        for i in (a.remainder.denominator, b.remainder.denominator):
-            if i.value != 1:
-                a *= i
-                b *= i
         den = a.denominator * b.denominator
-        a *= den
-        b *= den
+        if den.value != 1:
+            a *= den
+            b *= den
         # Fractions inside a polynomial
         if a.exp == 1 and a.value.__class__ is Polynomial:
             for i in a.value:
@@ -354,12 +345,12 @@ class Term:
 
         # Factoring by gcd
         if (gcd := math.gcd(*a.gcd_coefs(), *b.gcd_coefs())) != 1:
-            gcd = Term(Number(gcd) ** -1)
+            gcd = Term(Number(1, gcd))
             a *= gcd
             b *= gcd
 
         # Make the denominator or leading denominator positive for consistency
-        if max(b.gcd_coefs()) < 0 or (p and b.value.leading.coef < 0):
+        if max(b.gcd_coefs()) < 0 or (p and b.value.leading.to_const() < 0):
             a = -a
             b = -b
         return a, b
@@ -374,7 +365,7 @@ class Term:
             return Term()
         # To prevent infinite recursion, call long division when applicable
         if a.value.__class__ is Polynomial:
-            div = lambda a, b: Polynomial.long_division(a, b, 0)
+            div = Polynomial.long_division
         else:
             div = lambda a, b: a / b
         b2 = b

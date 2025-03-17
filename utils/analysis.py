@@ -37,10 +37,9 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     # For values like x^2-9=0, they can be solved without the quadratic formula
     if not (a and b):
         return
-    left = comp.left
     # Make the rhs 0
     if comp.right.value:
-        comp = comp.reverse_sub(comp.right)
+        comp -= comp.right
         print(comp)
     # The rest of the boys, can even be another Polynomial
     c = comp.left - (ax_2 + bx)
@@ -70,8 +69,8 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     if not isinstance(term.exp, Number) or (
         isinstance(term.value, Number) and term.exp == 1
     ):
-        return Number(0)
-    res = Number(0)
+        return 0
+    res = 0
 
     if isinstance(term.value, Collection) and term.exp == 1:
         if alphabetic and term.remainder.value:
@@ -92,7 +91,7 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
         for i in seen.values():
             res += i
         return res
-    res = term.exp
+    res = float(term.exp)
     if isinstance(term.value, Variable) and alphabetic:
         # Map range formula
         a, b = ord("A"), ord("z")
