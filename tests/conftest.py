@@ -1,7 +1,7 @@
-from processing import Interpreter
+import processing
 import pytest
 
 
 @pytest.fixture
-def interpreter():
-    return Interpreter()
+def processor():
+    return processing.Interpreter()

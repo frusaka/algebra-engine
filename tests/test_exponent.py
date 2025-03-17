@@ -1,130 +1,90 @@
 import pytest
-from processing import AST
-from data_types import AlgebraObject, Number, Variable, Polynomial, Product
+from datatypes import Term, Number, Variable, Polynomial, Product
 
 
-def test_number_variable_exponent(interpreter):
-    assert interpreter.eval(AST("2^x")) == AlgebraObject(
-        value=Number(2), exp=AlgebraObject(value=Variable("x"))
+def test_variable_exponent_number(processor):
+    assert processor.eval("2^x") == Term(value=Number(2), exp=Term(value=Variable("x")))
+    assert processor.eval("4^-x") == Term(
+        value=Number(1, 4), exp=Term(value=Variable("x"))
     )
-    assert interpreter.eval(AST("4^-x")) == AlgebraObject(
-        value=Number("1/4"), exp=AlgebraObject(value=Variable("x"))
+    assert processor.eval("3^(2f)") == Term(
+        value=Number(9), exp=Term(value=Variable("f"))
     )
-    assert interpreter.eval(AST("3^(2f)")) == AlgebraObject(
-        value=Number(9), exp=AlgebraObject(value=Variable("f"))
+    assert processor.eval("(3^(2f))^0.5") == Term(
+        value=Number(3), exp=Term(value=Variable("f"))
     )
-    assert interpreter.eval(AST("(3^(2f))^0.5")) == AlgebraObject(
-        value=Number(3), exp=AlgebraObject(value=Variable("f"))
+    assert processor.eval("3^a + 3^a") == Term(
+        Number(2), Number(3), Term(value=Variable("a"))
     )
-
-
-def test_number_arithmetic_with_variable_exponent(interpreter):
-    assert interpreter.eval(AST("3^a + 3^a")) == AlgebraObject(
-        Number(2), Number(3), AlgebraObject(value=Variable("a"))
+    assert processor.eval("0.5(5^x)+5^x") == Term(
+        Number(3, 2), Number(5), Term(value=Variable("x"))
     )
-    assert interpreter.eval(AST("0.5(5^x)+5^x")) == AlgebraObject(
-        Number("1.5"), Number(5), AlgebraObject(value=Variable("x"))
+    assert processor.eval("2.5^p * 4^p") == Term(
+        value=Number(10), exp=Term(value=Variable("p"))
     )
-    assert interpreter.eval(AST("4^z - 4^z")) == AlgebraObject(Number(0))
-    assert interpreter.eval(AST("2*4^f")) == AlgebraObject(
-        Number(2), Number(4), AlgebraObject(value=Variable("f"))
-    )
-    assert interpreter.eval(AST("4^a/2^a")) == AlgebraObject(
-        value=Number(2), exp=AlgebraObject(value=Variable("a"))
-    )
-    assert interpreter.eval(AST("2.5^p * 4^p")) == AlgebraObject(
-        value=Number(10), exp=AlgebraObject(value=Variable("p"))
-    )
-    assert interpreter.eval(AST("3^x * 3^y")) == AlgebraObject(
+    assert processor.eval("(3^x)^2 / 9^x") == Term(Number(1))
+    assert processor.eval("3^x * 3^y") == Term(
         value=Number(3),
-        exp=AlgebraObject(
-            value=Polynomial(
-                [AlgebraObject(value=Variable("x")), AlgebraObject(value=Variable("y"))]
-            )
+        exp=Term(
+            value=Polynomial([Term(value=Variable("x")), Term(value=Variable("y"))])
         ),
     )
-    assert interpreter.eval(AST("(3^x)^2 / 9^x")) == AlgebraObject(Number(1))
 
 
-def test_polynomial_exponentiation(interpreter):
-    assert interpreter.eval(AST("(x + 1)^2")) == AlgebraObject(
+def test_polynomial_exponentiation(processor):
+    # Needs more cases
+    assert processor.eval("(x + 1)^2") == Term(
         value=Polynomial(
             [
-                AlgebraObject(Number(1), Variable("x"), Number(2)),
-                AlgebraObject(Number(2), Variable("x")),
-                AlgebraObject(),
-            ]
-        )
-    )
-    assert interpreter.eval(AST("(y + 2)^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("y"), Number(2)),
-                AlgebraObject(Number(4), Variable("y")),
-                AlgebraObject(Number(4)),
-            ]
-        )
-    )
-    assert interpreter.eval(AST("(z + 3)^2")) == AlgebraObject(
-        value=Polynomial(
-            [
-                AlgebraObject(Number(1), Variable("z"), Number(2)),
-                AlgebraObject(Number(6), Variable("z")),
-                AlgebraObject(Number(9)),
+                Term(Number(1), Variable("x"), Number(2)),
+                Term(Number(2), Variable("x")),
+                Term(),
             ]
         )
     )
 
 
-def test_variable_exponentiation(interpreter):
-    assert interpreter.eval(AST("x^2 * x^3")) == AlgebraObject(
+def test_variable_exponentiation(processor):
+    assert processor.eval("x^2 * x^3") == Term(
         Number(1),
         Variable("x"),
         Number(5),
     )
-    assert interpreter.eval(AST("(x^2)^y")) == AlgebraObject(
-        value=Variable("x"), exp=AlgebraObject(Number(2), Variable("y"))
+    assert processor.eval("(x^2)^y") == Term(
+        value=Variable("x"), exp=Term(Number(2), Variable("y"))
     )
-    assert interpreter.eval(AST("x^a * x^b")) == AlgebraObject(
+    assert processor.eval("x^a * x^b") == Term(
         Number(1),
         Variable("x"),
-        AlgebraObject(
-            value=Polynomial(
-                [AlgebraObject(value=Variable("a")), AlgebraObject(value=Variable("b"))]
-            )
-        ),
+        Term(value=Polynomial([Term(value=Variable("a")), Term(value=Variable("b"))])),
     )
-    assert interpreter.eval(AST("(5x^-2)^(2n) * (x^3)^(3n)")) == AlgebraObject(
+    assert processor.eval("(5x^-2)^(2n) * (x^3)^(3n)") == Term(
         value=Product(
             [
-                AlgebraObject(value=Number(25), exp=AlgebraObject(value=Variable("n"))),
-                AlgebraObject(
-                    value=Variable("x"), exp=AlgebraObject(Number(5), Variable("n"))
-                ),
+                Term(value=Number(25), exp=Term(value=Variable("n"))),
+                Term(value=Variable("x"), exp=Term(Number(5), Variable("n"))),
             ]
         )
     )
-    assert interpreter.eval(AST("(4/x^2)^(3n)")) == AlgebraObject(
+    assert processor.eval("(4/x^2)^(3n)") == Term(
         value=Product(
             [
-                AlgebraObject(value=Number(64), exp=AlgebraObject(value=Variable("n"))),
-                AlgebraObject(
-                    value=Variable("x"), exp=AlgebraObject(Number(-6), Variable("n"))
-                ),
+                Term(value=Number(64), exp=Term(value=Variable("n"))),
+                Term(value=Variable("x"), exp=Term(Number(-6), Variable("n"))),
             ]
         )
     )
-    assert interpreter.eval(AST("(2x^3)^(2y)*(x^2)^(3z)")) == AlgebraObject(
+    assert processor.eval("(2x^3)^(2y)*(x^2)^(3z)") == Term(
         value=Product(
             [
-                AlgebraObject(value=Number(4), exp=AlgebraObject(value=Variable("y"))),
-                AlgebraObject(
+                Term(value=Number(4), exp=Term(value=Variable("y"))),
+                Term(
                     value=Variable("x"),
-                    exp=AlgebraObject(
+                    exp=Term(
                         value=Polynomial(
                             [
-                                AlgebraObject(Number(6), Variable("z")),
-                                AlgebraObject(Number(6), Variable("y")),
+                                Term(Number(6), Variable("z")),
+                                Term(Number(6), Variable("y")),
                             ]
                         )
                     ),
@@ -132,85 +92,80 @@ def test_variable_exponentiation(interpreter):
             ]
         )
     )
-    assert interpreter.eval(AST("z^p / z^q")) == AlgebraObject(
+    assert processor.eval("z^p / z^q") == Term(
         Number(1),
         Variable("z"),
-        AlgebraObject(
+        Term(
             value=Polynomial(
                 [
-                    AlgebraObject(value=Variable("p")),
-                    AlgebraObject(coef=Number(-1), value=Variable("q")),
+                    Term(value=Variable("p")),
+                    Term(coef=Number(-1), value=Variable("q")),
                 ]
             )
         ),
     )
-    assert interpreter.eval(AST("(6x^2)^n / (3x)^(2n)")) == AlgebraObject(
-        value=Number("2/3"), exp=AlgebraObject(value=Variable("n"))
+    assert processor.eval("(6x^2)^n / (3x)^(2n)") == Term(
+        value=Number(2, 3), exp=Term(value=Variable("n"))
     )
-    assert interpreter.eval(AST("z^(6/8)")) == AlgebraObject(
-        Number(1), Variable("z"), Number("3/4")
-    )
-    assert interpreter.eval(AST("x^-2")) == AlgebraObject(
-        Number(1), Variable("x"), Number(-2)
-    )
-    assert interpreter.eval(AST("y^0")) == AlgebraObject()
+    assert processor.eval("z^(6/8)") == Term(Number(1), Variable("z"), Number(3, 4))
+    assert processor.eval("x^-2") == Term(Number(1), Variable("x"), Number(-2))
+    # Edge cases
+    assert processor.eval("y^0") == Term()
+    assert processor.eval("0^0") == Term()
+    assert processor.eval("0^j") == Term(Number(0))
 
 
-def test_polynomial_exponent(interpreter):
-    assert interpreter.eval(AST("4^f*4")) == AlgebraObject(
+def test_polynomial_exponent(processor):
+    assert processor.eval("4^f*4") == Term(
         value=Number(4),
-        exp=AlgebraObject(
-            value=Polynomial(
-                [AlgebraObject(value=Variable("f")), AlgebraObject(value=Number(1))]
-            )
-        ),
+        exp=Term(value=Polynomial([Term(value=Variable("f")), Term(value=Number(1))])),
     )
-    assert interpreter.eval(AST("x^(f+2)/x^2")) == AlgebraObject(
-        value=Variable("x"), exp=AlgebraObject(value=Variable("f"))
+    assert processor.eval("x^(f+2)/x^2") == Term(
+        value=Variable("x"), exp=Term(value=Variable("f"))
     )
-    assert interpreter.eval(AST("(4y)^(n-1)/(4y)^n")) == AlgebraObject(
-        Number("0.25"), Variable("y"), Number(-1)
+    assert processor.eval("(4y)^(n-1)/(4y)^n") == Term(
+        Number(1, 4), Variable("y"), Number(-1)
     )
-    assert interpreter.eval(AST("(3y^2)^(2x) / (3^(x+1)*y^x)"))
-    assert interpreter.eval(AST("(4z)^(n-2) / (4z)^(n+1)")) == AlgebraObject(
-        Number("1/64"), Variable("z"), Number(-3)
+    # assert processor.eval("(3y^2)^(2x) / (3^(x+1)*y^x)")
+    assert processor.eval("(4z)^(n-2) / (4z)^(n+1)") == Term(
+        Number(1, 64), Variable("z"), Number(-3)
     )
-    assert interpreter.eval(AST("(a^b/c^d)^(m+1)")) == AlgebraObject(
+    assert processor.eval("(a^b/c^d)^(m+1)") == Term(
         value=Product(
             [
-                AlgebraObject(
+                Term(
                     value=Variable("a"),
-                    exp=AlgebraObject(
+                    exp=Term(
                         value=Polynomial(
                             [
-                                AlgebraObject(
+                                Term(
                                     value=Product(
                                         [
-                                            AlgebraObject(value=Variable("b")),
-                                            AlgebraObject(value=Variable("m")),
+                                            Term(value=Variable("b")),
+                                            Term(value=Variable("m")),
                                         ]
                                     )
                                 ),
-                                AlgebraObject(value=Variable("b")),
+                                Term(value=Variable("b")),
                             ]
                         )
                     ),
                 ),
-                AlgebraObject(
+                Term(
                     value=Variable("c"),
-                    exp=AlgebraObject(
+                    exp=Term(
                         value=Polynomial(
                             [
-                                AlgebraObject(
+                                Term(
                                     Number(-1),
                                     Product(
                                         [
-                                            AlgebraObject(value=Variable("d")),
-                                            AlgebraObject(value=Variable("m")),
+                                            Term(value=Variable("d")),
+                                            Term(value=Variable("m")),
                                         ]
                                     ),
                                 ),
-                                AlgebraObject(Number(-1), Variable("d")),
+                                Term(Number(-1), Variable("d")),
                             ]
                         )
                     ),

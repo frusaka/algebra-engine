@@ -27,8 +27,10 @@ class dispatch(singledispatchmethod):
 class Proxy:
     def __init__(self, value):
         self.value = value
-        self._fake = eval(type(value.value).__name__.lower())
+        self._fake = CLASSES[value.value.__class__.__name__]
 
     @property
     def __class__(self):
         return self._fake
+
+CLASSES = {"Number":number, "Variable":variable, "Product":product, "Polynomial":polynomial}

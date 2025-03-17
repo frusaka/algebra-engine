@@ -4,27 +4,36 @@ from typing import Any
 
 
 class TokenType(Enum):
-    EQ, NE, GT, GE, LT, LE = 0, 0.2, 0.4, 0.6, 0.8, 0.9
+    """Supported token types"""
 
-    NUMBER, VAR = 1, 1.2
-    ADD, SUB = 2, 2.2
-    MUL, TRUEDIV = 3, 3.2
-    POW, ROOT = 5, 5.2
-    POS, NEG = 4, 4.2
+    SOLVE = 0
+    COMMA = 1
+    SEMI_COLON = 2
 
-    LPAREN, RPAREN = -6, -6.2
-    ERROR = -7
+    EQ, GT, GE, LT, LE = 4, 4.2, 4.4, 4.6, 4.8
+
+    NUMBER, VAR = 5, 5.2
+
+    ADD, SUB = 7, 7.2
+    MUL, TRUEDIV = 8, 8.2
+    POS, NEG = 9, 9.2
+    POW, ROOT = 10, 10.2
+
+    LPAREN, RPAREN = -11, -11.2
+    ERROR = -12
 
 
-@dataclass
+@dataclass(frozen=True)
 class Token:
+    """Lexer representation of a token. Contains precedence data"""
+
     type: TokenType
     value: Any = None
     iscoef: bool = False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.type.name + (f": {self.value}" if self.value is not None else "")
 
     @property
-    def priority(self):
+    def priority(self) -> float:
         return self.type.value // 1 + self.iscoef * 0.2

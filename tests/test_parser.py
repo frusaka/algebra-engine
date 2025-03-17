@@ -1,18 +1,19 @@
 import pytest
 from processing import AST, Token, TokenType, Binary, Unary
-from data_types import Variable, Number
+from datatypes import Variable, Number
 
 
-@pytest.mark.parametrize("expr", ["9+", "-4+", "3()", "(()", ")", "()^2"])
-def test_invalid(expr):
-    with pytest.raises(SyntaxError):
-        AST(expr)
+def test_invalid():
+    # Uses for-loop to avoid inflating test count
+    for expr in ["9+", "-4+", "3()", "(()", ")", "()^2", "()()", "j6"]:
+        with pytest.raises(SyntaxError):
+            AST(expr)
 
 
-@pytest.mark.parametrize("expr", ["3 4", "2 3y", "3 4+5","3/4 5x"])
-def test_spaced_numbers(expr):
-    with pytest.raises(SyntaxError):
-        AST(expr)
+def test_spaced_numbers():
+    for expr in ["3 4", "2 3y", "3 4+5", "3/4 5x"]:
+        with pytest.raises(SyntaxError):
+            AST(expr)
 
 
 def test_unary():
@@ -30,6 +31,11 @@ def test_binary():
     assert AST("2/3") == Binary(Token(TokenType.TRUEDIV), Number(2), Number(3))
     assert AST("x+3") == Binary(Token(TokenType.ADD), Variable("x"), Number(3))
     assert AST("x+z") == Binary(Token(TokenType.ADD), Variable("x"), Variable("z"))
+    assert AST("x=3") == Binary(Token(TokenType.EQ), Variable("x"), Number(3))
+    assert AST("x>=3") == Binary(Token(TokenType.GE), Variable("x"), Number(3))
+    assert AST("x<=3") == Binary(Token(TokenType.LE), Variable("x"), Number(3))
+    assert AST("x>3") == Binary(Token(TokenType.GT), Variable("x"), Number(3))
+    assert AST("x<3") == Binary(Token(TokenType.LT), Variable("x"), Number(3))
 
 
 def test_unary_vs_binary():
@@ -165,6 +171,28 @@ def test_PEMDAS():
             Binary(Token(TokenType.MUL, iscoef=True), Number(3), Variable("x")),
         ),
         Number(1),
+    )
+
+    # Comparisons and Comparisons
+    assert AST("3+5=x") == Binary(
+        Token(TokenType.EQ),
+        Binary(Token(TokenType.ADD), Number(3), Number(5)),
+        Variable("x"),
+    )
+    assert AST("3=x+5") == Binary(
+        Token(TokenType.EQ),
+        Number(3),
+        Binary(Token(TokenType.ADD), Variable("x"), Number(5)),
+    )
+    assert AST("3+5=x") == Binary(
+        Token(TokenType.EQ),
+        Binary(Token(TokenType.ADD), Number(3), Number(5)),
+        Variable("x"),
+    )
+    assert AST("3<=x+5") == Binary(
+        Token(TokenType.LE),
+        Number(3),
+        Binary(Token(TokenType.ADD), Variable("x"), Number(5)),
     )
 
 

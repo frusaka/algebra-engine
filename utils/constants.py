@@ -1,4 +1,9 @@
 SYMBOLS = {
+    "SOLVE": "→",
+    "COMMA": ",",
+    "SEMI_COLON": ";",
+    "RATIO": ":",
+    "BOOL": "?",
     "EQ": "=",
     "NE": "≠",
     "GT": ">",
@@ -7,10 +12,12 @@ SYMBOLS = {
     "LE": "≤",
     "ADD": "+",
     "SUB": "-",
-    "MUL": "•",
+    "MUL": "*",
     "TRUEDIV": "÷",
     "POW": "^",
     "ROOT": "√",
     "NEG": "-",
     "POS": "+",
 }
+
+
