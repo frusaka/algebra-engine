@@ -1,12 +1,11 @@
 from timeit import timeit
-from processing import Interpreter, AST
+from processing import AST
 
-processor = Interpreter()
 while True:
     try:
         if (ast := AST(input("Expression > "))) is not None:
-            t = timeit(lambda: processor.eval(ast), number=1)
-            print(processor.eval(ast))
+            t = timeit(lambda: ast.eval(), number=1)
+            print(ast.eval())
             print(f"Finished in {int(t*1000)}ms")
     except Exception as e:
         # raise e

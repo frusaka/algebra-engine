@@ -1,7 +1,7 @@
 SYMBOLS = {
     "SOLVE": "→",
-    "COMMA": ",",
-    "SEMI_COLON": ";",
+    "TUP": ",",
+    "SYS": ";",
     "RATIO": ":",
     "BOOL": "?",
     "EQ": "=",
@@ -19,5 +19,3 @@ SYMBOLS = {
     "NEG": "-",
     "POS": "+",
 }
-
-

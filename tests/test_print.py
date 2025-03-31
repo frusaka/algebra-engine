@@ -1,6 +1,7 @@
 import pytest
 from utils import print_frac
 from datatypes import Number, Fraction, Term, Variable
+from processing import AST
 
 
 def test_print_frac():
@@ -15,14 +16,14 @@ def test_print_frac():
 
 
 def test_print_number():
-    assert str(Number(1+2j)) == "(1+2i)"
-    assert str(Number(-1+1j)) == "(-1+i)"
+    assert str(Number(1 + 2j)) == "(1+2i)"
+    assert str(Number(-1 + 1j)) == "(-1+i)"
     assert str(Number(2j)) == "2i"
     assert str(Number(1)) == "1"
     assert str(Number(1j)) == "i"
-    assert str(Number(0-11j)) == "-11i"
-    assert str(Number(-0-1j)) == "-i"
-    assert str(Number(4+3j, 6)) == "(4+3i)/6"
+    assert str(Number(0 - 11j)) == "-11i"
+    assert str(Number(-0 - 1j)) == "-i"
+    assert str(Number(4 + 3j, 6)) == "(4+3i)/6"
     assert str(Number(1j, 3)) == "i/3"
 
 
@@ -43,32 +44,32 @@ def test_print_negative_exp():
     assert str(Term(Number(6, 7), Variable("k"), Number(-3))) == "6/7k^3"
 
 
-def test_print_radical(processor):
+def test_print_radical():
     assert str(Term(Number(1), Variable("y"), Number(1, 2))) == "2√y"
     assert str(Term(Number(1), Variable("x"), Number(-1, 3))) == "1/3√x"
     assert str(Term(Number(7, 2), Variable("q"), Number(1, 3))) == "3.5(3√q)"
     assert str(Term(Number(1, 5), Variable("r"), Number(2, 3))) == "0.2(3√r^2)"
-    assert str(processor.eval("2√(x + c)")) == "2√(x + c)"
-    assert str(processor.eval("-1(2√(x + c))")) == "-2√(x + c)"
-    assert str(processor.eval("2(2√(x + c))")) == "2(2√(x + c))"
-    assert str(processor.eval("-2(2√(x + c))")) == "-2(2√(x + c))"
-    assert str(processor.eval("2√5 / 2")) == "0.5(2√5)"
-    assert str(processor.eval("2 * 2√5 / 3")) == "2(2√5)/3"
+    assert str(AST("2√(x + c)").eval()) == "2√(x + c)"
+    assert str(AST("-1(2√(x + c))").eval()) == "-2√(x + c)"
+    assert str(AST("2(2√(x + c))").eval()) == "2(2√(x + c))"
+    assert str(AST("-2(2√(x + c))").eval()) == "-2(2√(x + c))"
+    assert str(AST("2√5 / 2").eval()) == "0.5(2√5)"
+    assert str(AST("2 * 2√5 / 3").eval()) == "2(2√5)/3"
 
 
-def test_print_polynomial(processor):
-    assert str(processor.eval("x+1")) == "(x + 1)"
-    assert str(processor.eval("47-600x")) == "(-600x + 47)"
-    assert str(processor.eval("1600+3x^3+y-12y^2")) == "(3x^3 - 12y^2 + y + 1600)"
-    assert str(processor.eval("x^2+3x+1")) == "(x^2 + 3x + 1)"
-    # assert str(processor.eval("3x+(3/(c+b))-1")) == "(3x - 1 + 3/(c + b))"
+def test_print_polynomial():
+    assert str(AST("x+1").eval()) == "(x + 1)"
+    assert str(AST("47-600x").eval()) == "(-600x + 47)"
+    assert str(AST("1600+3x^3+y-12y^2").eval()) == "(3x^3 - 12y^2 + y + 1600)"
+    assert str(AST("x^2+3x+1").eval()) == "(x^2 + 3x + 1)"
+    # assert str(AST("3x+(3/(c+b))-1").eval()) == "(3x - 1 + 3/(c + b))"
 
 
 @pytest.mark.xfail(reason="Fine alternative")
-def test_print_product(processor):
-    assert str(processor.eval("-2xb")) == "-2bx"
-    assert str(processor.eval("x^3*y^-5")) == "x^3/y^5"
-    assert str(processor.eval("-10(m^-1*n^-1)")) == "-10/mn"
-    assert str(processor.eval("(-2/3)(y^2n^-1)")) == "-2y^2/3n"
-    assert str(processor.eval("n/a - 5/4a")) == "(4n - 5)/4a"
-    assert str(processor.eval("s^3*d^-5*z^2/3")) == "(z^2s^3)/3d^5"
+def test_print_product():
+    assert str(AST("-2xb").eval()) == "-2bx"
+    assert str(AST("x^3*y^-5").eval()) == "x^3/y^5"
+    assert str(AST("-10(m^-1*n^-1)").eval()) == "-10/mn"
+    assert str(AST("(-2/3)(y^2n^-1)").eval()) == "-2y^2/3n"
+    assert str(AST("n/a - 5/4a").eval()) == "(4n - 5)/4a"
+    assert str(AST("s^3*d^-5*z^2/3").eval()) == "(z^2s^3)/3d^5"

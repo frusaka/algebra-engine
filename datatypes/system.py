@@ -16,8 +16,17 @@ def plus_minus_key(t: Term) -> Term:
     return t
 
 
+seen = set()
+solved = dict()
+
+
 class System(Collection):
     """A system of equations or inequalities"""
+
+    @classmethod
+    def clear_cache(cls):
+        seen.clear()
+        solved.clear()
 
     @lru_cache
     def __getitem__(self, vals: Sequence[Variable]) -> System:
@@ -32,45 +41,45 @@ class System(Collection):
             self,
             key=lambda eqn: difficulty_weight(eqn.normalize().left),
         )
-
         if vals.__class__ is str:
             vals = (Variable(vals),)
         # Solve for each variable separately
         for v in vals:
             print(System.__str__(eqns))
             if eqns[0].__class__ is System:
-                eqns = list(
+                # Needs to indent branching
+                eqns = [
                     (
                         print(
-                            f"(Start Branch)\n".join(("\033[30m", "\033[0m")),
                             f"{v} →",
                             end=" ",
-                            sep="",
                         ),
                         eqn[str(v)],
-                        print("(End Branch)".join(("\033[30m", "\033[0m"))),
                     )[1]
                     for eqn in eqns
-                )
+                ]
                 # Flatten when necessary (most cases)
-                if next(iter(next(iter(eqns)))).__class__ is System:
+                if any(i.__class__ is System for i in eqns[0]):
                     eqns = list(j for i in eqns for j in i)
                 continue
-            # Find an (in)equality with an independent target variable
-            for idx, org in enumerate(eqns):
-                if any(
-                    v in j and j.exp.denominator == 1 or j.value == v
-                    for j in (org.left, org.right)
-                ):
-                    break
+            # Find an equation with an independent target variable
+            try:
+                idx, org = next(
+                    (i, j) for i, j in enumerate(eqns) if v in j and j not in seen
+                )
+            except StopIteration:
+                raise ValueError(f"No independent variable containing {v}")
+            if (v, org) in solved:
+                eqn = solved[v, org]
             else:
-                return System(eqns)
-            if len(vals) - 1:
-                print(v, "→", org)
-            eqn = org[v]
+                if len(vals) - 1:
+                    print(v, "→", org)
+                eqn = org[v]
+                solved[v, org] = eqn
             eqns.pop(idx)
             old = v.join(("\033[31m", "\033[0m"))
             if eqn.__class__ is System:
+                seen.update(eqn)
                 new = ", ".join(str(i.right).join(("\033[32m", "\033[0m")) for i in eqn)
                 print(f"Substitute {old} with {new}")
                 eqns = [
@@ -81,8 +90,6 @@ class System(Collection):
                     )
                     for j in eqn
                 ]
-                if len(eqns) == 1:
-                    eqns = list(eqns[0])
             else:
                 # Need a check for infinite solutions
                 if eqn.left.value != v:
@@ -93,6 +100,7 @@ class System(Collection):
                 for i in range(len(eqns)):
                     eqns[i] = subs(eqns[i], {v: eqn.right})
                 # Put the newly solved equation at the end
+                seen.add(eqn)
                 eqns.append(eqn)
         print(System.__str__(eqns))
         return System(eqns)

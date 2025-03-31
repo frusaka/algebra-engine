@@ -9,7 +9,8 @@
 5. Make solver iterative
 6. Improve solving by factorizaiton
 7. Add saftey checks when solving for nested radicals or complex equations
-8. Make systems solver not revisit solved equations and enhance equation difficulty weighing
+8. Enhance equation difficulty weighing
 9. Bring back dem mixed fractions
 10. Add aproximations:
     x -> (2x+3)^0.5+(x-1)^0.5=4 should practically have 1 solution
+11. Improve printing (instead of bare print statements)

@@ -50,6 +50,7 @@ class Comparison:
         """
         This method will be called when solving for a variable
         """
+
         # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
         print(self)
         if value not in self:
@@ -165,6 +166,8 @@ class Comparison:
         )
 
     def __pow__(self, value: Term) -> Comparison:
+        from .system import System
+
         self.show_operation("^", value)
         lhs = self.left**value
         rhs = self.right**value

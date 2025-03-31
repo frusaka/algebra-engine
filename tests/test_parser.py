@@ -17,127 +17,125 @@ def test_spaced_numbers():
 
 
 def test_unary():
-    assert AST("-2") == Unary(Token(TokenType.NEG), Number(2))
-    assert AST("-f") == Unary(Token(TokenType.NEG), Variable("f"))
-    assert AST("+5") == Unary(Token(TokenType.POS), Number(5))
-    assert AST("+x") == Unary(Token(TokenType.POS), Variable("x"))
-    assert AST("--f") == Unary(
-        Token(TokenType.NEG), Unary(Token(TokenType.NEG), Variable("f"))
-    )
+    assert AST("-2") == Unary("NEG", Number(2))
+    assert AST("-f") == Unary("NEG", Variable("f"))
+    assert AST("+5") == Unary("POS", Number(5))
+    assert AST("+x") == Unary("POS", Variable("x"))
+    assert AST("--f") == Unary("NEG", Unary("NEG", Variable("f")))
 
 
 def test_binary():
-    assert AST("2*3") == Binary(Token(TokenType.MUL), Number(2), Number(3))
-    assert AST("2/3") == Binary(Token(TokenType.TRUEDIV), Number(2), Number(3))
-    assert AST("x+3") == Binary(Token(TokenType.ADD), Variable("x"), Number(3))
-    assert AST("x+z") == Binary(Token(TokenType.ADD), Variable("x"), Variable("z"))
-    assert AST("x=3") == Binary(Token(TokenType.EQ), Variable("x"), Number(3))
-    assert AST("x>=3") == Binary(Token(TokenType.GE), Variable("x"), Number(3))
-    assert AST("x<=3") == Binary(Token(TokenType.LE), Variable("x"), Number(3))
-    assert AST("x>3") == Binary(Token(TokenType.GT), Variable("x"), Number(3))
-    assert AST("x<3") == Binary(Token(TokenType.LT), Variable("x"), Number(3))
+    assert AST("2*3") == Binary("MUL", Number(2), Number(3))
+    assert AST("2/3") == Binary("TRUEDIV", Number(2), Number(3))
+    assert AST("x+3") == Binary("ADD", Variable("x"), Number(3))
+    assert AST("x+z") == Binary("ADD", Variable("x"), Variable("z"))
+    assert AST("x=3") == Binary("EQ", Variable("x"), Number(3))
+    assert AST("x>=3") == Binary("GE", Variable("x"), Number(3))
+    assert AST("x<=3") == Binary("LE", Variable("x"), Number(3))
+    assert AST("x>3") == Binary("GT", Variable("x"), Number(3))
+    assert AST("x<3") == Binary("LT", Variable("x"), Number(3))
 
 
 def test_unary_vs_binary():
     assert AST("3+-5") == Binary(
-        Token(TokenType.ADD),
+        "ADD",
         Number(3),
-        Unary(Token(TokenType.NEG), Number(5)),
+        Unary("NEG", Number(5)),
     )
     assert AST("-5+3") == Binary(
-        Token(TokenType.ADD),
-        Unary(Token(TokenType.NEG), Number(5)),
+        "ADD",
+        Unary("NEG", Number(5)),
         Number(3),
     )
     assert AST("3++5") == Binary(
-        Token(TokenType.ADD),
+        "ADD",
         Number(3),
-        Unary(Token(TokenType.POS), Number(5)),
+        Unary("POS", Number(5)),
     )
     assert AST("3+++5") == Binary(
-        Token(TokenType.ADD),
+        "ADD",
         Number(3),
-        Unary(Token(TokenType.POS), Unary(Token(TokenType.POS), Number(5))),
+        Unary("POS", Unary("POS", Number(5))),
     )
     assert AST("3--5") == Binary(
-        Token(TokenType.SUB),
+        "SUB",
         Number(3),
-        Unary(Token(TokenType.NEG), Number(5)),
+        Unary("NEG", Number(5)),
     )
     assert AST("3---5") == Binary(
-        Token(TokenType.SUB),
+        "SUB",
         Number(3),
-        Unary(Token(TokenType.NEG), Unary(Token(TokenType.NEG), Number(5))),
+        Unary("NEG", Unary("NEG", Number(5))),
     )
 
 
 def test_PEMDAS():
     # Basic operations
     assert AST("3+5*2") == Binary(
-        Token(TokenType.ADD),
+        "ADD",
         Number(3),
-        Binary(Token(TokenType.MUL), Number(5), Number(2)),
+        Binary("MUL", Number(5), Number(2)),
     )
     assert AST("3-5/2") == Binary(
-        Token(TokenType.SUB),
+        "SUB",
         Number(3),
-        Binary(Token(TokenType.TRUEDIV), Number(5), Number(2)),
+        Binary("TRUEDIV", Number(5), Number(2)),
     )
     assert AST("3/5*2") == Binary(
-        Token(TokenType.MUL),
-        Binary(Token(TokenType.TRUEDIV), Number(3), Number(5)),
+        "MUL",
+        Binary("TRUEDIV", Number(3), Number(5)),
         Number(2),
     )
     assert AST("3*5/2") == Binary(
-        Token(TokenType.TRUEDIV),
-        Binary(Token(TokenType.MUL), Number(3), Number(5)),
+        "TRUEDIV",
+        Binary("MUL", Number(3), Number(5)),
         Number(2),
     )
 
     # Exponentiation
     assert AST("3^5*2") == Binary(
-        Token(TokenType.MUL),
-        Binary(Token(TokenType.POW), Number(3), Number(5)),
+        "MUL",
+        Binary("POW", Number(3), Number(5)),
         Number(2),
     )
     assert AST("-3^5") == Unary(
-        Token(TokenType.NEG),
-        Binary(Token(TokenType.POW), Number(3), Number(5)),
+        "NEG",
+        Binary("POW", Number(3), Number(5)),
     )
     assert AST("(-3)^5") == Binary(
-        Token(TokenType.POW),
-        Unary(Token(TokenType.NEG), Number(3)),
+        "POW",
+        Unary("NEG", Number(3)),
         Number(5),
     )
     assert AST("3^-5") == Binary(
-        Token(TokenType.POW),
+        "POW",
         Number(3),
-        Unary(Token(TokenType.NEG), Number(5)),
+        Unary("NEG", Number(5)),
     )
 
     # Parentheses
     assert AST("(3+5)*2") == Binary(
-        Token(TokenType.MUL),
-        Binary(Token(TokenType.ADD), Number(3), Number(5)),
+        "MUL",
+        Binary("ADD", Number(3), Number(5)),
         Number(2),
     )
     assert AST("3*(5+2)-8/4") == Binary(
-        Token(TokenType.SUB),
+        "SUB",
         Binary(
-            Token(TokenType.MUL),
+            "MUL",
             Number(3),
-            Binary(Token(TokenType.ADD), Number(5), Number(2)),
+            Binary("ADD", Number(5), Number(2)),
         ),
-        Binary(Token(TokenType.TRUEDIV), Number(8), Number(4)),
+        Binary("TRUEDIV", Number(8), Number(4)),
     )
     assert AST("3+(5*2-8)/4") == Binary(
-        Token(TokenType.ADD),
+        "ADD",
         Number(3),
         Binary(
-            Token(TokenType.TRUEDIV),
+            "TRUEDIV",
             Binary(
-                Token(TokenType.SUB),
-                Binary(Token(TokenType.MUL), Number(5), Number(2)),
+                "SUB",
+                Binary("MUL", Number(5), Number(2)),
                 Number(8),
             ),
             Number(4),
@@ -146,83 +144,83 @@ def test_PEMDAS():
 
     # Variables and coefficients
     assert AST("3x+5*2") == Binary(
-        Token(TokenType.ADD),
-        Binary(Token(TokenType.MUL, iscoef=True), Number(3), Variable("x")),
-        Binary(Token(TokenType.MUL), Number(5), Number(2)),
+        "ADD",
+        Binary("MUL", Number(3), Variable("x")),
+        Binary("MUL", Number(5), Number(2)),
     )
     assert AST("3(x+5)*2") == Binary(
-        Token(TokenType.MUL),
+        "MUL",
         Binary(
-            Token(TokenType.MUL, iscoef=True),
+            "MUL",
             Number(3),
-            Binary(Token(TokenType.ADD), Variable("x"), Number(5)),
+            Binary("ADD", Variable("x"), Number(5)),
         ),
         Number(2),
     )
     assert AST("2x^2 + 3x + 1") == Binary(
-        Token(TokenType.ADD),
+        "ADD",
         Binary(
-            Token(TokenType.ADD),
+            "ADD",
             Binary(
-                Token(TokenType.MUL, iscoef=True),
+                "MUL",
                 Number(2),
-                Binary(Token(TokenType.POW), Variable("x"), Number(2)),
+                Binary("POW", Variable("x"), Number(2)),
             ),
-            Binary(Token(TokenType.MUL, iscoef=True), Number(3), Variable("x")),
+            Binary("MUL", Number(3), Variable("x")),
         ),
         Number(1),
     )
 
     # Comparisons and Comparisons
     assert AST("3+5=x") == Binary(
-        Token(TokenType.EQ),
-        Binary(Token(TokenType.ADD), Number(3), Number(5)),
+        "EQ",
+        Binary("ADD", Number(3), Number(5)),
         Variable("x"),
     )
     assert AST("3=x+5") == Binary(
-        Token(TokenType.EQ),
+        "EQ",
         Number(3),
-        Binary(Token(TokenType.ADD), Variable("x"), Number(5)),
+        Binary("ADD", Variable("x"), Number(5)),
     )
     assert AST("3+5=x") == Binary(
-        Token(TokenType.EQ),
-        Binary(Token(TokenType.ADD), Number(3), Number(5)),
+        "EQ",
+        Binary("ADD", Number(3), Number(5)),
         Variable("x"),
     )
     assert AST("3<=x+5") == Binary(
-        Token(TokenType.LE),
+        "LE",
         Number(3),
-        Binary(Token(TokenType.ADD), Variable("x"), Number(5)),
+        Binary("ADD", Variable("x"), Number(5)),
     )
 
 
 def test_monomial_special():
     assert AST("6a/8b") == Binary(
-        Token(TokenType.TRUEDIV),
-        Binary(Token(TokenType.MUL, iscoef=True), Number(6), Variable("a")),
-        Binary(Token(TokenType.MUL, iscoef=True), Number(8), Variable("b")),
+        "TRUEDIV",
+        Binary("MUL", Number(6), Variable("a")),
+        Binary("MUL", Number(8), Variable("b")),
     )
     assert AST("6/8b") == Binary(
-        Token(TokenType.TRUEDIV),
+        "TRUEDIV",
         Number(6),
-        Binary(Token(TokenType.MUL, iscoef=True), Number(8), Variable("b")),
+        Binary("MUL", Number(8), Variable("b")),
     )
     assert AST("6/8*b") == Binary(
-        Token(TokenType.MUL),
-        Binary(Token(TokenType.TRUEDIV), Number(6), Number(8)),
+        "MUL",
+        Binary("TRUEDIV", Number(6), Number(8)),
         Variable("b"),
     )
     assert AST("6a/8") == Binary(
-        Token(TokenType.TRUEDIV),
-        Binary(Token(TokenType.MUL, iscoef=True), Number(6), Variable("a")),
+        "TRUEDIV",
+        Binary("MUL", Number(6), Variable("a")),
         Number(8),
     )
     assert AST("6a/8b^2") == Binary(
-        Token(TokenType.TRUEDIV),
-        Binary(Token(TokenType.MUL, iscoef=True), Number(6), Variable("a")),
+        "TRUEDIV",
+        Binary("MUL", Number(6), Variable("a")),
         Binary(
-            Token(TokenType.MUL, iscoef=True),
+            "MUL",
             Number(8),
-            Binary(Token(TokenType.POW), Variable("b"), Number(2)),
+            Binary("POW", Variable("b"), Number(2)),
         ),
     )

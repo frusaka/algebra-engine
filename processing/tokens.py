@@ -7,12 +7,12 @@ class TokenType(Enum):
     """Supported token types"""
 
     SOLVE = 0
-    COMMA = 1
-    SEMI_COLON = 2
+    TUP = 1
+    SYS = 2
 
     EQ, GT, GE, LT, LE = 4, 4.2, 4.4, 4.6, 4.8
 
-    NUMBER, VAR = 5, 5.2
+    NUM, VAR = 5, 5.2
 
     ADD, SUB = 7, 7.2
     MUL, TRUEDIV = 8, 8.2
