@@ -8,8 +8,8 @@ class Lexer:
 
     OPERS = {
         "→": Token(TokenType.SOLVE),
-        ",": Token(TokenType.COMMA),
-        ";": Token(TokenType.SEMI_COLON),
+        ",": Token(TokenType.TUP),
+        ";": Token(TokenType.SYS),
         "=": Token(TokenType.EQ),
         ">": Token(TokenType.GT),
         "≥": Token(TokenType.GE),
@@ -96,7 +96,7 @@ class Lexer:
         decimals = 0
         if self.curr == "i":
             self.advance()
-            return Token(TokenType.NUMBER, Number(1j))
+            return Token(TokenType.NUM, Number(1j))
         number_str = ""
         while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
             if self.curr == ".":
@@ -115,4 +115,4 @@ class Lexer:
             return Token(
                 TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
             )
-        return Token(TokenType.NUMBER, Number(number_str))
+        return Token(TokenType.NUM, Number(number_str))

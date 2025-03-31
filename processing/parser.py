@@ -1,7 +1,7 @@
 from typing import Any, Generator, Sequence
 from datatypes import Number, Variable
 from .tokens import Token, TokenType
-from .nodes import SYMBOLS, Unary, Binary
+from .nodes import SYMBOLS, Sys, Tuple, Unary, Binary
 from .lexer import Lexer
 
 
@@ -56,25 +56,25 @@ class Parser:
             if j + 1 < i:
                 self.advance()
 
-    def parse(self) -> Unary | Binary | Number | Variable | tuple | frozenset | None:
+    def parse(self) -> Unary | Binary | Number | Variable | Sys | None:
         """Convert from prefix notation to a tree that can be evaluated by the Interpreter"""
         if self.curr is None:
             return
-        if self.curr.type in (TokenType.VAR, TokenType.NUMBER):
+        if self.curr.type in (TokenType.VAR, TokenType.NUM):
             return self.curr.value
-        if self.curr.type is TokenType.COMMA:
-            return tuple(
+        if self.curr.type is TokenType.TUP:
+            return Tuple(
                 self.generate_iterable(
-                    TokenType.COMMA,
+                    TokenType.TUP,
                     TokenType.VAR,
                     "tuple expects unique variables only",
                     0,
                 )
             )
-        if self.curr.type is TokenType.SEMI_COLON:
-            return frozenset(
+        if self.curr.type is TokenType.SYS:
+            return Sys(
                 self.generate_iterable(
-                    TokenType.SEMI_COLON,
+                    TokenType.SYS,
                     TokenType.EQ,
                     "system expects unique equations only",
                 )
@@ -82,55 +82,62 @@ class Parser:
         oper = self.curr
         self.advance()
         left = self.parse()
+        p = oper.priority
         if left is None:
             self.operator_error(oper)
+        pl = (
+            TokenType[
+                getattr(left, "oper", None) or left.__class__.__name__[:3].upper()
+            ].value
+            // 1
+        )
         if oper.type in (TokenType.NEG, TokenType.POS):
-            if (
-                isinstance(left, frozenset)
-                or hasattr(left, "oper")
-                and left.oper.priority < 5
-            ):
+            if isinstance(left, Sys) or hasattr(left, "oper") and pl < 5:
                 self.operand_error(oper)
-            return Unary(oper, left)
+            return Unary(oper.type.name, left)
         self.advance()
         right = self.parse()
         if right is None:
             self.operator_error(oper)
+        pr = (
+            TokenType[
+                getattr(right, "oper", None) or right.__class__.__name__[:3].upper()
+            ].value
+            // 1
+        )
         # Check for valid solving syntax
         if oper.type is TokenType.SOLVE:
-            if not isinstance(left, (tuple, Variable)):
+            if not isinstance(left, (Tuple, Variable)):
                 raise SyntaxError("can only solve for Variables")
-            if not isinstance(right, frozenset) and (
-                not isinstance(right, Binary) or right.oper.priority != 4
+            if right.__class__ is not Sys and (
+                not isinstance(right, Binary) or pr != 4
             ):
                 raise SyntaxError("can only solve from an (in)equality")
-        elif oper.priority == 4:
+        elif p == 4:
             # Reject nested (in)equalities
             if (
-                isinstance(left, Binary)
-                and left.oper.priority == 4
+                left.__class__ is Binary
+                and pl == 4
                 or isinstance(right, Binary)
-                and right.oper.priority == 4
+                and pr == 4
             ):
                 raise SyntaxError("nested (in)equality")
             # Reject (in)equality if any of the operands are not term expressions
-            if isinstance(left, (tuple, frozenset)) or isinstance(
-                left, (tuple, frozenset)
-            ):
+            if isinstance(left, (Tuple, Sys)) or isinstance(left, (Tuple, Sys)):
                 self.operand_error(oper)
         # Reject operators between terms and non-terms
-        elif oper.priority >= 6:
+        elif p >= 6:
             if (
                 isinstance(left, (Binary, Unary))
-                and left.oper.priority < 5
-                or isinstance(left, (tuple, frozenset))
+                and pl < 5
+                or isinstance(left, (Tuple, Sys))
             ) or (
                 isinstance(right, (Binary, Unary))
-                and right.oper.priority < 5
-                or isinstance(right, (tuple, frozenset))
+                and pr < 5
+                or isinstance(right, (Tuple, Sys))
             ):
                 self.operand_error(oper)
-        return Binary(oper, left, right)
+        return Binary(oper.type.name, left, right)
 
     def postfix(self, tokens: Sequence[Token]) -> Generator[Token, None, None]:
         """
@@ -143,7 +150,7 @@ class Parser:
             # Unkowns or operands
             if token.type is TokenType.ERROR:
                 raise token.value
-            if token.type in (TokenType.NUMBER, TokenType.VAR):
+            if token.type in (TokenType.NUM, TokenType.VAR):
                 yield token
 
             # Opening parenthesis

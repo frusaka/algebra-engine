@@ -23,6 +23,12 @@ class Atomic:
             res *= a**i
         return res
 
+    def eval(self) -> Term:
+        # From parsing the stage to evaluation stage
+        from .term import Term
+
+        return Term(value=self)
+
 
 class Unknown:
     """

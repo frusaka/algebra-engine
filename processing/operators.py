@@ -26,12 +26,12 @@ def ge(a: Term, b: Term) -> Comparison:
 
 def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparison:
     """Substitute all occurances of `var` with the provided value"""
-    from processing import Interpreter, AST
+    from processing import AST
 
     val = str(a)
     for i in mapping:
         val = val.replace(i, i.join(("({", "})")))
-    return Interpreter().eval(AST(val.format_map(mapping)))
+    return AST(val.format_map(mapping)).eval()
 
 
 def validate_solution(
@@ -59,8 +59,9 @@ def solve(
     print(f"Verifying solution{s}".join(("\033[34m", "\033[0m")))
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
-    # Nested System: multple solution
     if isinstance(comp, System):
+        System.clear_cache()
+        # Nested System: multple solution
         if any(isinstance(i, System) for i in res):
             res = set(res)
             for i in tuple(res):
