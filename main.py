@@ -1,13 +1,56 @@
-from timeit import timeit
-from processing import Interpreter, AST
+import eel
+from pylatexenc.latexwalker import (
+    LatexWalker,
+    LatexCharsNode,
+    LatexNode,
+    LatexGroupNode,
+    LatexMacroNode,
+)
+
+from processing import Interpreter
+from utils.constants import TEXTOKEN, SYMBOLS, STEPS
+
+
+@eel.expose
+def evaluate(latex: str):
+    nodes, _, _ = LatexWalker(
+        latex.replace("\\left(", "(")
+        .replace("\\right)", ")")
+        .replace("\\placeholder{}", "")
+    ).get_latex_nodes()
+    res = processor.eval("".join(map(stringify_node, nodes))).totex()
+    if STEPS:
+        print(*STEPS, sep="\n")
+        res = "\\\\".join(STEPS + [res])
+        STEPS.clear()
+    # print(res)
+    return res
+
+
+def stringify_node(node: LatexNode) -> str:
+    if node.__class__ is LatexCharsNode:
+        return node.chars
+    if node.__class__ is LatexGroupNode:
+        return "".join(map(stringify_node, node.nodelist)).join("()")
+    if node.__class__ is LatexMacroNode:
+        if not node.nodeargd.argnlist:
+            return SYMBOLS[TEXTOKEN[node.macroname]]
+        if node.macroname == "sqrt" and node.nodeargd.argnlist[0] is None:
+            return (
+                SYMBOLS[TEXTOKEN[node.macroname]]
+                .join(("2", stringify_node(node.nodeargd.argnlist[1])))
+                .join("()")
+            )
+        return (
+            SYMBOLS[TEXTOKEN[node.macroname]]
+            .join(map(stringify_node, node.nodeargd.argnlist))
+            .join("()")
+        )
+    return ""
+
 
 processor = Interpreter()
-while True:
-    try:
-        if (ast := AST(input("Expression > "))) is not None:
-            t = timeit(lambda: processor.eval(ast), number=1)
-            print(processor.eval(ast))
-            print(f"Finished in {int(t*1000)}ms")
-    except Exception as e:
-        # raise e
-        print(repr(e).join(("\033[91m", "\033[0m")))
+
+
+eel.init("web")
+eel.start("index.html")

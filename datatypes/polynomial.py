@@ -304,7 +304,7 @@ class Polynomial(Collection):
 
             # Compute the lcm of the fractions
             for k in res:
-                den = den if k.denominator._hash == den._hash else den*k.denominator
+                den = den if k.denominator._hash == den._hash else den * k.denominator
                 # den *= k.denominator
                 # den = den.lcm(den, k.denominator)
 
@@ -319,3 +319,17 @@ class Polynomial(Collection):
             return
         # Return them back into Term form and ignore 0's
         yield from (k.scale(v) for k, v in res.items() if v != 0)
+
+    def totex(self):
+        res = ""
+        for term in standard_form(self):
+            rep = term.totex()
+            if res:
+                n = term.to_const().numerator
+                if n.__class__ is complex and (not n.real and n.imag < 0) or n.real < 0:
+                    res += "-"
+                    rep = (-term).totex()
+                else:
+                    res += "+"
+            res += rep
+        return "\\left(" + res + "\\right)"

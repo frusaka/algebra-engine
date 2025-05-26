@@ -49,4 +49,7 @@ class Variable(Unknown, str, Atomic):
         # Algebra object has a good enough default fallback for Variable exponentiation
         pass
 
+    def totex(self):
+        return self
+
     pow.register(polynomial)(Atomic.poly_pow)

@@ -2,6 +2,8 @@ from __future__ import annotations
 from typing import Sequence, TYPE_CHECKING
 from functools import cache
 
+from utils.constants import STEPS
+
 if TYPE_CHECKING:
     from datatypes import *
 
@@ -40,10 +42,10 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     # Make the rhs 0
     if comp.right.value:
         comp -= comp.right
-        print(comp)
+        STEPS.append(comp.totex())
     # The rest of the boys, can even be another Polynomial
     c = comp.left - (ax_2 + bx)
-    print(f"quadratic({a=}, {b=}, {c=})")
+    STEPS.append("\\text" + f"quadratic({a=}, {b=}, {c=})".join("{}"))
     discr = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number(1, 2))
     den = Term(Number(2)) * a
     return (-b + discr) / den, (-b - discr) / den

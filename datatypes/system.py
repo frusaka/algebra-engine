@@ -2,7 +2,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Sequence
 
-from utils import difficulty_weight
+from utils import difficulty_weight, STEPS
 
 from .collection import Collection
 from .variable import Variable
@@ -26,7 +26,7 @@ class System(Collection):
 
         # Assumeably from internal solving process
         if vals.__class__ is Variable:
-            print(self)
+            STEPS.append(self.totex())
             return self
         eqns = sorted(
             self,
@@ -37,21 +37,19 @@ class System(Collection):
             vals = (Variable(vals),)
         # Solve for each variable separately
         for v in vals:
-            print(System.__str__(eqns))
+            STEPS.append(System.totex(eqns))
+            if len(vals) > 1:
+                STEPS.append("\\text{Solve for " + v + "}")
             if eqns[0].__class__ is System:
-                eqns = list(
-                    (
-                        print(
-                            f"(Start Branch)\n".join(("\033[30m", "\033[0m")),
-                            f"{v} →",
-                            end=" ",
-                            sep="",
-                        ),
-                        eqn[str(v)],
-                        print("(End Branch)".join(("\033[30m", "\033[0m"))),
-                    )[1]
-                    for eqn in eqns
-                )
+
+                for idx, eqn in enumerate(eqns):
+                    j = len(STEPS)
+
+                    eqns[idx] = eqn[str(v)]
+                    STEPS[j:] = [
+                        "\\\\".join("\\qquad " + i for i in STEPS[j:]),
+                        "\\text{ }",
+                    ]
                 # Flatten when necessary (most cases)
                 if next(iter(next(iter(eqns)))).__class__ is System:
                     eqns = list(j for i in eqns for j in i)
@@ -65,14 +63,17 @@ class System(Collection):
                     break
             else:
                 return System(eqns)
-            if len(vals) - 1:
-                print(v, "→", org)
             eqn = org[v]
             eqns.pop(idx)
-            old = v.join(("\033[31m", "\033[0m"))
+            old = "\\textcolor{#d7170b}" + v.join("{}")
             if eqn.__class__ is System:
-                new = ", ".join(str(i.right).join(("\033[32m", "\033[0m")) for i in eqn)
-                print(f"Substitute {old} with {new}")
+                new = ",".join(
+                    map(
+                        lambda x: "\\textcolor{#21ba3a}" + x.right.totex().join("{}"),
+                        eqn,
+                    )
+                ).join("{}")
+                STEPS.append("\\text{Substitute }" + old + "\\text{ with }" + new)
                 eqns = [
                     System(
                         res | {j}
@@ -88,13 +89,13 @@ class System(Collection):
                 if eqn.left.value != v:
                     return System(eqns + [eqn])
                 # Substitute in the rest of equations
-                new = str(eqn.right).join(("\033[32m", "\033[0m"))
-                print(f"Substitute {old} with {new}")
+                new = "\\textcolor{#21ba3a}" + eqn.right.totex().join("{}")
+                STEPS.append("\\text{Substitute }" + old + "\\text{ with }" + new)
                 for i in range(len(eqns)):
                     eqns[i] = subs(eqns[i], {v: eqn.right})
                 # Put the newly solved equation at the end
                 eqns.append(eqn)
-        print(System.__str__(eqns))
+        STEPS.append(System.totex(eqns))
         return System(eqns)
 
     def __bool__(self) -> bool:
@@ -108,6 +109,11 @@ class System(Collection):
             else:
                 res.append(str(i))
         return "; ".join(res)
+
+    def totex(self) -> str:
+        return "\\\\".join(map(lambda x: x.totex(), self)).join(
+            ("\\begin{cases}", "\\end{cases}")
+        )
 
     def normalize(self, weaken=True) -> System:
         return System(i.normalize(weaken) for i in self)

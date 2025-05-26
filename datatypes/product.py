@@ -146,3 +146,25 @@ class Product(Collection):
                     if a.value != 1:
                         objs.add(a)
         return c, objs.union(rem)
+
+    def totex(self) -> str:
+        num, den = [], []
+        wrap = False
+        for t in reversed(standard_form(self)):
+            if (
+                t.value.__class__.__name__ == "Number"
+                and t.__class__.__name__ != "Number"
+            ):
+                wrap = True
+            if t.exp_const() < 0:
+                den.append(type(t)(value=t.value, exp=-t.exp).totex())
+            else:
+                num.append(t.totex())
+        a, b = "".join(num).join("{}"), "".join(den).join("{}")
+        if wrap:
+            a = a.join("()")
+        if not num:
+            return f"\\dfrac{1}{b}"
+        if den:
+            return f"\\dfrac{a}{b}"
+        return a

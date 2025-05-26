@@ -86,22 +86,13 @@ class Term:
             res += str(self.value)
         if self.exp == 1:
             return res
-        exp = self.exp_const()
-
-        # Radical representation
-        if exp.denominator != 1:
-            if self.coef != 1:
-                val = Term(value=self.value, exp=self.exp)
-                if self.coef == -1:
-                    return "-{0}".format(val)
-                return "{0}({1})".format(print_coef(self.coef), val)
-            if exp.numerator != 1:
-                res = "{0}^{1}".format(res, exp.numerator)
-            return "{0}√{1}".format(exp.denominator, res)
-
         # Symbolic exponent representation
         exp = str(self.exp)
-        if self.exp.__class__ is Term and (self.exp.coef != 1 or self.exp.exp != 1):
+        if (
+            self.exp.__class__ is Term
+            and (self.exp.coef != 1 or self.exp.exp != 1)
+            or "/" in exp
+        ):
             exp = exp.join("()")
         return "{0}^{1}".format(res, exp)
 
@@ -384,3 +375,52 @@ class Term:
         if a == b:
             return a
         return (a * b) / Term.gcd(a, b)
+
+    def totex(self) -> str:
+        if (
+            "/" in str(self.coef)
+            or self.value.__class__ is Product
+            and not self.denominator.value.__class__ is Number
+        ) or self.exp_const() < 0:
+            return "\\dfrac{0}{1}".format(
+                self.numerator.totex().join("{}"), self.denominator.totex().join("{}")
+            )
+        res = print_coef(self.coef, 1)
+        if (
+            self.value.__class__ is Number
+            and self.exp.__class__ is not Number
+            and abs(self.coef) != 1
+        ):
+            return res + "({0}^{1})".format(
+                self.value.totex(), self.exp.totex().join("{}")
+            )
+        # Cases when a Polynomial or Product has no variable numerator
+        # Instead of 3(1/(abc)), prints 3/(abc)
+        if (
+            isinstance(self.value, Collection)
+            and self.numerator.value.__class__ is Number
+        ):
+            if not res or res == "-":
+                res = self.coef.totex()
+            res = res.join("{}")
+            res = f"\\dfrac{res}{self.denominator.value.totex().join('{}')}"
+        else:
+            res += self.value.totex()
+        if self.exp == 1:
+            return res
+        exp = self.exp_const()
+
+        # Radical representation
+        if exp.denominator != 1:
+            if self.coef != 1:
+                val = Term(value=self.value, exp=self.exp)
+                if self.coef == -1:
+                    return "-{0}".format(val.totex())
+                return "{0}{1}".format(print_coef(self.coef, 1), val.totex())
+            if exp.numerator != 1:
+                res = "{0}^{1}".format(res, exp.numerator)
+            res = res.join("{}")
+            if exp.denominator != 2:
+                return "\\sqrt[{0}]{1}".format(exp.denominator, res)
+            return "\\sqrt" + res
+        return "{0}^{1}".format(res, self.exp.totex().join("{}"))

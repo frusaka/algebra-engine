@@ -234,5 +234,11 @@ class Number(Atomic):
 
     pow.register(polynomial)(Atomic.poly_pow)
 
+    def totex(self) -> str:
+        if "/" in (s := str(self)):
+            num, den = str(self.numerator).join("{}"), str(self.denominator).join("{}")
+            return f"\\frac{num}{den}"
+        return s
+
 
 ZERO, ONE = Number(), Number(1)

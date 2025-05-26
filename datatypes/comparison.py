@@ -8,10 +8,10 @@ from .collection import Collection
 from .system import System
 from .polynomial import Polynomial
 from .product import Product
-from .number import Number, ONE, ZERO
+from .number import Number, ZERO
 from .variable import Variable
 from .term import Term
-from utils import quadratic, SYMBOLS
+from utils import quadratic, SYMBOLS, STEPS
 
 
 class CompRel(Enum):
@@ -30,6 +30,11 @@ class CompRel(Enum):
         return getattr(CompRel, self.name.replace("G", "L"))
 
     def __str__(self):
+        return SYMBOLS.get(self.name)
+
+    def totex(self):
+        if self.name.endswith("E"):
+            return f"\\{self.name.lower()}"
         return SYMBOLS.get(self.name)
 
 
@@ -51,14 +56,14 @@ class Comparison:
         This method will be called when solving for a variable
         """
         # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
-        print(self)
+        STEPS.append(self.totex())
         if value not in self:
             return self
 
         # Rewrite the comparison to put the target variable on the left
         if value in self.right and not value in self.left:
             self = self.reverse()
-            print(self)
+            STEPS.append(self.totex())
         # Power lhs if it is a radical
         if value in self.left and (exp := self.left.exp.denominator) != 1:
             return (self ** Term(Number(exp)))[value]
@@ -90,14 +95,6 @@ class Comparison:
             return (self**exp)[value]
 
         if self.left.value.__class__ is Polynomial:
-            # Brute-force factorization
-
-            if (gcd := self.left.value.gcd()).value != 1:
-                if value not in (t := self.left / gcd):
-                    return (self / t)[value]
-                elif value not in gcd:
-                    return (self / gcd)[value]
-
             for i in self.left.value:
                 if not value in i:
                     remove.append(i)  # Not moving it yet, need to check for quadratics
@@ -105,7 +102,7 @@ class Comparison:
                 # Term is in radical form
                 if i.exp.denominator != 1:
                     self -= self.left - i
-                    print(self)
+                    STEPS.append(self.totex())
                     return (
                         Comparison(self.right, self.left, self.rel.reverse())
                         ** Term(Number(i.exp.denominator))
@@ -125,7 +122,7 @@ class Comparison:
                             Comparison(lhs, neg, self.rel.reverse()),
                         }
                     )
-                print(res)
+                STEPS.append(res.totex())
                 return res
             if remove:
                 if len(remove) == 1:
@@ -133,6 +130,12 @@ class Comparison:
                 else:
                     remove = Term(value=Polynomial(remove))
                 return (self - remove)[value]
+            # Brute-force factorization
+            if (gcd := self.left.value.gcd()).value != 1:
+                if value not in (t := self.left / gcd):
+                    return (self / t)[value]
+                elif value not in gcd:
+                    return (self / gcd)[value]
 
         # Isolation by division
         if self.left.value.__class__ is Product:
@@ -192,7 +195,15 @@ class Comparison:
 
     def show_operation(self, operator: str, value: Term) -> None:
         """A convinent method to show the user the solving process"""
-        print(" " * (len(str(self.left)) + 1), operator + " ", value, sep="")
+        if operator == "^":
+            STEPS[-1] = (
+                STEPS[-1].join(("\\left(", "\\right)"))
+                + operator
+                + value.totex().join("{}")
+            )
+            return  # STEPS.append(operator + value.totex().join("{}"))
+        STEPS.append(operator + value.totex())
+        # STEPS.append(" " * (len(str(self.left)) + 1) + operator + " " + str(value))
 
     def normalize(self, weaken=True) -> Comparison:
         """Put all terms on the lhs"""
@@ -211,3 +222,21 @@ class Comparison:
         if value.value < 0:
             return self.rel.reverse()
         return self.rel
+
+    def totex(self) -> str:
+        left, rel, right = self.left, self.rel, self.right
+        if self.right.__class__ is Collection:
+            rel = "\\in"
+        else:
+            rel = rel.totex()
+        if left.__class__ is tuple:
+            left = ",".join(left).join(("\\left(", "\\right)"))
+        else:
+            left = left.totex()
+        if right.__class__ is tuple:
+            right = ",".join(map(lambda x: x.totex(), right)).join(
+                ("\\left(", "\\right)")
+            )
+        else:
+            right = right.totex()
+        return "{0}{2}{1}".format(left, right, rel)

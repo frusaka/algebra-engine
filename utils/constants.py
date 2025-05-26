@@ -2,8 +2,6 @@ SYMBOLS = {
     "SOLVE": "→",
     "COMMA": ",",
     "SEMI_COLON": ";",
-    "RATIO": ":",
-    "BOOL": "?",
     "EQ": "=",
     "NE": "≠",
     "GT": ">",
@@ -13,11 +11,21 @@ SYMBOLS = {
     "ADD": "+",
     "SUB": "-",
     "MUL": "*",
-    "TRUEDIV": "÷",
+    "TRUEDIV": "/",
     "POW": "^",
     "ROOT": "√",
     "NEG": "-",
     "POS": "+",
 }
 
+TEXTOKEN = {
+    "Rightarrow": "SOLVE",
+    "le": "LE",
+    "ge": "GE",
+    "frac": "TRUEDIV",
+    "div": "TRUEDIV",
+    "cdot": "MUL",
+    "sqrt": "ROOT",
+}
 
+STEPS = []

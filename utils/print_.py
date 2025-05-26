@@ -18,11 +18,11 @@ def print_frac(frac: Number) -> str:
     return "/".join((str(frac.numerator), str(frac.denominator)))
 
 
-def print_coef(coef: Number) -> str:
+def print_coef(coef: Number, tex=False) -> str:
     res = ""
     if coef != 1:
         res = str(coef)
-        if not coef.numerator.real:
+        if not tex and not coef.numerator.real:
             res = res.join("()")
     if coef == -1:
         res = "-"
@@ -37,4 +37,15 @@ def ineq_to_range(ineq: Comparison) -> str:
         return left + str(ineq.right)
     if ineq.rel.name.endswith("E"):
         right = "]"
+    return str(ineq.right) + right
+
+
+def ineq_to_range_tex(ineq: Comparison) -> str:
+    left, right = "(", ")"
+    if ineq.rel.name.startswith("G"):
+        if ineq.rel.name.endswith("E"):
+            left = "\\left\\lbrack "
+        return left + str(ineq.right)
+    if ineq.rel.name.endswith("E"):
+        right = "\\right\\rbrack "
     return str(ineq.right) + right

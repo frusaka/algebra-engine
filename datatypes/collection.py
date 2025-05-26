@@ -28,3 +28,19 @@ class Collection(Unknown, frozenset, Atomic):
             yield term
             return
         yield from term.value
+
+    def totex(self):
+        if not self:
+            return "\\emptyset"
+        if len(self) == 1:
+            return next(iter(self))
+        return ",".join(
+            (
+                i.totex()
+                if i.__class__ is not tuple
+                else ",".join(map(lambda x: x.totex(), i)).join(
+                    ("\\left( ", "\\right)")
+                )
+            )
+            for i in self
+        ).join(("\\left\\lbrace ", "\\right\\rbrace "))

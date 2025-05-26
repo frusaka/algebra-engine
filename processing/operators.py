@@ -2,6 +2,7 @@ from functools import lru_cache
 from typing import Any, Sequence
 from operator import *
 from datatypes import *
+from utils import STEPS
 
 
 def eq(a: Term, b: Term) -> Comparison:
@@ -38,15 +39,22 @@ def validate_solution(
     org: System | Comparison, sol: System | Comparison, mapping: dict
 ) -> bool:
     try:
-        if not (subs(org.normalize(), mapping) if mapping else sol.normalize(False)):
-            title = "Extraneous" if mapping else "Contradiction"
-            print(f"{title}: {sol}".join(("\033[31m", "\033[0m")))
+        if not (v := (subs(org.normalize(), mapping) if mapping else sol.normalize(0))):
+            title = "\\text" + ("Extraneous: " if mapping else "Contradiction: ").join(
+                "{}"
+            )
+            STEPS.append("\\textcolor{#d7170b}" + (title + sol.totex()).join("{}"))
             return False
         return True
     except ZeroDivisionError:  # Higly unlikely
-        print(f"Zero division: {sol}".join(("\033[31m", "\033[0m")))
+        STEPS.append(
+            "\\textcolor{#d7170b}"
+            + ("\\text{Zero division: }" + sol.totex()).join("{}")
+        )
     except AttributeError:
-        print(f"Malformed: {sol}".join(("\033[31m", "\033[0m")))
+        STEPS.append(
+            "\\textcolor{#d7170b}" + ("\\text{Malformed: }" + sol.totex()).join("{}")
+        )
     return False
 
 
@@ -56,7 +64,10 @@ def solve(
 ) -> Comparison | System:
     res = comp[var]
     s = "s" * isinstance(res, System)
-    print(f"Verifying solution{s}".join(("\033[34m", "\033[0m")))
+    STEPS.append(
+        "\\textcolor{#0d80f2}"
+        + ("\\text" + f"Verifying solution{s}".join("{}")).join("{}")
+    )
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
     # Nested System: multple solution
