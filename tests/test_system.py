@@ -1,5 +1,5 @@
 from datatypes import *
-
+from processing import Interpreter
 
 v = Variable("v")
 w = Variable("w")
@@ -8,21 +8,21 @@ y = Variable("y")
 z = Variable("z")
 
 
-def test_solve_linear(processor):
+def test_solve_linear():
     # Basic system of two equations
-    assert processor.eval("(x, y) -> x + y = 5; 3x = 4y + 1") == Comparison(
+    assert Interpreter.eval("(x, y) -> x + y = 5; 3x = 4y + 1") == Comparison(
         (x, y), (Term(Number(3)), Term(Number(2)))
     )
-    processor.eval("(x, y) -> 2x + 3y = 7; x - y = 2") == Comparison(
+    Interpreter.eval("(x, y) -> 2x + 3y = 7; x - y = 2") == Comparison(
         (x, y), (Term(Number(13, 5)), Term(Number(3, 5)))
     )
-    processor.eval("(x, y) -> 2x - 3 = 5y + 7; 2x + 2y = 14") == Comparison(
+    Interpreter.eval("(x, y) -> 2x - 3 = 5y + 7; 2x + 2y = 14") == Comparison(
         (x, y), (Term(Number(15, 4)), Term(Number(-1, 2)))
     )
 
     # System of 3 equations
     assert (
-        processor.eval(
+        Interpreter.eval(
             """
             (x, y, z) ->
             2x - y + 3z = 5;
@@ -35,7 +35,7 @@ def test_solve_linear(processor):
         )
     )
     assert (
-        processor.eval(
+        Interpreter.eval(
             """
             (x, y, z) ->
             x + 2y - z = 4;
@@ -50,7 +50,7 @@ def test_solve_linear(processor):
     )
     # Advanced: System of 5 equations
     assert (
-        processor.eval(
+        Interpreter.eval(
             """
             (v, w, x, y, z) ->
             x + 2y - z + w + 3v = 10;
@@ -73,8 +73,8 @@ def test_solve_linear(processor):
     )
 
 
-def test_solve_quadratic_linear(processor):
-    assert processor.eval("(v, w) -> v + w = 10; vw = 21") == Comparison(
+def test_solve_quadratic_linear():
+    assert Interpreter.eval("(v, w) -> v + w = 10; vw = 21") == Comparison(
         (v, w),
         Collection(
             {
@@ -83,7 +83,7 @@ def test_solve_quadratic_linear(processor):
             }
         ),
     )
-    assert processor.eval("(x, y) -> y = x^2 - 3x - 46; y = -3x + 3") == Comparison(
+    assert Interpreter.eval("(x, y) -> y = x^2 - 3x - 46; y = -3x + 3") == Comparison(
         (x, y),
         Collection(
             {
@@ -92,7 +92,7 @@ def test_solve_quadratic_linear(processor):
             }
         ),
     )
-    assert processor.eval("(x, y) -> y = x^2 - 19x + 58; y = -3x - 5") == Comparison(
+    assert Interpreter.eval("(x, y) -> y = x^2 - 19x + 58; y = -3x - 5") == Comparison(
         (x, y),
         Collection(
             {
@@ -101,7 +101,7 @@ def test_solve_quadratic_linear(processor):
             }
         ),
     )
-    assert processor.eval("(x, y) -> (x - 2)^2 + y^2 = 58; x + y = -2") == Comparison(
+    assert Interpreter.eval("(x, y) -> (x - 2)^2 + y^2 = 58; x + y = -2") == Comparison(
         (x, y),
         Collection(
             {
@@ -110,7 +110,7 @@ def test_solve_quadratic_linear(processor):
             }
         ),
     )
-    assert processor.eval("(x, y) -> (x + 3)^2 + y^2 = 25; 2x + y = 4") == Comparison(
+    assert Interpreter.eval("(x, y) -> (x + 3)^2 + y^2 = 25; 2x + y = 4") == Comparison(
         (x, y),
         Collection(
             {
@@ -119,7 +119,7 @@ def test_solve_quadratic_linear(processor):
             }
         ),
     )
-    assert processor.eval(
+    assert Interpreter.eval(
         "(x, y, z) -> xy = z; x + y = -7; x + z = -3y - 1"
     ) == Comparison(
         (x, y, z),
@@ -132,8 +132,8 @@ def test_solve_quadratic_linear(processor):
     )
 
 
-def test_solve_2_quadratic(processor):
-    assert processor.eval("(x, y) -> x^2 + y^2 = 9; x^2 + 2y^2 = 9") == Comparison(
+def test_solve_2_quadratic():
+    assert Interpreter.eval("(x, y) -> x^2 + y^2 = 9; x^2 + 2y^2 = 9") == Comparison(
         (x, y),
         Collection(
             {
@@ -142,7 +142,9 @@ def test_solve_2_quadratic(processor):
             }
         ),
     )
-    assert processor.eval("(x, y) -> x^2 + y^2 = 25; x^2 - 9 = y^2 - 2") == Comparison(
+    assert Interpreter.eval(
+        "(x, y) -> x^2 + y^2 = 25; x^2 - 9 = y^2 - 2"
+    ) == Comparison(
         (x, y),
         Collection(
             {
@@ -154,7 +156,7 @@ def test_solve_2_quadratic(processor):
         ),
     )
 
-    assert processor.eval("(x, y) -> x^2 + 11 = 4y^2; (x^2 + y) = 28") == Comparison(
+    assert Interpreter.eval("(x, y) -> x^2 + 11 = 4y^2; (x^2 + y) = 28") == Comparison(
         (x, y),
         Collection(
             {

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from datatypes import Comparison, Number
+    from processing import ETNode
 
 
 def print_frac(frac: Number) -> str:
@@ -49,3 +50,9 @@ def ineq_to_range_tex(ineq: Comparison) -> str:
     if ineq.rel.name.endswith("E"):
         right = "\\right\\rbrack "
     return str(ineq.right) + right
+
+
+def log_step(step: ETNode):
+    from processing import Interpreter
+
+    Interpreter.log_step(step)

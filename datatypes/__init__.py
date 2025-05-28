@@ -8,3 +8,4 @@ from .term import Term
 from .system import System
 from .comparison import Comparison, CompRel
 from .range_ import Range
+from .eval_trace import *

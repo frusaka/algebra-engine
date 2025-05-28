@@ -2,7 +2,8 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Sequence
 
-from utils import difficulty_weight, STEPS
+from utils import difficulty_weight, log_step
+from datatypes.eval_trace import *
 
 from .collection import Collection
 from .variable import Variable
@@ -22,11 +23,11 @@ class System(Collection):
     @lru_cache
     def __getitem__(self, vals: Sequence[Variable]) -> System:
         """Solve for a system of (in)equalities"""
-        from processing import subs
+        from processing import Interpreter, subs
 
         # Assumeably from internal solving process
         if vals.__class__ is Variable:
-            STEPS.append(self.totex())
+            Interpreter.log_step(ETBranchNode(self))
             return self
         eqns = sorted(
             self,
@@ -37,19 +38,18 @@ class System(Collection):
             vals = (Variable(vals),)
         # Solve for each variable separately
         for v in vals:
-            STEPS.append(System.totex(eqns))
             if len(vals) > 1:
-                STEPS.append("\\text{Solve for " + v + "}")
+                if eqns[0].__class__ is System:
+                    Interpreter.log_step(ETBranchNode(eqns))
+                else:
+                    Interpreter.log_step(ETNode(System(eqns)))
+                Interpreter.log_step(ETTextNode("&\\textbf{Solve for " + v + "}"))
             if eqns[0].__class__ is System:
-
+                Interpreter.log_step(head := ETBranchNode(eqns))
                 for idx, eqn in enumerate(eqns):
-                    j = len(STEPS)
-
+                    Interpreter._eval_trace = head.result[idx]
                     eqns[idx] = eqn[str(v)]
-                    STEPS[j:] = [
-                        "\\\\".join("\\qquad " + i for i in STEPS[j:]),
-                        "\\text{ }",
-                    ]
+                Interpreter._eval_trace = head
                 # Flatten when necessary (most cases)
                 if next(iter(next(iter(eqns)))).__class__ is System:
                     eqns = list(j for i in eqns for j in i)
@@ -73,7 +73,9 @@ class System(Collection):
                         eqn,
                     )
                 ).join("{}")
-                STEPS.append("\\text{Substitute }" + old + "\\text{ with }" + new)
+                Interpreter.log_step(
+                    ETTextNode("&\\text{Substitute }" + old + "\\text{ with }" + new)
+                )
                 eqns = [
                     System(
                         res | {j}
@@ -90,13 +92,18 @@ class System(Collection):
                     return System(eqns + [eqn])
                 # Substitute in the rest of equations
                 new = "\\textcolor{#21ba3a}" + eqn.right.totex().join("{}")
-                STEPS.append("\\text{Substitute }" + old + "\\text{ with }" + new)
+                Interpreter.log_step(
+                    ETTextNode("&\\text{Substitute }" + old + "\\text{ with }" + new)
+                )
                 for i in range(len(eqns)):
                     eqns[i] = subs(eqns[i], {v: eqn.right})
                 # Put the newly solved equation at the end
                 eqns.append(eqn)
-        STEPS.append(System.totex(eqns))
-        return System(eqns)
+        if eqns[0].__class__ is System:
+            Interpreter.log_step(ETBranchNode(eqns))
+            return System(eqns)
+        Interpreter.log_step(ETNode(eqns := System(eqns)))
+        return eqns
 
     def __bool__(self) -> bool:
         return all(self)
@@ -111,7 +118,7 @@ class System(Collection):
         return "; ".join(res)
 
     def totex(self) -> str:
-        return "\\\\".join(map(lambda x: x.totex(), self)).join(
+        return "&" + "\\\\".join(map(lambda x: x.totex(), self)).join(
             ("\\begin{cases}", "\\end{cases}")
         )
 

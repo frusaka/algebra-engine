@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Sequence, TYPE_CHECKING
 from functools import cache
 
-from utils.constants import STEPS
+from .print_ import log_step
 
 if TYPE_CHECKING:
     from datatypes import *
@@ -13,7 +13,7 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     Given that the lhs is a Polynomial,
     check whether it can be considered quadratic in terms of `value` and return its roots
     """
-    from datatypes import Term, Number
+    from datatypes import Term, Number, ETNode, ETTextNode
 
     a, b = None, None
     x = Term(value=var)
@@ -42,10 +42,15 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     # Make the rhs 0
     if comp.right.value:
         comp -= comp.right
-        STEPS.append(comp.totex())
+        log_step(ETNode(comp))
     # The rest of the boys, can even be another Polynomial
     c = comp.left - (ax_2 + bx)
-    STEPS.append("\\text" + f"quadratic({a=}, {b=}, {c=})".join("{}"))
+    log_step(
+        ETTextNode(
+            "&\\text{quadratic}"
+            + "(a={0}, b={1}, c={2})".format(a.totex(), b.totex(), c.totex())
+        )
+    )
     discr = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number(1, 2))
     den = Term(Number(2)) * a
     return (-b + discr) / den, (-b - discr) / den

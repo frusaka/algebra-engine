@@ -164,7 +164,7 @@ class Product(Collection):
         if wrap:
             a = a.join("()")
         if not num:
-            return f"\\dfrac{1}{b}"
+            return f"\\frac{1}{b}"
         if den:
-            return f"\\dfrac{a}{b}"
+            return f"\\frac{a}{b}"
         return a

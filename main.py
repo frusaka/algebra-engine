@@ -8,23 +8,22 @@ from pylatexenc.latexwalker import (
 )
 
 from processing import Interpreter
-from utils.constants import TEXTOKEN, SYMBOLS, STEPS
+from utils.constants import TEXTOKEN, SYMBOLS
 
 
 @eel.expose
 def evaluate(latex: str):
+    print(latex)
     nodes, _, _ = LatexWalker(
         latex.replace("\\left(", "(")
         .replace("\\right)", ")")
         .replace("\\placeholder{}", "")
     ).get_latex_nodes()
-    res = processor.eval("".join(map(stringify_node, nodes))).totex()
-    if STEPS:
-        print(*STEPS, sep="\n")
-        res = "\\\\".join(STEPS + [res])
-        STEPS.clear()
-    # print(res)
-    return res
+    res = Interpreter.eval("".join(map(stringify_node, nodes))).totex()
+    steps = Interpreter.render_steps_tex()
+    Interpreter.reset_steps()
+    print(steps)
+    return "\\\\".join((steps, res.replace("&", "")))
 
 
 def stringify_node(node: LatexNode) -> str:
@@ -47,9 +46,6 @@ def stringify_node(node: LatexNode) -> str:
             .join("()")
         )
     return ""
-
-
-processor = Interpreter()
 
 
 eel.init("web")

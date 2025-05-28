@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Any, Sequence
 from operator import *
 from datatypes import *
-from utils import STEPS
+from utils import log_step
 
 
 def eq(a: Term, b: Term) -> Comparison:
@@ -27,33 +27,35 @@ def ge(a: Term, b: Term) -> Comparison:
 
 def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparison:
     """Substitute all occurances of `var` with the provided value"""
-    from processing import Interpreter, AST
+    from processing import Interpreter
 
     val = str(a)
     for i in mapping:
         val = val.replace(i, i.join(("({", "})")))
-    return Interpreter().eval(AST(val.format_map(mapping)))
+    return Interpreter.eval(val.format_map(mapping))
 
 
 def validate_solution(
     org: System | Comparison, sol: System | Comparison, mapping: dict
 ) -> bool:
+    s = sol.totex().replace("&", "")
     try:
         if not (v := (subs(org.normalize(), mapping) if mapping else sol.normalize(0))):
             title = "\\text" + ("Extraneous: " if mapping else "Contradiction: ").join(
                 "{}"
             )
-            STEPS.append("\\textcolor{#d7170b}" + (title + sol.totex()).join("{}"))
+            log_step(ETTextNode("&\\textcolor{#d7170b}" + (title + s).join("{}")))
             return False
         return True
     except ZeroDivisionError:  # Higly unlikely
-        STEPS.append(
-            "\\textcolor{#d7170b}"
-            + ("\\text{Zero division: }" + sol.totex()).join("{}")
+        log_step(
+            ETTextNode(
+                "&\\textcolor{#d7170b}" + ("\\text{Zero division: }" + s).join("{}")
+            )
         )
     except AttributeError:
-        STEPS.append(
-            "\\textcolor{#d7170b}" + ("\\text{Malformed: }" + sol.totex()).join("{}")
+        log_step(
+            ETTextNode("&\\textcolor{#d7170b}" + ("\\text{Malformed: }" + s).join("{}"))
         )
     return False
 
@@ -64,9 +66,11 @@ def solve(
 ) -> Comparison | System:
     res = comp[var]
     s = "s" * isinstance(res, System)
-    STEPS.append(
-        "\\textcolor{#0d80f2}"
-        + ("\\text" + f"Verifying solution{s}".join("{}")).join("{}")
+    log_step(
+        ETTextNode(
+            "&\\textcolor{#0d80f2}"
+            + ("\\textbf" + f"Verifying solution{s}".join("{}")).join("{}")
+        )
     )
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")

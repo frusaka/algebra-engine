@@ -27,5 +27,3 @@ TEXTOKEN = {
     "cdot": "MUL",
     "sqrt": "ROOT",
 }
-
-STEPS = []

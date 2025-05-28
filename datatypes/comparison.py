@@ -11,7 +11,8 @@ from .product import Product
 from .number import Number, ZERO
 from .variable import Variable
 from .term import Term
-from utils import quadratic, SYMBOLS, STEPS
+from datatypes.eval_trace import *
+from utils import quadratic, SYMBOLS, log_step
 
 
 class CompRel(Enum):
@@ -34,8 +35,8 @@ class CompRel(Enum):
 
     def totex(self):
         if self.name.endswith("E"):
-            return f"\\{self.name.lower()}"
-        return SYMBOLS.get(self.name)
+            return "&" + f"\\{self.name.lower()}"
+        return "&" + SYMBOLS.get(self.name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,14 +57,14 @@ class Comparison:
         This method will be called when solving for a variable
         """
         # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
-        STEPS.append(self.totex())
+        log_step(ETNode(self))
         if value not in self:
             return self
 
         # Rewrite the comparison to put the target variable on the left
         if value in self.right and not value in self.left:
             self = self.reverse()
-            STEPS.append(self.totex())
+            log_step(ETNode(self))
         # Power lhs if it is a radical
         if value in self.left and (exp := self.left.exp.denominator) != 1:
             return (self ** Term(Number(exp)))[value]
@@ -73,6 +74,8 @@ class Comparison:
 
             if value in self.right:
                 if self.right.exp != 1:
+                    if (exp := self.right.exp.denominator) != 1:
+                        return (self ** Term(Number(exp)))[value]
                     return (self - self.right)[value]
                 for t in self.right.value:
                     if value in t:
@@ -102,7 +105,7 @@ class Comparison:
                 # Term is in radical form
                 if i.exp.denominator != 1:
                     self -= self.left - i
-                    STEPS.append(self.totex())
+                    log_step(ETNode(self))
                     return (
                         Comparison(self.right, self.left, self.rel.reverse())
                         ** Term(Number(i.exp.denominator))
@@ -115,6 +118,7 @@ class Comparison:
                 lhs = Term(value=value)
                 if pos == neg and self.rel is CompRel.EQ:
                     res = Comparison(lhs, pos, self.rel)
+                    log_step(ETNode(res))
                 else:
                     res = System(
                         {
@@ -122,7 +126,7 @@ class Comparison:
                             Comparison(lhs, neg, self.rel.reverse()),
                         }
                     )
-                STEPS.append(res.totex())
+                    log_step(ETBranchNode(res))
                 return res
             if remove:
                 if len(remove) == 1:
@@ -151,16 +155,16 @@ class Comparison:
 
     def __sub__(self, value: Term) -> Comparison:
         if value.to_const() > 0:
-            self.show_operation("-", value)
+            log_step(ETOperatorNode(ETOperatorType.SUB, value))
         else:
-            self.show_operation("+", -value)
+            log_step(ETOperatorNode(ETOperatorType.ADD, -value))
         return Comparison(self.left + -value, self.right + -value, self.rel)
 
     def __truediv__(self, value: Term) -> Comparison:
         if value.denominator.value == 1:
-            self.show_operation("/", value)
+            log_step(ETOperatorNode(ETOperatorType.DIV, value))
         else:
-            self.show_operation("*", value.inv)
+            log_step(ETOperatorNode(ETOperatorType.TIMES, value.inv))
         return Comparison(
             self.left / value,
             self.right / value,
@@ -168,7 +172,10 @@ class Comparison:
         )
 
     def __pow__(self, value: Term) -> Comparison:
-        self.show_operation("^", value)
+        if value.denominator.value != 1 and value.numerator.value == 1:
+            log_step(ETOperatorNode(ETOperatorType.SQRT, value.inv))
+        else:
+            log_step(ETOperatorNode(ETOperatorType.POW, value))
         lhs = self.left**value
         rhs = self.right**value
         # plus/minus trick for even roots
@@ -192,18 +199,6 @@ class Comparison:
     def reverse(self) -> Comparison:
         """Write the comparison in reverse"""
         return Comparison(self.right, self.left, self.rel.reverse())
-
-    def show_operation(self, operator: str, value: Term) -> None:
-        """A convinent method to show the user the solving process"""
-        if operator == "^":
-            STEPS[-1] = (
-                STEPS[-1].join(("\\left(", "\\right)"))
-                + operator
-                + value.totex().join("{}")
-            )
-            return  # STEPS.append(operator + value.totex().join("{}"))
-        STEPS.append(operator + value.totex())
-        # STEPS.append(" " * (len(str(self.left)) + 1) + operator + " " + str(value))
 
     def normalize(self, weaken=True) -> Comparison:
         """Put all terms on the lhs"""

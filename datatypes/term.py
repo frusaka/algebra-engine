@@ -382,7 +382,7 @@ class Term:
             or self.value.__class__ is Product
             and not self.denominator.value.__class__ is Number
         ) or self.exp_const() < 0:
-            return "\\dfrac{0}{1}".format(
+            return "\\frac{0}{1}".format(
                 self.numerator.totex().join("{}"), self.denominator.totex().join("{}")
             )
         res = print_coef(self.coef, 1)
@@ -403,7 +403,7 @@ class Term:
             if not res or res == "-":
                 res = self.coef.totex()
             res = res.join("{}")
-            res = f"\\dfrac{res}{self.denominator.value.totex().join('{}')}"
+            res = f"\\frac{res}{self.denominator.value.totex().join('{}')}"
         else:
             res += self.value.totex()
         if self.exp == 1:
