@@ -25,5 +25,6 @@ TEXTOKEN = {
     "frac": "TRUEDIV",
     "div": "TRUEDIV",
     "cdot": "MUL",
+    "times": "MUL",
     "sqrt": "ROOT",
 }

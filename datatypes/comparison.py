@@ -106,10 +106,7 @@ class Comparison:
                 if i.exp.denominator != 1:
                     self -= self.left - i
                     log_step(ETNode(self))
-                    return (
-                        Comparison(self.right, self.left, self.rel.reverse())
-                        ** Term(Number(i.exp.denominator))
-                    )[value]
+                    return (self.reverse() ** Term(Number(i.exp.denominator)))[value]
 
             # Solving using the quadratic formula
             # Moved to the right anyway to reduce redundancy

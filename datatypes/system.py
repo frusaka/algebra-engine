@@ -33,27 +33,41 @@ class System(Collection):
             self,
             key=lambda eqn: difficulty_weight(eqn.normalize().left),
         )
-
+        head = None
+        Interpreter.log_step(ETNode(self))
         if vals.__class__ is str:
             vals = (Variable(vals),)
+        else:
+            Interpreter.log_step(
+                head := ETBranchNode(
+                    (ETTextNode("\\textbf{Solve for " + v + "}") for v in vals), 0
+                )
+            )
         # Solve for each variable separately
-        for v in vals:
-            if len(vals) > 1:
+        for idx, v in enumerate(vals):
+            if idx:
                 if eqns[0].__class__ is System:
                     Interpreter.log_step(ETBranchNode(eqns))
                 else:
                     Interpreter.log_step(ETNode(System(eqns)))
-                Interpreter.log_step(ETTextNode("&\\textbf{Solve for " + v + "}"))
+            if head:
+                Interpreter._eval_trace = head.result[idx]
             if eqns[0].__class__ is System:
-                Interpreter.log_step(head := ETBranchNode(eqns))
+                Interpreter.log_step(
+                    head_ := ETBranchNode(
+                        ETTextNode("\\text{Branch $:}".replace("$", str(idx)))
+                        for idx in range(1, len(eqns) + 1)
+                    )
+                )
                 for idx, eqn in enumerate(eqns):
-                    Interpreter._eval_trace = head.result[idx]
+                    Interpreter._eval_trace = head_.result[idx]
                     eqns[idx] = eqn[str(v)]
-                Interpreter._eval_trace = head
+                Interpreter._eval_trace = head_
                 # Flatten when necessary (most cases)
                 if next(iter(next(iter(eqns)))).__class__ is System:
                     eqns = list(j for i in eqns for j in i)
                 continue
+
             # Find an (in)equality with an independent target variable
             for idx, org in enumerate(eqns):
                 if any(
@@ -62,6 +76,8 @@ class System(Collection):
                 ):
                     break
             else:
+                if head:
+                    Interpreter._eval_trace = head
                 return System(eqns)
             eqn = org[v]
             eqns.pop(idx)
@@ -89,6 +105,8 @@ class System(Collection):
             else:
                 # Need a check for infinite solutions
                 if eqn.left.value != v:
+                    if head:
+                        Interpreter._eval_trace = head
                     return System(eqns + [eqn])
                 # Substitute in the rest of equations
                 new = "\\textcolor{#21ba3a}" + eqn.right.totex().join("{}")
@@ -99,6 +117,8 @@ class System(Collection):
                     eqns[i] = subs(eqns[i], {v: eqn.right})
                 # Put the newly solved equation at the end
                 eqns.append(eqn)
+        if head:
+            Interpreter._eval_trace = head
         if eqns[0].__class__ is System:
             Interpreter.log_step(ETBranchNode(eqns))
             return System(eqns)

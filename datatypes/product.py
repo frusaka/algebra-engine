@@ -109,10 +109,21 @@ class Product(Collection):
 
     @dispatch
     def pow(b: Proxy[Term], a: Term) -> Term:
-        return (
-            type(a)(value=Product(i**b.value for i in a.value))
-            * type(a)(value=a.coef) ** b.value
-        )
+        from .number import Number
+
+        c = Number(1)
+        res = []
+        for i in a.value | {type(a)(value=a.coef)}:
+            i **= b.value
+            if i.value.__class__ is Number and i.exp == 1:
+                c *= i.value
+            else:
+                res.append(i)
+        if len(res) == 1:
+            return res.pop() * type(a)(c)
+        if not res:
+            return type(a)(c)
+        return type(a)(c, Product(res))
 
     @staticmethod
     def resolve(b: Term, a: Term) -> Term:
@@ -153,7 +164,7 @@ class Product(Collection):
         for t in reversed(standard_form(self)):
             if (
                 t.value.__class__.__name__ == "Number"
-                and t.__class__.__name__ != "Number"
+                and t.exp.__class__.__name__ != "Number"
             ):
                 wrap = True
             if t.exp_const() < 0:

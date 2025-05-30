@@ -38,26 +38,22 @@ def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparis
 def validate_solution(
     org: System | Comparison, sol: System | Comparison, mapping: dict
 ) -> bool:
-    s = sol.totex().replace("&", "")
+    res = 1
     try:
         if not (v := (subs(org.normalize(), mapping) if mapping else sol.normalize(0))):
-            title = "\\text" + ("Extraneous: " if mapping else "Contradiction: ").join(
-                "{}"
-            )
-            log_step(ETTextNode("&\\textcolor{#d7170b}" + (title + s).join("{}")))
-            return False
-        return True
-    except ZeroDivisionError:  # Higly unlikely
-        log_step(
-            ETTextNode(
-                "&\\textcolor{#d7170b}" + ("\\text{Zero division: }" + s).join("{}")
-            )
-        )
-    except AttributeError:
-        log_step(
-            ETTextNode("&\\textcolor{#d7170b}" + ("\\text{Malformed: }" + s).join("{}"))
-        )
-    return False
+            res = 0
+    except:
+        res = 0
+    tex = "&" + (
+        sol.totex().replace("&", "")
+        if sol.__class__ is Comparison
+        else ETBranchNode(sol).totex()
+    )
+    if not res:
+        log_step(ETTextNode(tex + "❌"))
+        return False
+    log_step(ETTextNode(tex + "✅"))
+    return True
 
 
 @lru_cache(maxsize=20)
@@ -69,7 +65,7 @@ def solve(
     log_step(
         ETTextNode(
             "&\\textcolor{#0d80f2}"
-            + ("\\textbf" + f"Verifying solution{s}".join("{}")).join("{}")
+            + ("\\text" + f"Verifying solution{s}".join("{}")).join("{}")
         )
     )
     if var in res and not isinstance(res.left.value, Variable):

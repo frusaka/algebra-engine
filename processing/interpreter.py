@@ -12,6 +12,7 @@ class Interpreter:
     """
 
     _eval_trace: ETNode = None
+    print_frac_auto = True
 
     def __new__(cls, *args, **kwargs):
         raise RuntimeError(

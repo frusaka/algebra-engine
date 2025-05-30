@@ -7,16 +7,22 @@ if TYPE_CHECKING:
 
 
 def print_frac(frac: Number) -> str:
+    from processing import Interpreter
+
     denominator = frac.denominator
     if denominator == 1:
         return str(frac.numerator)
+
+    res = "/".join((str(frac.numerator), str(frac.denominator)))
+    if not Interpreter.print_frac_auto:
+        return res
     while denominator % 2 == 0:
         denominator //= 2
     while denominator % 5 == 0:
         denominator //= 5
     if denominator == 1 and "e" not in (v := str(frac.numerator / frac.denominator)):
         return v
-    return "/".join((str(frac.numerator), str(frac.denominator)))
+    return res
 
 
 def print_coef(coef: Number, tex=False) -> str:

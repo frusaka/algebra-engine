@@ -19,7 +19,10 @@ def evaluate(latex: str):
         .replace("\\right)", ")")
         .replace("\\placeholder{}", "")
     ).get_latex_nodes()
-    res = Interpreter.eval("".join(map(stringify_node, nodes))).totex()
+    try:
+        res = Interpreter.eval("".join(map(stringify_node, nodes))).totex()
+    except Exception as e:
+        res = "\\textcolor{#d7170b}{\\text{$}}".replace("$", repr(e))
     steps = Interpreter.render_steps_tex()
     Interpreter.reset_steps()
     print(steps)
@@ -47,6 +50,8 @@ def stringify_node(node: LatexNode) -> str:
         )
     return ""
 
+
+Interpreter.print_frac_auto = False
 
 eel.init("web")
 eel.start("index.html")

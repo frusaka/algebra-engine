@@ -9,8 +9,11 @@ class ETNode:
         self.prev = None
         self.next = None
 
+    def _tex(self):
+        return self.result.totex()
+
     def totex(self):
-        res = self.result.totex()
+        res = self._tex()
         if not self.prev:
             res = "\\begin{aligned}" + res
         if not self.next:
@@ -19,20 +22,18 @@ class ETNode:
 
 
 class ETBranchNode(ETNode):
-    def __init__(self, result, description=None):
+    def __init__(self, result, horizontal=False, description=None):
         super().__init__(result, description)
         self.result = list(map(ETNode, result))
+        self.horizontal = horizontal
 
-    def totex(self):
+    def _tex(self):
         if any(x.next for x in self.result):
-            res = "&" + "\\quad".join(
-                i.totex().join(("\\boxed{", "}")) for i in self.result
-            )
-        else:
-            res = "&" + ",\\quad".join(i.totex() for i in self.result)
-        if self.next:
-            return res + "\\\\" + self.next.totex()
-        return res + "\\end{aligned}"
+            res = (i.totex().join(("&\\boxed{", "}")) for i in self.result)
+            if self.horizontal:
+                return "&" + ("\\quad ").join(res)
+            return "\\\\".join(res)
+        return "&" + ",\\quad ".join(i.totex() for i in self.result)
 
 
 class ETOperatorType(Enum):
@@ -75,15 +76,10 @@ class ETOperatorNode(ETNode):
         self.prev = None
         self.next = None
 
-    def totex(self):
-        res = "&\\Downarrow" + self.type.totex(self.value)
-        if self.next:
-            return res + "\\\\" + self.next.totex()
-        return res + "\\end{aligned}"
+    def _tex(self):
+        return "&\\Downarrow" + self.type.totex(self.value)
 
 
 class ETTextNode(ETNode):
-    def totex(self):
-        if not self.next:
-            return self.result + "\\end{aligned}"
-        return self.result + "\\\\" + self.next.totex()
+    def _tex(self):
+        return self.result
