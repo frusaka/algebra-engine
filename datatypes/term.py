@@ -296,7 +296,16 @@ class Term:
         if not b.__class__ is Term:
             return False
         # Assumes in the case of multiplications, values with the same base are like terms
-        if not exp and self.value == b.value:
+        if not exp and (
+            self.value == b.value
+            or self.value.__class__
+            is b.value.__class__
+            is self.exp.__class__
+            is b.exp.__class__
+            is Number
+            and self.exp != 1
+            and b.exp != 1
+        ):
             return True
         # Check list to declare two terms like
         if (

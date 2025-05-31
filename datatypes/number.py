@@ -97,10 +97,15 @@ class Number(Atomic):
         if value.numerator < 0:
             return ONE / (self**-value)
         # Needs saftey checks. The numerator can be too large.
-        num = self.nth_root(self.numerator**value.numerator, value.denominator)
-        den = self.nth_root(self.denominator**value.numerator, value.denominator)
-        num = complex(round(num.real, 10), round(num.imag, 10))
-        den = complex(round(den.real, 10), round(den.imag, 10))
+        num = self.numerator**value.numerator
+        den = self.denominator**value.numerator
+        if value.denominator != 1:
+            num = self.nth_root(num, value.denominator)
+            den = self.nth_root(den, value.denominator)
+            if num.imag:
+                num = complex(round(num.real, 10), round(num.imag, 10))
+            if den.imag:
+                den = complex(round(den.real, 10), round(den.imag, 10))
         return Number(num) / Number(den)
 
     def __abs__(self) -> Number:
@@ -124,9 +129,6 @@ class Number(Atomic):
             den // value.denominator * value.numerator
         )
 
-    def __ge__(self, value: Number) -> bool:
-        return self > value or self == value
-
     def __lt__(self, value: Number) -> bool:
         if self.numerator.imag or value.numerator.imag:
             return False
@@ -135,25 +137,12 @@ class Number(Atomic):
             den // value.denominator * value.numerator
         )
 
-    def __le__(self, value: Number) -> bool:
-        return self < value or self == value
-
     @staticmethod
     def nth_root(x: SupportsFloat | SupportsComplex, n: int) -> float:
         if not x.__class__ is complex and n % 2 == 1 and x < 0:
             return -abs(x) ** (1 / n)
         else:
             return x ** (1 / n)
-
-    @staticmethod
-    def frac_radical(a: Term, b: Term) -> Term:
-        if b.exp != 1:
-            exp = ONE - b.exp
-            a *= simplify_radical(b.value.numerator**exp.numerator, exp.denominator)
-            b = b.value * b.coef
-        else:
-            b = b.value
-        return a.scale(b**-1)
 
     @dispatch
     def add(b: Proxy[Term], a: Term) -> None:
@@ -179,12 +168,17 @@ class Number(Atomic):
                 and b.exp.__class__ is Number
             ):
                 if a.value == b.value:
-                    return (
-                        type(a)(value=a.value) ** type(a)(value=a.exp + b.exp)
-                    ).scale(c)
-                return (type(a)(value=a.value * b.value) ** type(a)(value=a.exp)).scale(
-                    c
-                )
+                    exp = a.exp + b.exp
+                    return simplify_radical(a.value**exp.numerator, exp.denominator, c)
+                if a.exp != b.exp:
+                    exp = math.lcm(a.exp.denominator, b.exp.denominator)
+                    return simplify_radical(
+                        a.value ** (exp // a.exp.denominator)
+                        * b.value ** (exp // b.exp.denominator),
+                        exp,
+                        c,
+                    )
+                return simplify_radical(a.value * b.value, a.exp.denominator, c)
             if a.exp == b.exp:
                 return type(a)(c, a.value * b.value, a.exp)
             return type(a)(c, a.value, type(a)(value=a.exp) + type(a)(value=b.exp))
@@ -212,22 +206,17 @@ class Number(Atomic):
     def _(b: Proxy[Term], a: Term) -> Term:
         b = b.value
         if b.exp == 1 and a.exp.__class__ is Number:
-            c = a.coef**b.value.numerator
+
+            c, v = a.coef**b.value.numerator, a.value**b.value.numerator
             den = den_a = b.value.denominator
             if a.exp != 1:
-                val = a.value ** (a.exp.numerator * b.value.numerator)
                 den_a *= a.exp.denominator
-            else:
-                val = a.value**b.value.numerator
+            if den == den_a == 1:
+                return type(a)(c * v)
             # Leave radicals as is if necessary to maintain precision
-            if not val.numerator.imag and not c.numerator.imag:
-                return Number.frac_radical(
-                    simplify_radical(val.numerator, den_a),
-                    simplify_radical(val.denominator, den_a),
-                ) * Number.frac_radical(
-                    simplify_radical(c.numerator, den),
-                    simplify_radical(c.denominator, den),
-                )
+            if not v.numerator.imag and not c.numerator.imag:
+                return simplify_radical(v, den_a) * simplify_radical(c, den)
+
             # Complex radicals converted to floating-point
             return type(a)(value=a.value**b.value).scale(a.coef**b.value)
         return Number.resolve_pow(a, b)

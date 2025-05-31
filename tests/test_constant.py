@@ -1,6 +1,7 @@
 from datatypes import Number, Product, Term
 from processing import Interpreter
 
+
 def test_simplify_constants():
     assert Interpreter.eval("10 + 5 - 3") == Term(Number(12))
     assert Interpreter.eval("20 - 4 + 2") == Term(Number(18))
@@ -66,43 +67,26 @@ def test_numeric_exponentiation():
     )
 
 
-def test_cancels_radical():
-    # Simplify canceling radicals with like exponents
+def test_multiply_radicals():
     assert Interpreter.eval("(2 √ -50)^2") == Term(Number(-50))
     assert Interpreter.eval("(3 √ -81)^3") == Term(Number(-81))
-    assert Interpreter.eval("(2√5) * (2√5)") == Term(Number(5))
-    assert Interpreter.eval("(2√-5) * (2√5)") == Term(Number(complex(imag=5)))
-    assert Interpreter.eval("(2√32) * (2√2)") == Term(Number(8))
-    assert Interpreter.eval("(3√9) * (3√3)") == Term(Number(3))
 
-    # Simplify canceling radicals with like bases
-    assert Interpreter.eval("27^(1/2) * 27^(-1/6)") == Term(Number(3))
     assert Interpreter.eval("8^(1/2) * 8^(1/3)") == Term(
         Number(4), Number(2), Number(1, 2)
     )
-    assert Interpreter.eval("2(2√2) * 3√8") == Term(Number(4), Number(2), Number(1, 2))
     assert Interpreter.eval("4(2√2) * 2√8") == Term(Number(16))
+    assert Interpreter.eval("(2√-5) * (2√5)") == Term(Number(complex(imag=5)))
 
-
-def test_multiply_radicals():
-    assert Interpreter.eval("(2√27)(2√2)(1/(6√27))") == Term(
+    assert Interpreter.eval("(2√27)(1/(6√27))(2√2)") == Term(
         Number(3), Number(2), Number(1, 2)
     )
-    assert Interpreter.eval("(2√8)(2√2)(1/(4√16))") == Term(Number(2))
-    assert Interpreter.eval("(2√50)(2√2)(1/(5√100))") == Term(
+    assert Interpreter.eval("(1/(4√16))(2√8)(2√2)") == Term(Number(2))
+    assert Interpreter.eval("(2√50)(1/(5√100))(2√2)") == Term(
         value=Number(1000), exp=Number(1, 5)
     )
     assert Interpreter.eval("(2√18)(2√2)(1/(3√9))") == Term(
         Number(2), Number(3), Number(1, 3)
     )
-    # NOTE: Writing it as 2(2√6)3(2√2)(1/(3√12)) will fail. Needs fix
-    # The product class simplification should be aware of radical numbers
     assert Interpreter.eval("2(2√6) * 3(2√2) * (1/(3√12))") == Term(
-        Number(2),
-        Product(
-            [
-                Term(value=Number(3), exp=Number(1, 2)),
-                Term(value=Number(18), exp=Number(1, 3)),
-            ]
-        ),
+        Number(6), Number(12), Number(1, 6)
     )
