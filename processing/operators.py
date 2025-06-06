@@ -1,8 +1,6 @@
-from functools import lru_cache
 from typing import Any, Sequence
 from operator import *
 from datatypes import *
-from utils import log_step
 
 
 def eq(a: Term, b: Term) -> Comparison:
@@ -32,7 +30,7 @@ def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparis
     val = str(a)
     for i in mapping:
         val = val.replace(i, i.join(("({", "})")))
-    return Interpreter.eval(val.format_map(mapping))
+    return Interpreter.instance().eval(val.format_map(mapping), False)
 
 
 def validate_solution(
@@ -40,34 +38,23 @@ def validate_solution(
 ) -> bool:
     res = 1
     try:
-        if not (v := (subs(org.normalize(), mapping) if mapping else sol.normalize(0))):
+        if not ((subs(org.normalize(), mapping) if mapping else sol.normalize(0))):
             res = 0
     except:
         res = 0
-    tex = "&" + (
-        sol.totex().replace("&", "")
-        if sol.__class__ is Comparison
-        else ETBranchNode(sol).totex()
+    steps.register(
+        ETVerifyNode(sol if sol.__class__ is Comparison else ETBranchNode(sol), res)
     )
-    if not res:
-        log_step(ETTextNode(tex + "❌"))
-        return False
-    log_step(ETTextNode(tex + "✅"))
-    return True
+    return res
 
 
-@lru_cache(maxsize=20)
 def solve(
     var: Variable | Sequence[Variable], comp: Comparison | System
 ) -> Comparison | System:
+    comp.clear_cache()
     res = comp[var]
     s = "s" * isinstance(res, System)
-    log_step(
-        ETTextNode(
-            "&\\textcolor{#0d80f2}"
-            + ("\\text" + f"Verifying solution{s}".join("{}")).join("{}")
-        )
-    )
+    steps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
     if var in res and not isinstance(res.left.value, Variable):
         raise ArithmeticError(f"Could not solve for '{var}'")
     # Nested System: multple solution

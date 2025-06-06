@@ -1,92 +1,91 @@
 from datatypes import Number, Product, Term
-from processing import Interpreter
 
 
-def test_simplify_constants():
-    assert Interpreter.eval("10 + 5 - 3") == Term(Number(12))
-    assert Interpreter.eval("20 - 4 + 2") == Term(Number(18))
-    assert Interpreter.eval("2 * 3 + 4") == Term(Number(10))
-    assert Interpreter.eval("10 / 2 + 5") == Term(Number(10))
-    assert Interpreter.eval("2^3 + 1") == Term(Number(9))
-    assert Interpreter.eval("(2 + 3) * 4") == Term(Number(20))
-    assert Interpreter.eval("10 / (2 + 3)") == Term(Number(2))
-    assert Interpreter.eval("2 * (3 + 4)") == Term(Number(14))
-    assert Interpreter.eval("(2 + 3) * (4 + 1)") == Term(Number(25))
+def test_simplify_constants(processor):
+    assert processor.eval("10 + 5 - 3") == Term(Number(12))
+    assert processor.eval("20 - 4 + 2") == Term(Number(18))
+    assert processor.eval("2 * 3 + 4") == Term(Number(10))
+    assert processor.eval("10 / 2 + 5") == Term(Number(10))
+    assert processor.eval("2^3 + 1") == Term(Number(9))
+    assert processor.eval("(2 + 3) * 4") == Term(Number(20))
+    assert processor.eval("10 / (2 + 3)") == Term(Number(2))
+    assert processor.eval("2 * (3 + 4)") == Term(Number(14))
+    assert processor.eval("(2 + 3) * (4 + 1)") == Term(Number(25))
 
 
-def test_merge_complex():
-    assert Interpreter.eval("(3+4i) + (1+2i)") == Term(Number(complex(4, 6)))
-    assert Interpreter.eval("5 + 3i") == Term(Number(complex(5, 3)))
-    assert Interpreter.eval("(6+2i) + (-6+6i)") == Term(Number(complex(0, 8)))
-    assert Interpreter.eval("(6+5i) - (4+3i)") == Term(Number(complex(2, 2)))
-    assert Interpreter.eval("(3+7i) - (3+7i)") == Term(Number())
-    assert Interpreter.eval("(12+3i) - (12-1i)") == Term(Number(complex(0, 4)))
+def test_merge_complex(processor):
+    assert processor.eval("(3+4i) + (1+2i)") == Term(Number(complex(4, 6)))
+    assert processor.eval("5 + 3i") == Term(Number(complex(5, 3)))
+    assert processor.eval("(6+2i) + (-6+6i)") == Term(Number(complex(0, 8)))
+    assert processor.eval("(6+5i) - (4+3i)") == Term(Number(complex(2, 2)))
+    assert processor.eval("(3+7i) - (3+7i)") == Term(Number())
+    assert processor.eval("(12+3i) - (12-1i)") == Term(Number(complex(0, 4)))
 
 
-def test_multiply_complex():
-    assert Interpreter.eval("i*i") == Term(Number(-1))
-    assert Interpreter.eval("(2+3i)(1+4i)") == Term(Number(complex(-10, 11)))
-    assert Interpreter.eval("3(4-5i)") == Term(Number(complex(12, -15)))
-    assert Interpreter.eval("(-2+3i)(-1-4i)") == Term(Number(complex(14, 5)))
+def test_multiply_complex(processor):
+    assert processor.eval("i*i") == Term(Number(-1))
+    assert processor.eval("(2+3i)(1+4i)") == Term(Number(complex(-10, 11)))
+    assert processor.eval("3(4-5i)") == Term(Number(complex(12, -15)))
+    assert processor.eval("(-2+3i)(-1-4i)") == Term(Number(complex(14, 5)))
 
 
-def test_divide_complex():
-    assert Interpreter.eval("(4+6i)/2") == Term(Number(complex(2, 3)))
-    assert Interpreter.eval("(8-4i)/-2") == Term(Number(complex(-4, 2)))
-    assert Interpreter.eval("(4+2i)/(1-i)") == Term(Number(complex(1, 3)))
-    assert Interpreter.eval("(6+3i)/(-2+i)") == Term(Number(complex(-9, -12), 5))
-    assert Interpreter.eval("(-2+i)/(2+3i)") == Term(Number(complex(-1, 8), 13))
-    assert Interpreter.eval("(3+4i)/(1-2i)") == Term(Number(complex(-1, 2)))
-    assert Interpreter.eval("0/(1+i)") == Term(Number())
+def test_divide_complex(processor):
+    assert processor.eval("(4+6i)/2") == Term(Number(complex(2, 3)))
+    assert processor.eval("(8-4i)/-2") == Term(Number(complex(-4, 2)))
+    assert processor.eval("(4+2i)/(1-i)") == Term(Number(complex(1, 3)))
+    assert processor.eval("(6+3i)/(-2+i)") == Term(Number(complex(-9, -12), 5))
+    assert processor.eval("(-2+i)/(2+3i)") == Term(Number(complex(-1, 8), 13))
+    assert processor.eval("(3+4i)/(1-2i)") == Term(Number(complex(-1, 2)))
+    assert processor.eval("0/(1+i)") == Term(Number())
 
 
-def test_numeric_exponentiation():
+def test_numeric_exponentiation(processor):
     # Exponentiation
-    assert Interpreter.eval("5 ^ 2") == Term(Number(25))
-    assert Interpreter.eval("-3 ^ 2") == Term(Number(-9))
-    assert Interpreter.eval("(-3) ^ 2") == Term(Number(9))
-    assert Interpreter.eval("2 ^- 1") == Term(Number(1, 2))
+    assert processor.eval("5 ^ 2") == Term(Number(25))
+    assert processor.eval("-3 ^ 2") == Term(Number(-9))
+    assert processor.eval("(-3) ^ 2") == Term(Number(9))
+    assert processor.eval("2 ^- 1") == Term(Number(1, 2))
 
     # Perfect Radicals
-    assert Interpreter.eval("2 √ 25") == Term(Number(5))
-    assert Interpreter.eval("2 √ 25") == Term(Number(5))
-    assert Interpreter.eval("2 √ -1") == Term(Number(complex(imag=1)))
-    assert Interpreter.eval("2 √ -81") == Term(Number(complex(imag=9)))
-    assert Interpreter.eval("3 √ 27") == Term(Number(3))
-    assert Interpreter.eval("3 √ -27") == Term(Number(-3))
+    assert processor.eval("2 √ 25") == Term(Number(5))
+    assert processor.eval("2 √ 25") == Term(Number(5))
+    assert processor.eval("2 √ -1") == Term(Number(complex(imag=1)))
+    assert processor.eval("2 √ -81") == Term(Number(complex(imag=9)))
+    assert processor.eval("3 √ 27") == Term(Number(3))
+    assert processor.eval("3 √ -27") == Term(Number(-3))
 
     # Imperfect radicals
-    assert Interpreter.eval("2 √ 50") == Term(Number(5), Number(2), Number(1, 2))
-    assert Interpreter.eval("2 √ 192") == Term(Number(8), Number(3), Number(1, 2))
-    assert Interpreter.eval("3 √ 81") == Term(Number(3), Number(3), Number(1, 3))
-    assert Interpreter.eval("2 √ 27") == Term(Number(3), Number(3), exp=Number(1, 2))
-    assert Interpreter.eval("6 √ 27") == Term(value=Number(3), exp=Number(1, 2))
-    assert Interpreter.eval("4 √ -16") == Term(Number(complex(imag=2)))
-    assert Interpreter.eval("2 √ -128") == Term(
+    assert processor.eval("2 √ 50") == Term(Number(5), Number(2), Number(1, 2))
+    assert processor.eval("2 √ 192") == Term(Number(8), Number(3), Number(1, 2))
+    assert processor.eval("3 √ 81") == Term(Number(3), Number(3), Number(1, 3))
+    assert processor.eval("2 √ 27") == Term(Number(3), Number(3), exp=Number(1, 2))
+    assert processor.eval("6 √ 27") == Term(value=Number(3), exp=Number(1, 2))
+    assert processor.eval("4 √ -16") == Term(Number(complex(imag=2)))
+    assert processor.eval("2 √ -128") == Term(
         Number(complex(imag=8)), Number(2), Number(1, 2)
     )
 
 
-def test_multiply_radicals():
-    assert Interpreter.eval("(2 √ -50)^2") == Term(Number(-50))
-    assert Interpreter.eval("(3 √ -81)^3") == Term(Number(-81))
+def test_multiply_radicals(processor):
+    assert processor.eval("(2 √ -50)^2") == Term(Number(-50))
+    assert processor.eval("(3 √ -81)^3") == Term(Number(-81))
 
-    assert Interpreter.eval("8^(1/2) * 8^(1/3)") == Term(
+    assert processor.eval("8^(1/2) * 8^(1/3)") == Term(
         Number(4), Number(2), Number(1, 2)
     )
-    assert Interpreter.eval("4(2√2) * 2√8") == Term(Number(16))
-    assert Interpreter.eval("(2√-5) * (2√5)") == Term(Number(complex(imag=5)))
+    assert processor.eval("4(2√2) * 2√8") == Term(Number(16))
+    assert processor.eval("(2√-5) * (2√5)") == Term(Number(complex(imag=5)))
 
-    assert Interpreter.eval("(2√27)(1/(6√27))(2√2)") == Term(
+    assert processor.eval("(2√27)(1/(6√27))(2√2)") == Term(
         Number(3), Number(2), Number(1, 2)
     )
-    assert Interpreter.eval("(1/(4√16))(2√8)(2√2)") == Term(Number(2))
-    assert Interpreter.eval("(2√50)(1/(5√100))(2√2)") == Term(
+    assert processor.eval("(1/(4√16))(2√8)(2√2)") == Term(Number(2))
+    assert processor.eval("(2√50)(1/(5√100))(2√2)") == Term(
         value=Number(1000), exp=Number(1, 5)
     )
-    assert Interpreter.eval("(2√18)(2√2)(1/(3√9))") == Term(
+    assert processor.eval("(2√18)(2√2)(1/(3√9))") == Term(
         Number(2), Number(3), Number(1, 3)
     )
-    assert Interpreter.eval("2(2√6) * 3(2√2) * (1/(3√12))") == Term(
+    assert processor.eval("2(2√6) * 3(2√2) * (1/(3√12))") == Term(
         Number(6), Number(12), Number(1, 6)
     )

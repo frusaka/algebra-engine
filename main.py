@@ -9,6 +9,7 @@ from pylatexenc.latexwalker import (
 
 from processing import Interpreter
 from utils.constants import TEXTOKEN, SYMBOLS
+from datatypes import steps
 
 
 @eel.expose
@@ -20,13 +21,12 @@ def evaluate(latex: str):
         .replace("\\placeholder{}", "")
     ).get_latex_nodes()
     try:
-        res = Interpreter.eval("".join(map(stringify_node, nodes))).totex()
+        res = processor.eval("".join(map(stringify_node, nodes))).totex(0)
     except Exception as e:
         res = "\\textcolor{#d7170b}{\\text{$}}".replace("$", repr(e))
-    steps = Interpreter.render_steps_tex()
-    Interpreter.reset_steps()
-    print(steps)
-    return "\\\\".join((steps, res.replace("&", "")))
+    res = "\\\\".join((steps.totex(), res))
+    steps.clear()
+    return res
 
 
 def stringify_node(node: LatexNode) -> str:
@@ -51,7 +51,7 @@ def stringify_node(node: LatexNode) -> str:
     return ""
 
 
-Interpreter.print_frac_auto = False
+processor = Interpreter(False)
 
 eel.init("web")
 eel.start("index.html")

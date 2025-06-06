@@ -2,8 +2,6 @@ from __future__ import annotations
 from typing import Sequence, TYPE_CHECKING
 from functools import cache
 
-from .print_ import log_step
-
 if TYPE_CHECKING:
     from datatypes import *
 
@@ -13,47 +11,46 @@ def quadratic(comp: Comparison, var: Variable) -> tuple[Term] | None:
     Given that the lhs is a Polynomial,
     check whether it can be considered quadratic in terms of `value` and return its roots
     """
-    from datatypes import Term, Number, ETNode, ETTextNode
+    from datatypes import Term, Number, ETNode, ETTextNode, steps
 
     a, b = None, None
+    u = 1
     x = Term(value=var)
-    for t in comp.left.value:  # Must be a Polynomial
-        v = t / x
-        # Checks to detect a Quadratice
-        # One term that when divided by x cancels the x
-        if var not in v:
-            if b:
-                return
-            b = v
-            bx = t
-        # One term that when divided by x^2 cancels the x
-        elif var not in (v := v / x):
-            if a:
-                return
-            a = v
-            ax_2 = t
-        # Should otherwise not contain x if not divisible by x or x^2
-        elif var in t:
-            return
-    # Not a quadratic
-    # For values like x^2-9=0, they can be solved without the quadratic formula
-    if not (a and b):
+    x_2 = x ** Term(Number(2))
+    left = [i for i in comp.left.value if var in i]
+    if len(left) != 2:
         return
+    ax_2, bx = sorted(left, key=lambda x: x.get_exp(var), reverse=True)
+    if (
+        ax_2.get_exp(var) / 2 != bx.get_exp(var)
+        or ax_2.get_exp(var).__class__ is not Number
+    ):
+        return
+    if var not in (bx / x_2).denominator and var not in (ax_2 / x_2).denominator:
+        u = ax_2.get_exp(var) / 2
+        a = ax_2 / Term(value=var, exp=u * 2)
+        b = bx / Term(value=var, exp=u)
+        u = Term(u**-1)
+    else:
+        a, b = ax_2 / x_2, bx / x
     # Make the rhs 0
     if comp.right.value:
         comp -= comp.right
-        log_step(ETNode(comp))
+        steps.register(ETNode(comp))
     # The rest of the boys, can even be another Polynomial
     c = comp.left - (ax_2 + bx)
-    log_step(
-        ETTextNode(
-            "&\\text{quadratic}"
-            + "(a={0}, b={1}, c={2})".format(a.totex(), b.totex(), c.totex())
-        )
-    )
+    steps.register(
+        ETTextNode("With Quadratic formula", "#0d80f2")
+    )  # ({a=}, {b=}, {c=})"))
     discr = (b ** Term(Number(2)) - Term(Number(4)) * a * c) ** Term(Number(1, 2))
     den = Term(Number(2)) * a
-    return (-b + discr) / den, (-b - discr) / den
+    neg, pos = (-b + discr) / den, (-b - discr) / den
+    if u != 1:
+        # Needs to be registered to the steps as well
+        neg, pos = neg**u, pos**u
+        if not u.value.denominator % 2:
+            return (neg, -neg), (pos, -pos)
+    return neg, pos
 
 
 def perfect_square(vals: Sequence[Term]):
@@ -110,6 +107,7 @@ def lexicographic_weight(term: Term, alphabetic=True) -> Number:
     return res
 
 
+# Make this consider what variable being solved for
 def difficulty_weight(term: Term) -> int:
     from datatypes import Number, Collection, Product
 

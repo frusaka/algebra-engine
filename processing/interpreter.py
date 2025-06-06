@@ -1,7 +1,8 @@
 from functools import lru_cache
-from datatypes import Term, Number, Variable, Comparison, System, ETNode
+from datatypes import Term, Number, Variable, Comparison, System
 from . import operators
 from .nodes import Binary, Unary
+from .tokens import TokenType
 from .parser import AST
 
 
@@ -11,60 +12,54 @@ class Interpreter:
     Kept as a class to support setting variable values in the future
     """
 
-    _eval_trace: ETNode = None
-    print_frac_auto = True
+    _instance = None
 
-    def __new__(cls, *args, **kwargs):
-        raise RuntimeError(
-            "Direct instantiation of Interpreter is not allowed. Use Interpreter.eval(...)"
-        )
+    def __init__(self, print_frac_auto=True):
+        if Interpreter._instance is not None:
+            raise RuntimeError("Interpreter is a singleton. Use Interpreter.instance()")
+        self._eval_trace = None
+        self.head = None
+        self.print_frac_auto = print_frac_auto
+        Interpreter._instance = self
 
     @classmethod
-    @lru_cache
+    def instance(cls):
+        if cls._instance is None:
+            Interpreter()
+        return cls._instance
+
+    # @lru_cache
     def eval(
-        cls,
-        node: None | Unary | Binary | Number | Variable,
+        self, node: None | Unary | Binary | Number | Variable, autosolve=True
     ) -> Term | Comparison | System | tuple | None:
         if node is None:
             return
         if type(node) is str:
-            return cls.eval(AST(node))
+            return self.eval(AST(node), autosolve)
         if isinstance(node, (Number, Variable)):
             return Term(value=node)
         if isinstance(node, frozenset):
-            return System(cls.eval(i) for i in node)
-        if isinstance(node, tuple):
-            return node
+            res = System(self.eval(i, 0) for i in node)
+            if not autosolve:
+                return res
+            vars = sorted(set(Variable(i) for i in str(res) if i.isalpha()), key=str)
+            return operators.solve(tuple(map(Variable, vars)), res)
 
         oper = node.oper.type.name.lower()
 
         if isinstance(node, Unary):
-            return getattr(operators, oper)(cls.eval(node.value))
+            return getattr(operators, oper)(self.eval(node.value))
         left = node.left
-        right = cls.eval(node.right)
-        if oper != "solve":  # Do not convert lhs to Term when solving
-            left = cls.eval(left)
+        right = self.eval(node.right, 0)
+        if oper != "solve":
+            left = self.eval(left, 0)
+            if (
+                autosolve
+                and TokenType[oper.upper()].value // 1 == 4
+                and len(var := set(i for i in str(right) + str(left) if i.isalpha()))
+                == 1
+            ):
+                return operators.solve(
+                    Variable(var.pop()), getattr(operators, oper)(left, right)
+                )
         return getattr(operators, oper)(left, right)
-
-    @classmethod
-    def log_step(cls, step: ETNode):
-        # print("saving", step.result)
-        if not cls._eval_trace:
-            cls._eval_trace = step
-        else:
-            step.prev = cls._eval_trace
-            cls._eval_trace.next = step
-            cls._eval_trace = step
-
-    @classmethod
-    def render_steps_tex(cls) -> str:
-        node = cls._eval_trace
-        if not node:
-            return ""
-        while node.prev:
-            node = node.prev
-        return node.totex()
-
-    @classmethod
-    def reset_steps(cls):
-        cls._eval_trace = None

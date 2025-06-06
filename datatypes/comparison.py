@@ -11,8 +11,8 @@ from .product import Product
 from .number import Number, ZERO
 from .variable import Variable
 from .term import Term
-from datatypes.eval_trace import *
-from utils import quadratic, SYMBOLS, log_step
+from .eval_trace import *
+from utils import quadratic, SYMBOLS
 
 
 class CompRel(Enum):
@@ -33,10 +33,11 @@ class CompRel(Enum):
     def __str__(self):
         return SYMBOLS.get(self.name)
 
-    def totex(self):
+    def totex(self, align: bool = True):
+        align = "&" * align
         if self.name.endswith("E"):
-            return "&" + f"\\{self.name.lower()}"
-        return "&" + SYMBOLS.get(self.name)
+            return align + f"\\{self.name.lower()}"
+        return align + SYMBOLS.get(self.name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,14 +58,14 @@ class Comparison:
         This method will be called when solving for a variable
         """
         # NOTE: if val>0:... checks are not necessary, they just make the solving process look natural
-        log_step(ETNode(self))
+        steps.register(ETNode(self))
         if value not in self:
             return self
 
         # Rewrite the comparison to put the target variable on the left
         if value in self.right and not value in self.left:
             self = self.reverse()
-            log_step(ETNode(self))
+            steps.register(ETNode(self))
         # Power lhs if it is a radical
         if value in self.left and (exp := self.left.exp.denominator) != 1:
             return (self ** Term(Number(exp)))[value]
@@ -105,7 +106,7 @@ class Comparison:
                 # Term is in radical form
                 if i.exp.denominator != 1:
                     self -= self.left - i
-                    log_step(ETNode(self))
+                    steps.register(ETNode(self))
                     return (self.reverse() ** Term(Number(i.exp.denominator)))[value]
 
             # Solving using the quadratic formula
@@ -115,15 +116,20 @@ class Comparison:
                 lhs = Term(value=value)
                 if pos == neg and self.rel is CompRel.EQ:
                     res = Comparison(lhs, pos, self.rel)
-                    log_step(ETNode(res))
+                    steps.register(ETNode(res))
                 else:
-                    res = System(
-                        {
-                            Comparison(lhs, pos, self.rel),
-                            Comparison(lhs, neg, self.rel.reverse()),
-                        }
-                    )
-                    log_step(ETBranchNode(res))
+                    if pos.__class__ is tuple:
+                        if self.rel is not CompRel.EQ:
+                            raise ValueError("Four zeros in inequality")
+                        res = System(Comparison(lhs, i) for i in [*pos, *neg])
+                    else:
+                        res = System(
+                            {
+                                Comparison(lhs, pos, self.rel),
+                                Comparison(lhs, neg, self.rel.reverse()),
+                            }
+                        )
+                    steps.register(ETBranchNode(res))
                 return res
             if remove:
                 if len(remove) == 1:
@@ -147,21 +153,24 @@ class Comparison:
 
         return self
 
+    def clear_cache(self):
+        self.__getitem__.cache_clear()
+
     def __contains__(self, value: Variable) -> bool:
         return value in self.left or value in self.right
 
     def __sub__(self, value: Term) -> Comparison:
         if value.to_const() > 0:
-            log_step(ETOperatorNode(ETOperatorType.SUB, value))
+            steps.register(ETOperatorNode(ETOperatorType.SUB, value))
         else:
-            log_step(ETOperatorNode(ETOperatorType.ADD, -value))
+            steps.register(ETOperatorNode(ETOperatorType.ADD, -value))
         return Comparison(self.left + -value, self.right + -value, self.rel)
 
     def __truediv__(self, value: Term) -> Comparison:
         if value.denominator.value == 1:
-            log_step(ETOperatorNode(ETOperatorType.DIV, value))
+            steps.register(ETOperatorNode(ETOperatorType.DIV, value))
         else:
-            log_step(ETOperatorNode(ETOperatorType.TIMES, value.inv))
+            steps.register(ETOperatorNode(ETOperatorType.TIMES, value.inv))
         return Comparison(
             self.left / value,
             self.right / value,
@@ -170,9 +179,9 @@ class Comparison:
 
     def __pow__(self, value: Term) -> Comparison:
         if value.denominator.value != 1 and value.numerator.value == 1:
-            log_step(ETOperatorNode(ETOperatorType.SQRT, value.inv))
+            steps.register(ETOperatorNode(ETOperatorType.SQRT, value.inv))
         else:
-            log_step(ETOperatorNode(ETOperatorType.POW, value))
+            steps.register(ETOperatorNode(ETOperatorType.POW, value))
         lhs = self.left**value
         rhs = self.right**value
         # plus/minus trick for even roots
@@ -215,12 +224,12 @@ class Comparison:
             return self.rel.reverse()
         return self.rel
 
-    def totex(self) -> str:
+    def totex(self, align: bool = True) -> str:
         left, rel, right = self.left, self.rel, self.right
         if self.right.__class__ is Collection:
             rel = "\\in"
         else:
-            rel = rel.totex()
+            rel = rel.totex(align)
         if left.__class__ is tuple:
             left = ",".join(left).join(("\\left(", "\\right)"))
         else:

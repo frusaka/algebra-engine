@@ -4,4 +4,4 @@ import pytest
 
 @pytest.fixture
 def processor():
-    return processing.Interpreter()
+    return processing.Interpreter.instance()

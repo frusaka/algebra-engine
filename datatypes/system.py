@@ -2,96 +2,43 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Sequence
 
-from utils import difficulty_weight, log_step
+from utils import difficulty_weight
 from datatypes.eval_trace import *
 
 from .collection import Collection
 from .variable import Variable
-from .term import Term
-from .number import Number
-
-
-def plus_minus_key(t: Term) -> Term:
-    if not t.value.__class__ is Number or not t.value.numerator.imag:
-        return abs(t)
-    return t
 
 
 class System(Collection):
     """A system of equations or inequalities"""
 
-    @lru_cache
     def __getitem__(self, vals: Sequence[Variable]) -> System:
         """Solve for a system of (in)equalities"""
-        from processing import Interpreter, subs
+        from processing import subs
 
         # Assumeably from internal solving process
         if vals.__class__ is Variable:
-            Interpreter.log_step(ETBranchNode(self))
+            steps.register(ETBranchNode(self))
             return self
-        eqns = sorted(
-            self,
-            key=lambda eqn: difficulty_weight(eqn.normalize().left),
-        )
-        head = None
-        Interpreter.log_step(ETNode(self))
-        if vals.__class__ is str:
-            vals = (Variable(vals),)
-        else:
-            Interpreter.log_step(
-                head := ETBranchNode(
-                    (ETTextNode("\\textbf{Solve for " + v + "}") for v in vals), 0
-                )
-            )
-        # Solve for each variable separately
-        for idx, v in enumerate(vals):
-            if idx:
-                if eqns[0].__class__ is System:
-                    Interpreter.log_step(ETBranchNode(eqns))
-                else:
-                    Interpreter.log_step(ETNode(System(eqns)))
-            if head:
-                Interpreter._eval_trace = head.result[idx]
-            if eqns[0].__class__ is System:
-                Interpreter.log_step(
-                    head_ := ETBranchNode(
-                        ETTextNode("\\text{Branch $:}".replace("$", str(idx)))
-                        for idx in range(1, len(eqns) + 1)
-                    )
-                )
-                for idx, eqn in enumerate(eqns):
-                    Interpreter._eval_trace = head_.result[idx]
-                    eqns[idx] = eqn[str(v)]
-                Interpreter._eval_trace = head_
-                # Flatten when necessary (most cases)
-                if next(iter(next(iter(eqns)))).__class__ is System:
-                    eqns = list(j for i in eqns for j in i)
-                continue
+        seen = set()
 
+        def solve(eqns, v):
             # Find an (in)equality with an independent target variable
-            for idx, org in enumerate(eqns):
-                if any(
-                    v in j and j.exp.denominator == 1 or j.value == v
-                    for j in (org.left, org.right)
-                ):
-                    break
-            else:
-                if head:
-                    Interpreter._eval_trace = head
-                return System(eqns)
-            eqn = org[v]
-            eqns.pop(idx)
-            old = "\\textcolor{#d7170b}" + v.join("{}")
-            if eqn.__class__ is System:
-                new = ",".join(
-                    map(
-                        lambda x: "\\textcolor{#21ba3a}" + x.right.totex().join("{}"),
-                        eqn,
-                    )
-                ).join("{}")
-                Interpreter.log_step(
-                    ETTextNode("&\\text{Substitute }" + old + "\\text{ with }" + new)
+            try:
+                idx, org = next(
+                    (idx, org)
+                    for idx, org in enumerate(eqns)
+                    if org not in seen and v in org
                 )
+            except StopIteration:
+                raise ValueError(f"No independent variable containg {v}")
+            eqn = org[v]
+            if eqn.__class__ is not self.__class__ and eqn.left.value != v:
+                raise ArithmeticError(f"Could not solve for {v}")
+            eqns.pop(idx)
+            if eqn.__class__ is System:
+                seen.update(eqn)
+                steps.register(ETSubNode(v, ETBranchNode(i.right for i in eqn)))
                 eqns = [
                     System(
                         res | {j}
@@ -101,29 +48,50 @@ class System(Collection):
                     for j in eqn
                 ]
                 if len(eqns) == 1:
-                    eqns = list(eqns[0])
-            else:
-                # Need a check for infinite solutions
-                if eqn.left.value != v:
-                    if head:
-                        Interpreter._eval_trace = head
-                    return System(eqns + [eqn])
-                # Substitute in the rest of equations
-                new = "\\textcolor{#21ba3a}" + eqn.right.totex().join("{}")
-                Interpreter.log_step(
-                    ETTextNode("&\\text{Substitute }" + old + "\\text{ with }" + new)
-                )
-                for i in range(len(eqns)):
-                    eqns[i] = subs(eqns[i], {v: eqn.right})
-                # Put the newly solved equation at the end
-                eqns.append(eqn)
-        if head:
-            Interpreter._eval_trace = head
-        if eqns[0].__class__ is System:
-            Interpreter.log_step(ETBranchNode(eqns))
-            return System(eqns)
-        Interpreter.log_step(ETNode(eqns := System(eqns)))
-        return eqns
+                    return list(eqns[0])
+                return eqns
+            seen.add(eqn)
+            # Need a check for infinite solutions
+            if eqn.left.value != v:
+                return System(eqns + [eqn])
+            # Substitute in the rest of equations
+            steps.register(ETSubNode(v, eqn.right))
+            for i in range(len(eqns)):
+                eqns[i] = subs(eqns[i], {v: eqn.right})
+            # Put the newly solved equation at the end
+            eqns.append(eqn)
+            return eqns
+
+        eqns = sorted(
+            self,
+            key=lambda eqn: difficulty_weight(eqn.normalize().left),
+        )
+
+        steps.register(ETNode(self))
+        # Solve for each variable separately
+        with steps.branching(len(vals)) as branches:
+            for idx, v in zip(branches, vals):
+                steps.register(ETTextNode(f"Solve for {v}:"))
+                if eqns[0].__class__ is System:
+                    with steps.branching(len(eqns)) as branches:
+                        for idx in branches:
+                            steps.register(ETTextNode(f"Branch {idx+1}:"))
+                            eqns[idx] = System(solve(list(eqns[idx]), v))
+                            steps.register(ETBranchNode(eqns[idx]))
+                    # Flatten when necessary (most cases)
+                    if next(iter(next(iter(eqns)))).__class__ is System:
+                        eqns = list(j for i in eqns for j in i)
+                    steps.register(ETBranchNode(eqns))
+                    continue
+                eqns = solve(eqns, v)
+                if eqns.__class__ is System:
+                    break
+                if eqns[0].__class__ is System:
+                    steps.register(ETBranchNode(eqns))
+                else:
+                    steps.register(ETNode(System(eqns)))
+        seen.clear()
+        return System(eqns)
 
     def __bool__(self) -> bool:
         return all(self)
@@ -135,12 +103,19 @@ class System(Collection):
                 res.append(str(i).join("()"))
             else:
                 res.append(str(i))
-        return "; ".join(res)
+        return ", ".join(res)
 
-    def totex(self) -> str:
-        return "&" + "\\\\".join(map(lambda x: x.totex(), self)).join(
+    def __repr__(self) -> str:
+        return str(self).join("{}")
+
+    def totex(self, align: bool = True) -> str:
+        return "&" * align + "\\\\".join(map(lambda x: x.totex(align), self)).join(
             ("\\begin{cases}", "\\end{cases}")
         )
 
     def normalize(self, weaken=True) -> System:
         return System(i.normalize(weaken) for i in self)
+
+    @staticmethod
+    def clear_cache():
+        return

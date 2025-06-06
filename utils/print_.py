@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 
 
 def print_frac(frac: Number) -> str:
+    """Convert a fraction to a string representation, omitting the denominator if it is 1."""
     from processing import Interpreter
 
     denominator = frac.denominator
@@ -14,7 +15,7 @@ def print_frac(frac: Number) -> str:
         return str(frac.numerator)
 
     res = "/".join((str(frac.numerator), str(frac.denominator)))
-    if not Interpreter.print_frac_auto:
+    if not Interpreter.instance().print_frac_auto:
         return res
     while denominator % 2 == 0:
         denominator //= 2
@@ -26,6 +27,7 @@ def print_frac(frac: Number) -> str:
 
 
 def print_coef(coef: Number, tex=False) -> str:
+    """Convert a coefficient to a string representation, choosing to omit 1 or -1."""
     res = ""
     if coef != 1:
         res = str(coef)
@@ -37,6 +39,7 @@ def print_coef(coef: Number, tex=False) -> str:
 
 
 def ineq_to_range(ineq: Comparison) -> str:
+    """Convert an inequality to a range representation."""
     left, right = "(", ")"
     if ineq.rel.name.startswith("G"):
         if ineq.rel.name.endswith("E"):
@@ -48,17 +51,12 @@ def ineq_to_range(ineq: Comparison) -> str:
 
 
 def ineq_to_range_tex(ineq: Comparison) -> str:
-    left, right = "(", ")"
+    """Convert an inequality to a LaTeX range representation."""
+    left, right = "\\left(", "\\right)"
     if ineq.rel.name.startswith("G"):
         if ineq.rel.name.endswith("E"):
             left = "\\left\\lbrack "
-        return left + str(ineq.right)
+        return left + ineq.right.totex()
     if ineq.rel.name.endswith("E"):
         right = "\\right\\rbrack "
-    return str(ineq.right) + right
-
-
-def log_step(step: ETNode):
-    from processing import Interpreter
-
-    Interpreter.log_step(step)
+    return ineq.right.totex() + right

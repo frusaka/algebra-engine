@@ -8,7 +8,6 @@ class TokenType(Enum):
 
     SOLVE = 0
     COMMA = 1
-    SEMI_COLON = 2
 
     EQ, GT, GE, LT, LE = 4, 4.2, 4.4, 4.6, 4.8
 

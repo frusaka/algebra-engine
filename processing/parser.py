@@ -34,21 +34,20 @@ class Parser:
             f"unsupported: '{SYMBOLS.get(oper.type.name)}' for non-term expressions"
         )
 
-    def generate_iterable(
-        self, sep, type, error_msg, parse=True
-    ) -> Generator[Any, None, None]:
+    def generate_system(self) -> Generator[Binary, None, None]:
         oper = self.curr
+        error_msg = "system expects unique equations only"
         i = 1
-        while self.curr and self.curr.type is sep:
+        while self.curr and self.curr.type is TokenType.COMMA:
             self.advance()
             i += 1
         seen = set()
         for j in range(i):
             if self.curr is None:
                 self.operator_error(oper)
-            if self.curr.type is not type:
+            if self.curr.type is not TokenType.EQ:
                 raise SyntaxError(error_msg)
-            val = self.parse() if parse else self.curr.value
+            val = self.parse()
             if val in seen:
                 raise SyntaxError(error_msg)
             seen.add(val)
@@ -63,22 +62,7 @@ class Parser:
         if self.curr.type in (TokenType.VAR, TokenType.NUMBER):
             return self.curr.value
         if self.curr.type is TokenType.COMMA:
-            return tuple(
-                self.generate_iterable(
-                    TokenType.COMMA,
-                    TokenType.VAR,
-                    "tuple expects unique variables only",
-                    0,
-                )
-            )
-        if self.curr.type is TokenType.SEMI_COLON:
-            return frozenset(
-                self.generate_iterable(
-                    TokenType.SEMI_COLON,
-                    TokenType.EQ,
-                    "system expects unique equations only",
-                )
-            )
+            return frozenset(self.generate_system())
         oper = self.curr
         self.advance()
         left = self.parse()

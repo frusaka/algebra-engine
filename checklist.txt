@@ -1,5 +1,6 @@
 1. Some valid results get rejected when checking for extraneous solutions due to rooting a Polynomial.
     Add a way to smartly control strictness
+    x -> (2x+3)^0.5+(x-1)^0.5=4 should practically have 1 solution
 2. Improve multiplication of Polynomial Rationals
 4. Add simplification for cases such as:
     3x/(x^3 + 6x^2)
@@ -9,10 +10,6 @@
 5. Make solver iterative
 6. Improve solving by factorizaiton
 7. Add saftey checks when solving for nested radicals or complex equations
-8. Make systems solver not revisit solved equations and enhance equation difficulty weighing
+8. enhance equation difficulty weighing
 9. Bring back dem mixed fractions
-10. Add aproximations:
-    x -> (2x+3)^0.5+(x-1)^0.5=4 should practically have 1 solution
-11. 26^(1/6) Failing, should not be 5^(1/3)
-    h -> S=2pr+2pr^2 : Failing, simplification error (S-2pr)/2pr^2 * pr^2
-12. Improve method of storing steps
+10. h -> S=2pr^2+2pr^2h : Failing, simplification error (S-2pr)/2pr^2 * pr^2

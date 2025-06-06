@@ -64,7 +64,14 @@ class Term:
         # Numbers with symbolic exponents
         if self.value.__class__ is Number and self.exp != 1:
             v = str(Term(value="$", exp=self.exp)).replace(
-                "$", v if not "/" in (v := str(self.value)) else v.join("()")
+                "$",
+                (
+                    v
+                    if not (
+                        "/" in (v := str(self.value)) or not self.value.numerator.real
+                    )
+                    else v.join("()")
+                ),
             )
             if not v.startswith("(") and abs(self.coef) != 1:
                 v = v.join("()")
@@ -385,7 +392,7 @@ class Term:
             return a
         return (a * b) / Term.gcd(a, b)
 
-    def totex(self) -> str:
+    def totex(self, align: bool = False) -> str:
         if (
             "/" in str(self.coef)
             or self.value.__class__ is Product

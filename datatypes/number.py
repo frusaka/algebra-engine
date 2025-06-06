@@ -209,24 +209,19 @@ class Number(Atomic):
 
             c, v = a.coef**b.value.numerator, a.value**b.value.numerator
             den = den_a = b.value.denominator
-            if a.exp != 1:
-                den_a *= a.exp.denominator
+            den_a *= a.exp.denominator
             if den == den_a == 1:
                 return type(a)(c * v)
             # Leave radicals as is if necessary to maintain precision
-            if not v.numerator.imag and not c.numerator.imag:
-                return simplify_radical(v, den_a) * simplify_radical(c, den)
-
-            # Complex radicals converted to floating-point
-            return type(a)(value=a.value**b.value).scale(a.coef**b.value)
+            return simplify_radical(v, den_a) * simplify_radical(c, den)
         return Number.resolve_pow(a, b)
 
     pow.register(polynomial)(Atomic.poly_pow)
 
     def totex(self) -> str:
-        if "/" in (s := str(self)):
-            num, den = str(self.numerator).join("{}"), str(self.denominator).join("{}")
-            return f"\\frac{num}{den}"
+        if "/" in (s := str(self).replace("i", "\\mathrm{i}")):
+            num, den = s.split("/")
+            return "\\frac{0}{1}".format(num.join("{}"), den.join("{}"))
         return s
 
 
