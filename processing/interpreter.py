@@ -1,4 +1,3 @@
-from functools import lru_cache
 from datatypes import Term, Number, Variable, Comparison, System
 from . import operators
 from .nodes import Binary, Unary
@@ -28,7 +27,6 @@ class Interpreter:
             Interpreter()
         return cls._instance
 
-    # @lru_cache
     def eval(
         self, node: None | Unary | Binary | Number | Variable, autosolve=True
     ) -> Term | Comparison | System | tuple | None:

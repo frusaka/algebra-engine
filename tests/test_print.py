@@ -44,16 +44,16 @@ def test_print_negative_exp():
 
 
 def test_print_radical(processor):
-    assert str(Term(Number(1), Variable("y"), Number(1, 2))) == "y^0.5"
-    assert str(Term(Number(1), Variable("x"), Number(-1, 3))) == "1/x^(1/3)"
-    assert str(Term(Number(7, 2), Variable("q"), Number(1, 3))) == "3.5q^(1/3)"
-    assert str(Term(Number(1, 5), Variable("r"), Number(2, 3))) == "0.2r^(2/3)"
-    assert str(processor.eval("2√(x + c)")) == "(x + c)^0.5"
-    assert str(processor.eval("-1(2√(x + c))")) == "-(x + c)^0.5"
-    assert str(processor.eval("2(2√(x + c))")) == "2(x + c)^0.5"
-    assert str(processor.eval("-2(2√(x + c))")) == "-2(x + c)^0.5"
-    assert str(processor.eval("2√5 / 2")) == "0.5(5^0.5)"
-    assert str(processor.eval("2 * 2√5 / 3")) == "2(5^0.5)/3"
+    assert str(Term(Number(1), Variable("y"), Number(1, 2))) == "√y"
+    assert str(Term(Number(1), Variable("x"), Number(-1, 3))) == "1/∛x"
+    assert str(Term(Number(7, 2), Variable("q"), Number(1, 3))) == "3.5∛q"
+    assert str(Term(Number(1, 5), Variable("r"), Number(2, 3))) == "0.2∛(r^2)"
+    assert str(processor.eval("(x + c)^0.5")) == "√(x + c)"
+    assert str(processor.eval("-1(√(x + c))")) == "-√(x + c)"
+    assert str(processor.eval("2(x + c)^0.5")) == "2√(x + c)"
+    assert str(processor.eval("-2(x + c)^0.5")) == "-2√(x + c)"
+    assert str(processor.eval("5^(1/3) / 2")) == "0.5∛5"
+    assert str(processor.eval("2 * 5^0.5 / 3")) == "2√5/3"
 
 
 def test_print_polynomial(processor):

@@ -14,12 +14,12 @@ class Collection(Unknown, frozenset, Atomic):
     def __hash__(self) -> int:
         return frozenset.__hash__(self)
 
-    def __str__(self):
+    def __repr__(self):
         if not self:
             return "∅"
         if len(self) == 1:
-            return str(next(iter(self)))
-        return ", ".join(str(i) for i in self).join("{}")
+            return repr(next(iter(self)))
+        return ", ".join(repr(i) for i in self).join("{}")
 
     @classmethod
     def flatten(cls, term: Term) -> Generator[Term, None, None]:

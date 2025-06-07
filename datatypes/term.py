@@ -54,7 +54,7 @@ class Term:
     def __hash__(self):
         return self._hash
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         if (
             "/" in str(self.coef)
             or self.value.__class__ is Product
@@ -63,17 +63,11 @@ class Term:
             return "{0}/{1}".format(self.numerator, self.denominator)
         # Numbers with symbolic exponents
         if self.value.__class__ is Number and self.exp != 1:
-            v = str(Term(value="$", exp=self.exp)).replace(
+            v = repr(Term(value="$", exp=self.exp)).replace(
                 "$",
-                (
-                    v
-                    if not (
-                        "/" in (v := str(self.value)) or not self.value.numerator.real
-                    )
-                    else v.join("()")
-                ),
+                (v if not ("/" in (v := str(self.value))) else v.join("()")),
             )
-            if not v.startswith("(") and abs(self.coef) != 1:
+            if v[0].isdigit() and abs(self.coef) != 1:
                 v = v.join("()")
             return "{0}{1}".format(print_coef(self.coef), v)
         # Negative exponets: ax^-n -> a/x^n
@@ -93,6 +87,21 @@ class Term:
             res += str(self.value)
         if self.exp == 1:
             return res
+        exp = self.exp_const()
+        # Radical representation
+        if exp.denominator != 1:
+            if self.coef != 1:
+                val = Term(value=self.value, exp=self.exp)
+                if self.coef == -1:
+                    return "-{0}".format(repr(val))
+                return "{0}{1}".format(print_coef(self.coef), repr(val))
+            if exp.denominator <= 3:
+                if exp.numerator != 1:
+                    res = "({0}^{1})".format(res, exp.numerator)
+                if exp.denominator == 2:
+                    return "√" + res
+                if exp.denominator == 3:
+                    return "∛" + res
         # Symbolic exponent representation
         exp = str(self.exp)
         if (
@@ -102,9 +111,6 @@ class Term:
         ):
             exp = exp.join("()")
         return "{0}^{1}".format(res, exp)
-
-    def __repr__(self) -> str:
-        return str(self)
 
     @lru_cache
     def __contains__(self, value: Variable) -> bool:

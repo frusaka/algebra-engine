@@ -46,11 +46,11 @@ class Comparison:
     right: Term
     rel: CompRel = CompRel.EQ
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         rel = self.rel
         if self.right.__class__ is Collection:
             rel = "∈"
-        return "{0} {2} {1}".format(self.left, self.right, rel)
+        return "{0} {2} {1}".format(repr(self.left), repr(self.right), rel)
 
     @lru_cache
     def __getitem__(self, value: Variable) -> Comparison:
@@ -161,16 +161,24 @@ class Comparison:
 
     def __sub__(self, value: Term) -> Comparison:
         if value.to_const() > 0:
-            steps.register(ETOperatorNode(ETOperatorType.SUB, value))
+            steps.register(
+                ETOperatorNode(ETOperatorType.SUB, value, len(str(self.left)) + 1)
+            )
         else:
-            steps.register(ETOperatorNode(ETOperatorType.ADD, -value))
+            steps.register(
+                ETOperatorNode(ETOperatorType.ADD, -value, len(str(self.left)) + 1)
+            )
         return Comparison(self.left + -value, self.right + -value, self.rel)
 
     def __truediv__(self, value: Term) -> Comparison:
         if value.denominator.value == 1:
-            steps.register(ETOperatorNode(ETOperatorType.DIV, value))
+            steps.register(
+                ETOperatorNode(ETOperatorType.DIV, value, len(str(self.left)) + 1)
+            )
         else:
-            steps.register(ETOperatorNode(ETOperatorType.TIMES, value.inv))
+            steps.register(
+                ETOperatorNode(ETOperatorType.TIMES, value.inv, len(str(self.left)) + 1)
+            )
         return Comparison(
             self.left / value,
             self.right / value,
@@ -179,9 +187,13 @@ class Comparison:
 
     def __pow__(self, value: Term) -> Comparison:
         if value.denominator.value != 1 and value.numerator.value == 1:
-            steps.register(ETOperatorNode(ETOperatorType.SQRT, value.inv))
+            steps.register(
+                ETOperatorNode(ETOperatorType.SQRT, value.inv, len(str(self.left)) + 1)
+            )
         else:
-            steps.register(ETOperatorNode(ETOperatorType.POW, value))
+            steps.register(
+                ETOperatorNode(ETOperatorType.POW, value, len(str(self.left)) + 1)
+            )
         lhs = self.left**value
         rhs = self.right**value
         # plus/minus trick for even roots

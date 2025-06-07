@@ -1,6 +1,7 @@
 from __future__ import annotations
+import re
 from enum import Enum
-from typing import Any, Generator
+from typing import Any
 from contextlib import contextmanager
 
 
@@ -9,7 +10,7 @@ class ETNode:
         self.result = result
 
     def __repr__(self):
-        return str(self.result)
+        return repr(self.result)
 
     def totex(self, align=True):
         return self.result.totex(align)
@@ -20,7 +21,7 @@ class ETBranchNode(ETNode):
         super().__init__(list(result))
 
     def __repr__(self):
-        return ",    ".join(str(i) for i in self.result)
+        return ",  ".join(repr(i) for i in self.result)
 
     def totex(self, align):
         return "&" * align + ",\\quad ".join(i.totex(0) for i in self.result)
@@ -34,23 +35,24 @@ class ETOperatorType(Enum):
     POW = 5
     SQRT = 6
 
-    def torich(self, value):
+    def tostr(self, value):
         if self.name == "ADD":
-            return "+" + str(value)
+            return colorize_ansi("+" + repr(value), "#21ba3a")
         if self.name == "SUB":
-            return "-" + str(value)
+            return colorize_ansi("-" + repr(value), "#d7170b")
         if self.name == "TIMES":
-            return +"*" + str(value)
+            return colorize_ansi("×" + repr(value), "#0d80f2")
         if self.name == "DIV":
-            return "/" + str(value)
+            return colorize_ansi("÷" + repr(value), "#ffc02b")
         if self.name == "POW":
-            return "( )^" + str(value)
+            return colorize_ansi("( )^" + repr(value), "#a219e6")
         if self.name == "SQRT":
+            res = f"[{repr(value)}]√( )"
             if value.value == 2:
-                return "√( )"
+                res = "√( )"
             elif value.value == 3:
-                return "∛( )"
-            return f"[{str(value)}]√( )"
+                res = "∛( )"
+            return colorize_ansi(res, "#a219e6")
 
     def totex(self, value):
         if self.name == "ADD":
@@ -78,12 +80,13 @@ class ETOperatorType(Enum):
 
 
 class ETOperatorNode(ETNode):
-    def __init__(self, type: ETOperatorType, value: Any):
+    def __init__(self, type: ETOperatorType, value: Any, padding: int):
         self.type = type
         self.value = value
+        self.padding = padding
 
     def __repr__(self):
-        return "⇓" + self.type.torich(self.value)
+        return " " * self.padding + "⇓" + self.type.tostr(self.value)
 
     def totex(self, align=True):
         return "&\\Downarrow".replace("&", "&" * align) + self.type.totex(self.value)
@@ -95,6 +98,8 @@ class ETTextNode(ETNode):
         self.color = color
 
     def __repr__(self):
+        if self.color:
+            return colorize_ansi(self.result, self.color)
         return self.result
 
     def totex(self, align=True) -> str:
@@ -113,7 +118,10 @@ class ETSubNode(ETNode):
         self.new = new
 
     def __repr__(self):
-        return f"Substitute {self.old} with {self.new}"
+        return "Substitute {0} with {1}".format(
+            colorize_ansi(self.old, "#d7170b"),
+            colorize_ansi(repr(self.new), "#21ba3a"),
+        )
 
     def totex(self, align=True):
         old = "\\textcolor{#d7170b}" + self.old.join("{}")
@@ -132,7 +140,7 @@ class ETVerifyNode(ETNode):
         self.state = state
 
     def __repr__(self):
-        return f"{self.result}" + "❌✅"[self.state]
+        return repr(self.result) + "❌✅"[self.state]
 
     def totex(self, align):
         return "&" * align + self.result.totex(0) + "❌✅"[self.state]
@@ -143,6 +151,9 @@ class ETSteps:
         self.data = data if data is not None else []
         self.history = [self.data]
         self.idx = [0]
+
+    def __bool__(self):
+        return bool(self.data)
 
     def clear(self):
         self.data.clear()
@@ -196,10 +207,34 @@ class ETSteps:
             self.end_branches()
 
     def __repr__(self):
-        return "\n".join(
-            str(step if isinstance(step, ETNode) else ETSteps(step))
-            for step in self.data
-        )
+        if not self.data:
+            return ""
+        padding = 1
+
+        def pad_line(line, max_len):
+            visible = strip_ansi(line)
+            pad = " " * padding
+            trailing = " " * (max_len - len(visible) - (visible[-1] in "❌✅"))
+            return pad + line + trailing + pad
+
+        def box(lines):
+            max_len = max(len(strip_ansi(line)) for line in lines)
+            width = max_len + 2 * padding
+            top = "┌" + "─" * width + "┐"
+            body = ["│" + pad_line(line, max_len) + "│" for line in lines]
+            bottom = "└" + "─" * width + "┘"
+            return [top] + body + [bottom]
+
+        def process(item):
+            if isinstance(item, ETNode):
+                return [repr(item)]
+            nested_lines = []
+            for sub in item:
+                nested = process(sub)
+                nested_lines.extend(nested)
+            return box(nested_lines)
+
+        return "\n".join(process(self.data))
 
     def totex(self, align=True, _depth=0) -> str:
         if not self.data:
@@ -214,6 +249,24 @@ class ETSteps:
         )
         res = res.join(("\\begin{aligned}", "\\end{aligned}"))
         return res.join(("&\\boxed{".replace("&", "&" * _depth), "}"))
+
+
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text):
+    res = ANSI_ESCAPE_RE.sub("", text)
+    return res
+
+
+def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def colorize_ansi(text: str, hex_color: str) -> str:
+    r, g, b = hex_to_rgb(hex_color)
+    return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
 
 
 steps = ETSteps()

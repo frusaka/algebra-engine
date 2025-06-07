@@ -55,7 +55,7 @@ class Number(Atomic):
     def __bool__(self) -> bool:
         return bool(self.numerator)
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         # Lazy print
         res = print_frac(self).replace("j", "i")
         # Python quirk: -(1j) -> (-0-1j): (0-1j) -> 1j

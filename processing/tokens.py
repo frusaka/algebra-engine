@@ -10,13 +10,12 @@ class TokenType(Enum):
     COMMA = 1
 
     EQ, GT, GE, LT, LE = 4, 4.2, 4.4, 4.6, 4.8
-
     NUMBER, VAR = 5, 5.2
 
     ADD, SUB = 7, 7.2
     MUL, TRUEDIV = 8, 8.2
     POS, NEG = 9, 9.2
-    POW, ROOT = 10, 10.2
+    POW, SQRT, CBRT = 10, 10.4, 10.6
 
     LPAREN, RPAREN = -11, -11.2
     ERROR = -12

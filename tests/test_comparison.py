@@ -160,7 +160,7 @@ def test_solve_factorization(processor):
     assert eq[Variable("x")] == Comparison(
         left=Term(value=Variable("x")), right=Term(Number(2))
     )
-    expected = processor.eval("2√(S/(2hp + 2p))")
+    expected = processor.eval("√(S/(2hp + 2p))")
     assert Comparison(
         left=Term(value=Variable("S")),
         right=processor.eval("2pr^2 + 2pr^2h"),
@@ -284,7 +284,7 @@ def test_solve_quadratic(processor):
 
 def test_solve_edge(processor):
     # Extraneous solutions
-    assert processor.eval("2x - 2√x = 6").right == Term(Number(4))
+    assert processor.eval("2x - √x = 6").right == Term(Number(4))
     # Infinite Solutions
     assert processor.eval("x-> 0x = 0").right == Collection({"ℂ"})
     assert processor.eval("x + 4 = x + 4").right == Collection({"ℂ"})

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from functools import lru_cache
 from typing import Sequence
 
 from utils import difficulty_weight
@@ -76,6 +75,7 @@ class System(Collection):
                     with steps.branching(len(eqns)) as branches:
                         for idx in branches:
                             steps.register(ETTextNode(f"Branch {idx+1}:"))
+                            steps.register(ETNode(eqns[idx]))
                             eqns[idx] = System(solve(list(eqns[idx]), v))
                             steps.register(ETBranchNode(eqns[idx]))
                     # Flatten when necessary (most cases)

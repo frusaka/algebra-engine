@@ -464,7 +464,7 @@ def test_merge_polynomial(processor):
             ]
         )
     )
-    assert processor.eval("2(2√(x + c)) - 1.5(2√(x + c))") == Term(
+    assert processor.eval("2√(x + c) - 1.5√(x + c)") == Term(
         Number(1, 2),
         Polynomial(
             [

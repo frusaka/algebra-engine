@@ -118,5 +118,9 @@ def solve(
     return Comparison(var, Range(sol, comp.rel.name.startswith("L")))
 
 
-def root(a: Term, b: Term) -> Term:
-    return b**a.inv
+def sqrt(a: Term) -> Term:
+    return a ** Term(Number(1, 2))
+
+
+def cbrt(a: Term) -> Term:
+    return a ** Term(Number(1, 3))
