@@ -47,43 +47,46 @@ def test_numeric_exponentiation(processor):
     assert processor.eval("2 ^- 1") == Term(Number(1, 2))
 
     # Perfect Radicals
-    assert processor.eval("√25") == Term(Number(5))
-    assert processor.eval("√-1") == Term(Number(complex(imag=1)))
-    assert processor.eval("√ -81") == Term(Number(complex(imag=9)))
-    assert processor.eval("∛27") == Term(Number(3))
-    assert processor.eval("∛-27") == Term(Number(-3))
+    assert processor.eval("25^0.5") == Term(Number(5))
+    assert processor.eval("(-1)^0.5") == Term(Number(complex(imag=1)))
+    assert processor.eval("(-81)^0.5") == Term(Number(complex(imag=9)))
+    assert processor.eval("27^(1/3)") == Term(Number(3))
+    assert processor.eval("(-27)^(1/3)") == Term(Number(-3))
 
     # Imperfect radicals
-    assert processor.eval("√50") == Term(Number(5), Number(2), Number(1, 2))
-    assert processor.eval("√192") == Term(Number(8), Number(3), Number(1, 2))
-    assert processor.eval("∛81") == Term(Number(3), Number(3), Number(1, 3))
-    assert processor.eval("√27") == Term(Number(3), Number(3), exp=Number(1, 2))
+    assert processor.eval("50^0.5") == Term(Number(5), Number(2), Number(1, 2))
+    assert processor.eval("192^0.5") == Term(Number(8), Number(3), Number(1, 2))
+    assert processor.eval("81^(1/3)") == Term(Number(3), Number(3), Number(1, 3))
+    assert processor.eval("27^0.5") == Term(Number(3), Number(3), exp=Number(1, 2))
     assert processor.eval("27^(1/6)") == Term(value=Number(3), exp=Number(1, 2))
-    assert processor.eval("(-16)^0.25") == Term(Number(complex(imag=2)))
-    assert processor.eval("√-128") == Term(
+    assert processor.eval("(-128)^0.5") == Term(
         Number(complex(imag=8)), Number(2), Number(1, 2)
     )
+    # Edge cases: even radicals greater than 2
+    assert processor.eval("(-1)^0.25") == Term(value=Number(-1), exp=Number(1, 4))
+    assert processor.eval("(-16)^0.25") == Term(Number(2), Number(-1), Number(1, 4))
+    assert processor.eval("(-27)^(1/6)") == Term(value=Number(-27), exp=Number(1, 6))
 
 
 def test_multiply_radicals(processor):
-    assert processor.eval("(√-50)^2") == Term(Number(-50))
-    # assert processor.eval("√-50^2") == Term(Number(-50))#Issue
-    assert processor.eval("∛-81^3") == Term(Number(-81))
+    assert processor.eval("((-50)^0.5)^2") == Term(Number(-50))
 
     assert processor.eval("8^(1/2) * 8^(1/3)") == Term(
         Number(4), Number(2), Number(1, 2)
     )
-    assert processor.eval("4√2 * √8") == Term(Number(16))
-    assert processor.eval("√-5 * √5") == Term(Number(complex(imag=5)))
+    assert processor.eval("4(2^0.5) * 8^0.5") == Term(Number(16))
+    assert processor.eval("(-5)^0.5 * (5)^0.5") == Term(Number(complex(imag=5)))
 
-    assert processor.eval("√27(1/27^(1/6))√2") == Term(
+    assert processor.eval("27^0.5(1/27^(1/6))2^0.5") == Term(
         Number(3), Number(2), Number(1, 2)
     )
-    assert processor.eval("(1/(16^0.25))√8√2") == Term(Number(2))
-    assert processor.eval("√50(1/100^.2)√2") == Term(
+    assert processor.eval("(1/(16^0.25))8^0.5*2^0.5") == Term(Number(2))
+    assert processor.eval("50^0.5(1/100^.2)2^0.5") == Term(
         value=Number(1000), exp=Number(1, 5)
     )
-    assert processor.eval("√18√2(1/∛9)") == Term(Number(2), Number(3), Number(1, 3))
-    assert processor.eval("2√6 * 3√2 * (1/(∛12))") == Term(
+    assert processor.eval("18^0.5*2^0.5(1/9^(1/3))") == Term(
+        Number(2), Number(3), Number(1, 3)
+    )
+    assert processor.eval("2(6^0.5) * 3(2^0.5) * (1/(12^(1/3)))") == Term(
         Number(6), Number(12), Number(1, 6)
     )

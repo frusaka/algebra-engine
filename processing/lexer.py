@@ -19,8 +19,6 @@ class Lexer:
         "*": (Token(TokenType.MUL), Token(TokenType.MUL, iscoef=True)),
         "/": Token(TokenType.TRUEDIV),
         "^": Token(TokenType.POW),
-        "√": Token(TokenType.SQRT),
-        "∛": Token(TokenType.CBRT),
         "(": Token(TokenType.LPAREN),
         ")": Token(TokenType.RPAREN),
     }
@@ -77,7 +75,7 @@ class Lexer:
                 yield self.OPERS[self.curr][not was_num]
                 was_num = 0
             elif self.curr in self.OPERS:
-                if was_num and self.curr in "(∛√":
+                if was_num and self.curr == "(":
                     # Implicit multiplication - Product
                     yield self.OPERS["*"][1]
                 yield self.OPERS[self.curr] if self.curr != "*" else self.OPERS["*"][0]

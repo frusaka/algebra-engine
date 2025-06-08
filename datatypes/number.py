@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import math
+from pydoc import resolve
 from typing import Any, SupportsFloat, SupportsComplex, TYPE_CHECKING
 from .bases import Atomic, Fraction
 from utils import *
@@ -95,7 +96,7 @@ class Number(Atomic):
 
     def __pow__(self, value: Number) -> Number:
         if value.numerator < 0:
-            return ONE / (self**-value)
+            return Number(1) / (self**-value)
         # Needs saftey checks. The numerator can be too large.
         num = self.numerator**value.numerator
         den = self.denominator**value.numerator
@@ -181,22 +182,25 @@ class Number(Atomic):
                 return simplify_radical(a.value * b.value, a.exp.denominator, c)
             if a.exp == b.exp:
                 return type(a)(c, a.value * b.value, a.exp)
-            return type(a)(c, a.value, type(a)(value=a.exp) + type(a)(value=b.exp))
         if a.exp == 1:
             return type(a)(a.value * b.coef, b.value, b.exp)
         if b.exp == 1:
             return type(a)(b.value * a.coef, a.value, a.exp)
+        # Put last to prevent combining cases such as 3*3^x
+        if a.like(b, 0):
+            return type(a)(
+                a.coef * b.coef, a.value, type(a)(value=a.exp) + type(a)(value=b.exp)
+            )
 
     @staticmethod
     def resolve_pow(a: Term, b: Term) -> Term:
-        from .polynomial import Polynomial
-
-        c = type(a)(a.coef) ** type(a)(b.to_const())
-        v = type(a)(a.value) ** type(a)(b.to_const())
+        if a.coef != 1:
+            return Number.resolve_pow(type(a)(a.coef), b) * Number.resolve_pow(
+                type(a)(value=a.value, exp=a.exp), b
+            )
+        c = type(a)(a.value) ** type(a)(b.to_const())
         e = type(a)(value=a.exp) * b.canonical()
-        if e.value.__class__ is Polynomial and e.exp == 1:
-            return Atomic.poly_pow(Proxy(e), v) * c
-        return c * type(a)(v.coef, v.value, e.scale(v.exp))
+        return type(a)(c.coef, c.value, e)
 
     @dispatch
     def pow(b: Proxy[Term], a: Term) -> Term:
@@ -206,23 +210,25 @@ class Number(Atomic):
     def _(b: Proxy[Term], a: Term) -> Term:
         b = b.value
         if b.exp == 1 and a.exp.__class__ is Number:
-
-            c, v = a.coef**b.value.numerator, a.value**b.value.numerator
-            den = den_a = b.value.denominator
-            den_a *= a.exp.denominator
-            if den == den_a == 1:
+            b = b.value
+            c = a.coef**b.numerator
+            exp_a = a.exp * b
+            v = a.value**exp_a.numerator
+            if exp_a.denominator == b.denominator == 1:
                 return type(a)(c * v)
             # Leave radicals as is if necessary to maintain precision
-            return simplify_radical(v, den_a) * simplify_radical(c, den)
+            return simplify_radical(v, exp_a.denominator) * simplify_radical(
+                c, b.denominator
+            )
         return Number.resolve_pow(a, b)
 
     pow.register(polynomial)(Atomic.poly_pow)
+
+    def ast_subs(self, mapping: dict):
+        return self
 
     def totex(self) -> str:
         if "/" in (s := str(self).replace("i", "\\mathrm{i}")):
             num, den = s.split("/")
             return "\\frac{0}{1}".format(num.join("{}"), den.join("{}"))
         return s
-
-
-ZERO, ONE = Number(), Number(1)

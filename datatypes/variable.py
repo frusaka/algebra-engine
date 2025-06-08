@@ -49,6 +49,9 @@ class Variable(Unknown, str, Atomic):
         # Algebra object has a good enough default fallback for Variable exponentiation
         pass
 
+    def ast_subs(self, mapping):
+        return mapping.get(self, self)
+
     def totex(self):
         return self
 

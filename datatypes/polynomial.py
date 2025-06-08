@@ -5,7 +5,7 @@ from functools import cache, cached_property, lru_cache
 import itertools
 from .bases import Atomic
 from .collection import Collection
-from .number import Number, Fraction, ONE, ZERO
+from .number import Number, Fraction
 from utils import *
 
 if TYPE_CHECKING:
@@ -20,10 +20,10 @@ class Polynomial(Collection):
             objs = cls.merge(itertools.chain(*map(cls.flatten, objs)))
         return super().__new__(cls, objs)
 
-    def __str__(self):
+    def __repr__(self):
         res = ""
         for idx, term in enumerate(standard_form(self)):
-            rep = str(term)
+            rep = repr(term)
             if idx > 0 and res:
                 # Needs fix to account for complex number or values like x + (-2x+3)/ab
                 if rep.startswith("-"):
@@ -39,7 +39,7 @@ class Polynomial(Collection):
         """A default fallback if two terms are not like"""
         val = Polynomial([b.value, a])
         if not val:
-            return type(a)(value=ZERO)
+            return type(a)(value=Number())
         if len(val) == 1:
             return next(iter(val))
         return type(a)(value=val)
@@ -60,8 +60,8 @@ class Polynomial(Collection):
 
         b = b.value
         # Distributive property of Multiplication
-        if b.value == ZERO:
-            return type(a)(value=ZERO)
+        if b.value == 0:
+            return type(a)(value=Number())
         if a.exp == 1:
             res = Polynomial((t * b for t in a.value))
             if len(res) == 1:
@@ -319,6 +319,17 @@ class Polynomial(Collection):
             return
         # Return them back into Term form and ignore 0's
         yield from (k.scale(v) for k, v in res.items() if v != 0)
+
+    def ast_subs(self, mapping: dict):
+        from processing import Token, TokenType, Binary
+
+        data = tuple(self)
+        res = Binary(
+            Token(TokenType.ADD), data[0].ast_subs(mapping), data[1].ast_subs(mapping)
+        )
+        for i in data[2:]:
+            res = Binary(Token(TokenType.ADD), res, i.ast_subs(mapping))
+        return res
 
     def totex(self):
         res = ""

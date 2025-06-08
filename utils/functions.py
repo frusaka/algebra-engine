@@ -47,7 +47,17 @@ def simplify_radical(n: Number, root: int = 2, scale: Number = 1) -> Term:
         return Term(scale, n, Number(1, root))
     if n < 0:
         n *= -1
-        scale *= -1 if root % 2 else Number(1j)
+        if root % 2:
+            scale *= -1
+        elif root == 2:
+            scale *= Number(1j)
+        else:
+            res = simplify_radical(n, root, scale)
+            if res.exp.denominator == root:
+                return Term(res.coef, res.value * -1, res.exp)
+            if res.exp.denominator == 1:
+                return Term(res.value, res.coef * -1, Number(1, root))
+            return Term(value=-n, exp=Number(1, root))
     factors = primes(n)
     v = c = Number(1)
     # Check if power can be reduced further

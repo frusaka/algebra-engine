@@ -96,17 +96,11 @@ class System(Collection):
     def __bool__(self) -> bool:
         return all(self)
 
-    def __str__(self) -> str:
-        res = []
-        for i in self:
-            if i.__class__ is System:
-                res.append(str(i).join("()"))
-            else:
-                res.append(str(i))
-        return ", ".join(res)
-
     def __repr__(self) -> str:
-        return str(self).join("{}")
+        return ", ".join(map(repr, self)).join("{}")
+
+    def ast_subs(self, mapping: dict) -> frozenset:
+        return frozenset(i.ast_subs(mapping) for i in self)
 
     def totex(self, align: bool = True) -> str:
         return "&" * align + "\\\\".join(map(lambda x: x.totex(align), self)).join(
@@ -115,7 +109,3 @@ class System(Collection):
 
     def normalize(self, weaken=True) -> System:
         return System(i.normalize(weaken) for i in self)
-
-    @staticmethod
-    def clear_cache():
-        return

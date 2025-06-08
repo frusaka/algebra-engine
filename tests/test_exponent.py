@@ -116,10 +116,7 @@ def test_variable_exponentiation(processor):
 
 
 def test_polynomial_exponent(processor):
-    assert processor.eval("4^f*4") == Term(
-        value=Number(4),
-        exp=Term(value=Polynomial([Term(value=Variable("f")), Term(value=Number(1))])),
-    )
+    assert processor.eval("1/23 * (3^(1-2^0.5))^(1+2^0.5)") == Term(Number(1, 69))
     assert processor.eval("x^(f+2)/x^2") == Term(
         value=Variable("x"), exp=Term(value=Variable("f"))
     )

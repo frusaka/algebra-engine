@@ -68,7 +68,7 @@ class Parser:
         left = self.parse()
         if left is None:
             self.operator_error(oper)
-        if oper.type in (TokenType.NEG, TokenType.POS, TokenType.SQRT, TokenType.CBRT):
+        if oper.type in (TokenType.NEG, TokenType.POS):
             if (
                 isinstance(left, frozenset)
                 or hasattr(left, "oper")
@@ -149,12 +149,11 @@ class Parser:
                 if not stack:
                     self.paren_error()
 
-                if token.type in {TokenType.POW, TokenType.SQRT, TokenType.CBRT}:
+                if token.type is TokenType.POW:
                     while (
                         token.priority <= stack[-1].priority
                         or stack[-1].type is TokenType.NEG
                     ):
-                        print(stack[-1])
                         yield stack.pop()
                 else:
                     while token.priority < stack[-1].priority:

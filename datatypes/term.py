@@ -3,12 +3,14 @@ from typing import Any
 from dataclasses import dataclass
 from functools import cache, cached_property, lru_cache
 import math
-from .number import Number, ONE, ZERO
+from utils import Proxy, print_coef, lexicographic_weight
+from utils.functions import simplify_radical
+from .bases import Atomic
+from .number import Number
 from .variable import Variable
 from .collection import Collection
 from .product import Product
 from .polynomial import Polynomial
-from utils import Proxy, print_coef, lexicographic_weight
 
 
 @dataclass(frozen=True, init=False, order=True)
@@ -21,27 +23,29 @@ class Term:
     """
 
     coef: Number
-    value: Number | Variable | Product | Polynomial
+    value: Atomic
     exp: Number | Term
 
     @lru_cache(maxsize=500)
-    def __new__(cls, coef=ONE, value=ONE, exp=ONE) -> Term:
+    def __new__(cls, coef=Number(1), value=Number(1), exp=Number(1)) -> Term:
         if value.__class__ is Term:
             return value
         obj = super().__new__(cls)
         # Cases when operations with exponents simplify to a constant
         if exp.__class__ is Term and exp.value.__class__ is Number and exp.exp == 1:
             exp = exp.value
+            if value.__class__ is Number:
+                return simplify_radical(value**exp.numerator, exp.denominator, coef)
         # Aplying basic known algebraic rules to validate the term
-        if coef == ZERO or value == ZERO:
-            value = ZERO
-            coef = exp = ONE
+        if coef == 0 or value == 0:
+            value = Number(0)
+            coef = exp = Number(1)
         elif coef != 1 and value == 1:
             value, coef = coef, value
             exp = coef
-        elif exp == ZERO:
+        elif exp == 0:
             value = coef
-            exp = coef = ONE
+            exp = coef = Number(1)
         # # 1^n = 1 for any value of n
         elif value == 1:
             exp = value
@@ -65,7 +69,11 @@ class Term:
         if self.value.__class__ is Number and self.exp != 1:
             v = repr(Term(value="$", exp=self.exp)).replace(
                 "$",
-                (v if not ("/" in (v := str(self.value))) else v.join("()")),
+                (
+                    v
+                    if not ("/" in (v := str(self.value)) or v.startswith("-"))
+                    else v.join("()")
+                ),
             )
             if v[0].isdigit() and abs(self.coef) != 1:
                 v = v.join("()")
@@ -127,10 +135,6 @@ class Term:
 
     @lru_cache
     def __mul__(a, b: Term) -> Term:
-        if a.value.__class__ is Number and (v := a.split_const_from_exp()):
-            return b * v * Term(a.coef, a.value, a.exp - Term())
-        if b.value.__class__ is Number and (v := b.split_const_from_exp()):
-            return a * v * Term(b.coef, b.value, b.exp - Term())
         return a.value.mul(Proxy(b), a) or Product.resolve(a, b)
 
     @lru_cache
@@ -263,7 +267,7 @@ class Term:
         """Get the term with a non-constant denominator"""
         if not self.denominator.value.__class__ is Number or self.denominator.exp != 1:
             return self
-        return Term(ZERO)
+        return Term(Number(0))
 
     def exp_const(self) -> Number:
         """Get the constant in a term's exponent"""
@@ -290,18 +294,6 @@ class Term:
         if self.value.__class__ is Number and self.exp == 1:
             return self.value
         return self.coef
-
-    def split_const_from_exp(self) -> Term | None:
-        """
-        If a term is in the form x^(y + n), where n is a constant,
-        return x^n
-        """
-        if self.exp.__class__ is Number:
-            return
-        if self.exp.value.__class__ is Polynomial and self.exp.exp == 1:
-            for i in self.exp.value:
-                if i.value == 1:
-                    return Term(value=self.value)
 
     @cache
     def like(self, b: Any, exp=1) -> bool:
@@ -397,6 +389,16 @@ class Term:
         if a == b:
             return a
         return (a * b) / Term.gcd(a, b)
+
+    def ast_subs(self, mapping: dict):
+        from processing import Binary, Token, TokenType
+
+        v = self.value.ast_subs(mapping)
+        if self.exp != 1:
+            v = Binary(Token(TokenType.POW), v, self.exp.ast_subs(mapping))
+        if self.coef != 1:
+            return Binary(Token(TokenType.MUL), v, self.coef)
+        return v
 
     def totex(self, align: bool = False) -> str:
         if (

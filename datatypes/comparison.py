@@ -8,7 +8,7 @@ from .collection import Collection
 from .system import System
 from .polynomial import Polynomial
 from .product import Product
-from .number import Number, ZERO
+from .number import Number
 from .variable import Variable
 from .term import Term
 from .eval_trace import *
@@ -50,7 +50,7 @@ class Comparison:
         rel = self.rel
         if self.right.__class__ is Collection:
             rel = "∈"
-        return "{0} {2} {1}".format(repr(self.left), repr(self.right), rel)
+        return "{0} {2} {1}".format(self.left, self.right, rel)
 
     @lru_cache
     def __getitem__(self, value: Variable) -> Comparison:
@@ -68,6 +68,8 @@ class Comparison:
             steps.register(ETNode(self))
         # Power lhs if it is a radical
         if value in self.left and (exp := self.left.exp.denominator) != 1:
+            if exp.__class__ is not int:
+                raise NotImplementedError("Cannot isolate variable from exponent")
             return (self ** Term(Number(exp)))[value]
         remove = []
         # Moving target terms to the left
@@ -100,6 +102,8 @@ class Comparison:
 
         if self.left.value.__class__ is Polynomial:
             for i in self.left.value:
+                if value in str(i.exp):
+                    raise NotImplementedError("Cannot isolate variable from exponent")
                 if not value in i:
                     remove.append(i)  # Not moving it yet, need to check for quadratics
                     continue
@@ -152,9 +156,6 @@ class Comparison:
                     return (self / t)[value]
 
         return self
-
-    def clear_cache(self):
-        self.__getitem__.cache_clear()
 
     def __contains__(self, value: Variable) -> bool:
         return value in self.left or value in self.right
@@ -222,7 +223,7 @@ class Comparison:
         """Put all terms on the lhs"""
         return Comparison(
             self.left - self.right,
-            Term(ZERO),
+            Term(Number()),
             CompRel.EQ if weaken else self.rel,
         )
 
@@ -235,6 +236,15 @@ class Comparison:
         if value.value < 0:
             return self.rel.reverse()
         return self.rel
+
+    def ast_subs(self, mapping: dict):
+        from processing import Binary, Token, TokenType
+
+        return Binary(
+            Token(getattr(TokenType, self.rel.name)),
+            self.left.ast_subs(mapping),
+            self.right.ast_subs(mapping),
+        )
 
     def totex(self, align: bool = True) -> str:
         left, rel, right = self.left, self.rel, self.right

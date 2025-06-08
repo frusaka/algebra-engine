@@ -40,7 +40,9 @@ class Interpreter:
             res = System(self.eval(i, 0) for i in node)
             if not autosolve:
                 return res
-            vars = sorted(set(Variable(i) for i in str(res) if i.isalpha()), key=str)
+            vars = sorted(
+                set(Variable(i) for i in str(res) if i.isalpha() and i != "i"), key=str
+            )
             return operators.solve(tuple(map(Variable, vars)), res)
 
         oper = node.oper.type.name.lower()
@@ -54,7 +56,11 @@ class Interpreter:
             if (
                 autosolve
                 and TokenType[oper.upper()].value // 1 == 4
-                and len(var := set(i for i in str(right) + str(left) if i.isalpha()))
+                and len(
+                    var := set(
+                        i for i in str(right) + str(left) if i.isalpha() and i != "i"
+                    )
+                )
                 == 1
             ):
                 return operators.solve(

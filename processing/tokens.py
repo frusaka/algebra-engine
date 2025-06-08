@@ -15,7 +15,7 @@ class TokenType(Enum):
     ADD, SUB = 7, 7.2
     MUL, TRUEDIV = 8, 8.2
     POS, NEG = 9, 9.2
-    POW, SQRT, CBRT = 10, 10.4, 10.6
+    POW = 10
 
     LPAREN, RPAREN = -11, -11.2
     ERROR = -12

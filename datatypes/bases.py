@@ -23,6 +23,9 @@ class Atomic:
             res *= a**i
         return res
 
+    def ast_subs(self, mapping):
+        pass
+
 
 class Unknown:
     """

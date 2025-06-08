@@ -21,8 +21,18 @@ def print_frac(frac: Number) -> str:
         denominator //= 2
     while denominator % 5 == 0:
         denominator //= 5
-    if denominator == 1 and "e" not in (v := str(frac.numerator / frac.denominator)):
-        return v
+    if not frac.numerator.imag:
+        cond = len(str(frac.numerator % frac.denominator / frac.denominator)) <= 5
+    else:
+        cond = (
+            max(
+                len(str(frac.numerator.real % frac.denominator / frac.denominator)),
+                len(str(frac.numerator.imag % frac.denominator / frac.denominator)),
+            )
+            <= 5
+        )
+    if denominator == 1 and cond:
+        return str(frac.numerator / frac.denominator)
     return res
 
 

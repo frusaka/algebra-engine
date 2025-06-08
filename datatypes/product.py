@@ -16,14 +16,14 @@ class Product(Collection):
     def __new__(cls, objs: Sequence[Term]) -> Product[Term]:
         return super().__new__(cls, itertools.chain(*map(cls.flatten, objs)))
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         num, den = [], []
         for t in reversed(standard_form(self)):
             if t.exp_const() < 0:
-                den.append(str(type(t)(value=t.value, exp=-t.exp)))
+                den.append(repr(type(t)(value=t.value, exp=-t.exp)))
             else:
-                num.append(str(t))
-            if str(t)[0].isdigit():
+                num.append(repr(t))
+            if repr(t)[0].isdigit():
                 num[-1] = num[-1].join("()")
         a, b = "".join(num), "".join(den)
         if len(num) > 1 and den:
@@ -157,6 +157,17 @@ class Product(Collection):
                     if a.value != 1:
                         objs.add(a)
         return c, objs.union(rem)
+
+    def ast_subs(self, mapping: dict):
+        from processing import Token, TokenType, Binary
+
+        data = tuple(self)
+        res = Binary(
+            Token(TokenType.MUL), data[0].ast_subs(mapping), data[1].ast_subs(mapping)
+        )
+        for i in data[2:]:
+            res = Binary(Token(TokenType.MUL), res, i.ast_subs(mapping))
+        return res
 
     def totex(self) -> str:
         num, den = [], []

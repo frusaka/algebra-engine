@@ -16,7 +16,7 @@ class Range(Collection):
     def __bool__(self):
         return True
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         ineq1, ineq2 = self
         if ineq1.rel.name.startswith("G"):
             ineq1, ineq2 = ineq2, ineq1

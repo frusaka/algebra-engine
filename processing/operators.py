@@ -27,10 +27,9 @@ def subs(a: Term | Comparison, mapping: dict[Variable, Term]) -> Term | Comparis
     """Substitute all occurances of `var` with the provided value"""
     from processing import Interpreter
 
-    val = str(a)
-    for i in mapping:
-        val = val.replace(i, i.join(("({", "})")))
-    return Interpreter.instance().eval(val.format_map(mapping), False)
+    return Interpreter.instance().eval(
+        a.ast_subs({k: v.ast_subs({}) for k, v in mapping.items()}), False
+    )
 
 
 def validate_solution(
@@ -51,7 +50,7 @@ def validate_solution(
 def solve(
     var: Variable | Sequence[Variable], comp: Comparison | System
 ) -> Comparison | System:
-    comp.clear_cache()
+    Comparison.__getitem__.cache_clear()
     res = comp[var]
     s = "s" * isinstance(res, System)
     steps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
@@ -116,11 +115,3 @@ def solve(
     if comp.rel is CompRel.EQ:
         return Comparison(var, Collection(i.right for i in sol))
     return Comparison(var, Range(sol, comp.rel.name.startswith("L")))
-
-
-def sqrt(a: Term) -> Term:
-    return a ** Term(Number(1, 2))
-
-
-def cbrt(a: Term) -> Term:
-    return a ** Term(Number(1, 3))
