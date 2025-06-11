@@ -2,7 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import math
-from pydoc import resolve
 from typing import Any, SupportsFloat, SupportsComplex, TYPE_CHECKING
 from .bases import Atomic, Fraction
 from utils import *
@@ -59,16 +58,14 @@ class Number(Atomic):
     def __repr__(self) -> str:
         # Lazy print
         res = print_frac(self).replace("j", "i")
-        # Python quirk: -(1j) -> (-0-1j): (0-1j) -> 1j
+        # Python quirk: -(1j) -> (-0-1j): (0-1j) -> -1j
         if res.startswith("(-0-"):
             res = res[3:-1]
-        if abs(self.numerator.imag) == 1:
+        if abs(self.numerator.imag) == 1 and (not "." in res or "/" in res):
             return res.replace("1i", "i")
         return res
 
     def __add__(self, value: Number) -> Number:
-        if not value.__class__ is Number:
-            value = Number(value)
         den = math.lcm(self.denominator, value.denominator)
         return Number(
             (den // self.denominator) * self.numerator
@@ -88,26 +85,18 @@ class Number(Atomic):
         num = self.numerator * value.denominator
         den = self.denominator * value.numerator
         if den.imag:
-            conjugate = complex(den.real, -den.imag)
+            conjugate = den.conjugate()
             num *= conjugate
             den *= conjugate
             return Number(num, int(den.real))
         return Number(num, den)
 
-    def __pow__(self, value: Number) -> Number:
-        if value.numerator < 0:
+    def __pow__(self, value: int) -> Number:
+        if value < 0:
             return Number(1) / (self**-value)
-        # Needs saftey checks. The numerator can be too large.
-        num = self.numerator**value.numerator
-        den = self.denominator**value.numerator
-        if value.denominator != 1:
-            num = self.nth_root(num, value.denominator)
-            den = self.nth_root(den, value.denominator)
-            if num.imag:
-                num = complex(round(num.real, 10), round(num.imag, 10))
-            if den.imag:
-                den = complex(round(den.real, 10), round(den.imag, 10))
-        return Number(num) / Number(den)
+        num = self.numerator**value
+        den = self.denominator**value
+        return Number(num, den)
 
     def __abs__(self) -> Number:
         return Number(abs(self.numerator), self.denominator)
@@ -123,27 +112,16 @@ class Number(Atomic):
         )
 
     def __gt__(self, value: Number) -> bool:
-        if self.numerator.imag or value.numerator.imag:
-            return False
         den = math.lcm(self.denominator, value.denominator)
         return (den // self.denominator * self.numerator) > (
             den // value.denominator * value.numerator
         )
 
     def __lt__(self, value: Number) -> bool:
-        if self.numerator.imag or value.numerator.imag:
-            return False
         den = math.lcm(self.denominator, value.denominator)
         return (den // self.denominator * self.numerator) < (
             den // value.denominator * value.numerator
         )
-
-    @staticmethod
-    def nth_root(x: SupportsFloat | SupportsComplex, n: int) -> float:
-        if not x.__class__ is complex and n % 2 == 1 and x < 0:
-            return -abs(x) ** (1 / n)
-        else:
-            return x ** (1 / n)
 
     @dispatch
     def add(b: Proxy[Term], a: Term) -> None:

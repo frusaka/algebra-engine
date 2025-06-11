@@ -13,12 +13,18 @@ if TYPE_CHECKING:
 
 
 class Polynomial(Collection):
-    """A collection of unique terms that cannot be further be combined by addition or subtraction"""
+    """
+    A collection of unique terms that cannot be further be combined by addition or subtraction.
+    Does not fully follow the criteria for a polynomial : Terms can have non-integer exponents
+    """
 
     def __new__(cls, objs: Sequence[Term], merge=True) -> Polynomial:
         if merge:
             objs = cls.merge(itertools.chain(*map(cls.flatten, objs)))
         return super().__new__(cls, objs)
+
+    def __float__(self) -> float:
+        return sum(map(float, self))
 
     def __repr__(self):
         res = ""
@@ -129,8 +135,8 @@ class Polynomial(Collection):
         """For-loop based exponentiation of a Polynomial"""
 
         if b.exp != 1 or a.exp != 1:
-            if b.coef != 1:
-                return (a ** type(a)(b.coef)) ** type(a)(b.value, exp=b.exp)
+            # if b.coef != 1:
+            #     return (a ** type(a)(b.coef)) ** type(a)(value=b.value, exp=b.exp)
             return
         b = b.value
         if b.numerator.imag:

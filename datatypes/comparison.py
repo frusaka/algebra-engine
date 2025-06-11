@@ -52,6 +52,9 @@ class Comparison:
             rel = "∈"
         return "{0} {2} {1}".format(self.left, self.right, rel)
 
+    def approx(self, threshold: float = 1e-10):
+        return abs(float(self.left)) < threshold
+
     @lru_cache
     def __getitem__(self, value: Variable) -> Comparison:
         """
@@ -108,13 +111,12 @@ class Comparison:
                     remove.append(i)  # Not moving it yet, need to check for quadratics
                     continue
                 # Term is in radical form
-                if i.exp.denominator != 1:
+                if (exp := i.get_exp(value).denominator) != 1:
                     self -= self.left - i
                     steps.register(ETNode(self))
-                    return (self.reverse() ** Term(Number(i.exp.denominator)))[value]
+                    return (self ** Term(Number(exp)))[value]
 
             # Solving using the quadratic formula
-            # Moved to the right anyway to reduce redundancy
             if res := quadratic(self, value):
                 pos, neg = res
                 lhs = Term(value=value)
@@ -189,7 +191,11 @@ class Comparison:
     def __pow__(self, value: Term) -> Comparison:
         if value.denominator.value != 1 and value.numerator.value == 1:
             steps.register(
-                ETOperatorNode(ETOperatorType.SQRT, value.inv, len(str(self.left)) + 1)
+                ETOperatorNode(
+                    ETOperatorType.SQRT,
+                    value.value.denominator,
+                    len(str(self.left)) + 1,
+                )
             )
         else:
             steps.register(
@@ -249,7 +255,7 @@ class Comparison:
     def totex(self, align: bool = True) -> str:
         left, rel, right = self.left, self.rel, self.right
         if self.right.__class__ is Collection:
-            rel = "\\in"
+            rel = "&" * align + "\\in"
         else:
             rel = rel.totex(align)
         if left.__class__ is tuple:

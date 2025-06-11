@@ -36,16 +36,13 @@ def print_frac(frac: Number) -> str:
     return res
 
 
-def print_coef(coef: Number, tex=False) -> str:
-    """Convert a coefficient to a string representation, choosing to omit 1 or -1."""
-    res = ""
-    if coef != 1:
-        res = str(coef)
-        if not tex and not coef.numerator.real:
-            res = res.join("()")
+def print_coef(coef: Number) -> str:
+    """Convert a coefficient to a string representation"""
+    if coef == 1:
+        return ""
     if coef == -1:
-        res = "-"
-    return res
+        return "-"
+    return str(coef)
 
 
 def ineq_to_range(ineq: Comparison) -> str:
@@ -70,3 +67,16 @@ def ineq_to_range_tex(ineq: Comparison) -> str:
     if ineq.rel.name.endswith("E"):
         right = "\\right\\rbrack "
     return ineq.right.totex() + right
+
+
+def superscript(n: int):
+    return str(n).translate(str.maketrans("0123456789+-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"))
+
+
+def print_system(equations: list[str]):
+    res = ["⎧ " + equations[0]]
+    for eq in equations[1:-1]:
+        res.append("⎪ " + eq)
+    if len(equations) > 1:
+        res.append("⎩ " + equations[-1])
+    return " \n" + "\n".join(res)

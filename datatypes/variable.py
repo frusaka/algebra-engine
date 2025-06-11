@@ -1,18 +1,15 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from .bases import Unknown, Atomic
+from .bases import Atomic
 from utils import *
 
 if TYPE_CHECKING:
     from .term import Term
 
 
-class Variable(Unknown, str, Atomic):
+class Variable(str, Atomic):
     """An unknown in an experssion"""
-
-    __hash__ = str.__hash__
-    __eq__ = str.__eq__
 
     def __repr__(self) -> str:
         return self
@@ -22,8 +19,8 @@ class Variable(Unknown, str, Atomic):
         return type(a)(a.coef + b.value.coef, a.value, a.exp)
 
     @dispatch
-    def mul(b: Proxy[Term], a: Term) -> None:
-        pass
+    def mul(b: Proxy[Term], a: Term) -> Term | None:
+        return b.value.value.mul(Proxy(a), b.value)
 
     @mul.register(variable)
     def _(b: Proxy[Term], a: Term) -> Term | None:
@@ -40,19 +37,13 @@ class Variable(Unknown, str, Atomic):
         if b.value.exp == 1:
             return type(a)(a.coef * b.value.value, a.value, a.exp)
 
-    @mul.register(polynomial | product)
-    def _(b: Proxy[Term], a: Term) -> Term | None:
-        return b.value.value.mul(Proxy(a), b.value)
-
     @dispatch
     def pow(b: Proxy[Term], a: Term) -> None:
-        # Algebra object has a good enough default fallback for Variable exponentiation
+        # Term class has a good enough default fallback for Variable exponentiation
         pass
 
-    def ast_subs(self, mapping):
+    def ast_subs(self, mapping: dict):
         return mapping.get(self, self)
 
     def totex(self):
         return self
-
-    pow.register(polynomial)(Atomic.poly_pow)

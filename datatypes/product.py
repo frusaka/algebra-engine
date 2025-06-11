@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence, Set, Tuple
 
 import itertools
-from functools import cached_property
+from functools import cached_property, reduce
 from .collection import Collection
 from utils import *
 
@@ -16,15 +16,20 @@ class Product(Collection):
     def __new__(cls, objs: Sequence[Term]) -> Product[Term]:
         return super().__new__(cls, itertools.chain(*map(cls.flatten, objs)))
 
+    def __float__(self):
+        return reduce(lambda a, b: a * b, map(float, self))
+
     def __repr__(self) -> str:
         num, den = [], []
         for t in reversed(standard_form(self)):
             if t.exp_const() < 0:
                 den.append(repr(type(t)(value=t.value, exp=-t.exp)))
+                if repr(t)[0].isdigit():
+                    den[-1] = den[-1].join("()")
             else:
                 num.append(repr(t))
-            if repr(t)[0].isdigit():
-                num[-1] = num[-1].join("()")
+                if repr(t)[0].isdigit():
+                    num[-1] = num[-1].join("()")
         a, b = "".join(num), "".join(den)
         if len(num) > 1 and den:
             a = a.join("()")
@@ -126,7 +131,7 @@ class Product(Collection):
         return type(a)(c, Product(res))
 
     @staticmethod
-    def resolve(b: Term, a: Term) -> Term:
+    def resolve(a: Term, b: Term) -> Term:
         """Default multiplication fallback for incompatible values"""
         c = a.coef * b.coef
         a = type(a)(value=a.value, exp=a.exp)

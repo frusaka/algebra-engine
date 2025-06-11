@@ -12,7 +12,4 @@ while True:
             print(res)
     except Exception as e:
         # raise e
-        if steps:
-            print(steps)
         print(repr(e).join(("\033[91m", "\033[0m")))
-    steps.clear()

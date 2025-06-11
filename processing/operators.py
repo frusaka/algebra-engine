@@ -37,8 +37,11 @@ def validate_solution(
 ) -> bool:
     res = 1
     try:
-        if not ((subs(org.normalize(), mapping) if mapping else sol.normalize(0))):
-            res = 0
+        if not (v := (subs(org.normalize(), mapping) if mapping else sol.normalize(0))):
+            if v.left.value and v.approx():
+                res = 2
+            else:
+                res = 0
     except:
         res = 0
     steps.register(
@@ -51,6 +54,9 @@ def solve(
     var: Variable | Sequence[Variable], comp: Comparison | System
 ) -> Comparison | System:
     Comparison.__getitem__.cache_clear()
+    steps.clear()
+    if comp.__class__ is Comparison:
+        steps.register(ETTextNode(f"Solving for {var}"))
     res = comp[var]
     s = "s" * isinstance(res, System)
     steps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))

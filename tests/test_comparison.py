@@ -285,6 +285,10 @@ def test_solve_quadratic(processor):
 def test_solve_edge(processor):
     # Extraneous solutions
     assert processor.eval("2x - x^0.5 = 6").right == Term(Number(4))
+    # Requiring numeric approximation verification
+    assert processor.eval("(2x+3)^0.5+(x-1)^0.5=4").right == Term(
+        value=Polynomial([Term(Number(44)), Term(Number(-24), Number(3), Number(1, 2))])
+    )
     # Infinite Solutions
     assert processor.eval("x-> 0x = 0").right == Collection({"ℂ"})
     assert processor.eval("x + 4 = x + 4").right == Collection({"ℂ"})
@@ -292,6 +296,7 @@ def test_solve_edge(processor):
     # No Solutions
     assert not processor.eval("x + 2 = x - 4").right
     assert not processor.eval("x > x").right
+    assert not processor.eval("y-> mx > -mx").right
 
 
 def test_solve_complex(processor):

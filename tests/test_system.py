@@ -12,11 +12,11 @@ def test_solve_linear(processor):
     assert processor.eval("x + y = 5, 3x = 4y + 1") == Comparison(
         (x, y), (Term(Number(3)), Term(Number(2)))
     )
-    processor.eval("2x + 3y = 7, x - y = 2") == Comparison(
+    assert processor.eval("2x + 3y = 7, x - y = 2") == Comparison(
         (x, y), (Term(Number(13, 5)), Term(Number(3, 5)))
     )
-    processor.eval("2x - 3 = 5y + 7, 2x + 2y = 14") == Comparison(
-        (x, y), (Term(Number(15, 4)), Term(Number(-1, 2)))
+    assert processor.eval("2x - 3 = 5y + 7, 2x + 2y = 14") == Comparison(
+        (x, y), (Term(Number(45, 7)), Term(Number(4, 7)))
     )
 
     # System of 3 equations

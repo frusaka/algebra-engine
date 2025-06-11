@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Any
 from contextlib import contextmanager
 
+from utils import superscript
+
 
 class ETNode:
     def __init__(self, result):
@@ -19,9 +21,14 @@ class ETNode:
 class ETBranchNode(ETNode):
     def __init__(self, result):
         super().__init__(list(result))
+        if self.result[0].__class__.__name__ is "Comparison":
+            self.result.sort(key=str)
 
     def __repr__(self):
-        return ",  ".join(repr(i) for i in self.result)
+        if self.result[0].__class__.__name__ is not "System":
+            return ",  ".join(map(repr, self.result))
+        data = [repr(i).split("\n") for i in self.result]
+        return "\n".join("    ".join(items) for items in zip(*data))
 
     def totex(self, align):
         return "&" * align + ",\\quad ".join(i.totex(0) for i in self.result)
@@ -45,13 +52,11 @@ class ETOperatorType(Enum):
         if self.name == "DIV":
             return colorize_ansi("÷" + repr(value), "#ffc02b")
         if self.name == "POW":
-            return colorize_ansi("( )^" + repr(value), "#a219e6")
+            return colorize_ansi("( )" + superscript(value), "#a219e6")
         if self.name == "SQRT":
-            res = f"[{repr(value)}]√( )"
-            if value.value == 2:
-                res = "√( )"
-            elif value.value == 3:
-                res = "∛( )"
+            res = "√( )"
+            if value != 2:
+                res = superscript(value) + res
             return colorize_ansi(res, "#a219e6")
 
     def totex(self, value):
@@ -72,10 +77,10 @@ class ETOperatorType(Enum):
                 "(\\phantom{a})^" + value.totex().join("{}")
             ).join("{}")
         if self.name == "SQRT":
-            if value.value == 2:
+            if value == 2:
                 return "\\textcolor{#a219e6}" + "{\\sqrt{\\phantom{a}}}"
             return "\\textcolor{#a219e6}" + (
-                f"\\sqrt[{value.totex()}]" + "{\\phantom{a}}"
+                f"\\sqrt[{value}]" + "{\\phantom{a}}"
             ).join("{}")
 
 
@@ -140,10 +145,40 @@ class ETVerifyNode(ETNode):
         self.state = state
 
     def __repr__(self):
-        return repr(self.result) + "❌✅"[self.state]
+        return repr(self.result) + "❌✅📉"[self.state]
 
     def totex(self, align):
-        return "&" * align + self.result.totex(0) + "❌✅"[self.state]
+        return "&" * align + self.result.totex(0) + "❌✅📉"[self.state]
+
+
+class ETQuadraticNode(ETNode):
+    def __init__(self, var, a, b, c):
+        self.var = var
+        self.a = a
+        self.b = b
+        self.c = c
+
+    def __repr__(self):
+        a = colorize_ansi(self.a, "#3f51b5")
+        b = colorize_ansi(self.b, "#e91e63")
+        c = colorize_ansi(self.c, "#4caf50")
+
+        return f"{self.var} = (-{b} ± √({b}²-4·{a}·{c}))/2·{a}"
+
+    def totex(self, align=True):
+        a, b, c = self.a, self.b, self.c
+        a = "\\textcolor{#3f51b5}" + self.a.totex().join("{}")
+        b = "\\textcolor{#e91e63}" + self.b.totex().join("{}")
+        c = "\\textcolor{#4caf50}" + self.c.totex().join("{}")
+
+        return (
+            f"{self.var}&="
+            + "\\frac"
+            + ("-{b} \\pm" + "\\sqrt" + f"{b}^2-4\\cdot{a}\\cdot{c}".join("{}")).join(
+                "{}"
+            )
+            + f"2\\cdot{a}".join("{}")
+        )
 
 
 class ETSteps:
@@ -214,20 +249,29 @@ class ETSteps:
         def pad_line(line, max_len):
             visible = strip_ansi(line)
             pad = " " * padding
-            trailing = " " * (max_len - len(visible) - (visible[-1] in "❌✅"))
+            trailing = " " * (max_len - len(visible) - (visible[-1] in "❌✅📉"))
             return pad + line + trailing + pad
 
         def box(lines):
-            max_len = max(len(strip_ansi(line)) for line in lines)
+            if not lines:
+                return lines
+            max_len = max(
+                len(strip_ansi(line)) + (line[-1] in "❌✅📉") for line in lines
+            )
             width = max_len + 2 * padding
-            top = "┌" + "─" * width + "┐"
-            body = ["│" + pad_line(line, max_len) + "│" for line in lines]
+            tittle = " " * padding + lines[0] + " " * padding
+            spacing = width - len(tittle)
+            lpad, rpad = (spacing // 2,) * 2
+            if spacing % 2:
+                lpad += 1
+            top = "┌" + "─" * lpad + tittle + "─" * rpad + "┐"
+            body = ["│" + pad_line(line, max_len) + "│" for line in lines[1:]]
             bottom = "└" + "─" * width + "┘"
             return [top] + body + [bottom]
 
         def process(item):
             if isinstance(item, ETNode):
-                return [repr(item)]
+                return repr(item).split("\n")
             nested_lines = []
             for sub in item:
                 nested = process(sub)

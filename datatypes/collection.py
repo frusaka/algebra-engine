@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from .term import Term
 
 
-class Collection(Unknown, frozenset, Atomic):
+class Collection(frozenset, Atomic):
     """
     A base class representing a collection of unique terms
     """
@@ -17,9 +17,13 @@ class Collection(Unknown, frozenset, Atomic):
     def __repr__(self):
         if not self:
             return "∅"
+        # domain
         if len(self) == 1:
-            return repr(next(iter(self)))
+            return next(iter(self))
         return ", ".join(repr(i) for i in self).join("{}")
+
+    def __eq__(self, value):
+        return super().__eq__(value) and type(value) is type(self)
 
     @classmethod
     def flatten(cls, term: Term) -> Generator[Term, None, None]:
@@ -38,9 +42,7 @@ class Collection(Unknown, frozenset, Atomic):
             (
                 i.totex()
                 if i.__class__ is not tuple
-                else ",".join(map(lambda x: x.totex(), i)).join(
-                    ("\\left( ", "\\right)")
-                )
+                else ",".join(map(lambda x: x.totex(), i)).join(("\\left(", "\\right)"))
             )
             for i in self
         ).join(("\\left\\lbrace ", "\\right\\rbrace "))

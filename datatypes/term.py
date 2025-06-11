@@ -3,17 +3,16 @@ from typing import Any
 from dataclasses import dataclass
 from functools import cache, cached_property, lru_cache
 import math
-from utils import Proxy, print_coef, lexicographic_weight
-from utils.functions import simplify_radical
 from .bases import Atomic
 from .number import Number
 from .variable import Variable
 from .collection import Collection
 from .product import Product
 from .polynomial import Polynomial
+from utils import Proxy, print_coef, lexicographic_weight, simplify_radical, superscript
 
 
-@dataclass(frozen=True, init=False, order=True)
+@dataclass(frozen=True, init=False, order=False)
 class Term:
     """
     A representation of a mathemetical term.
@@ -33,6 +32,8 @@ class Term:
         obj = super().__new__(cls)
         # Cases when operations with exponents simplify to a constant
         if exp.__class__ is Term and exp.value.__class__ is Number and exp.exp == 1:
+            if value.__class__ is Polynomial:
+                return (Term(value) ** exp) * Term(coef)
             exp = exp.value
             if value.__class__ is Number:
                 return simplify_radical(value**exp.numerator, exp.denominator, coef)
@@ -81,44 +82,32 @@ class Term:
         # Negative exponets: ax^-n -> a/x^n
         if self.exp_const() < 0:
             return "{0}/{1}".format(self.numerator, self.denominator)
-        res = print_coef(self.coef)
-        # Cases when a Polynomial or Product has no variable numerator
-        # Instead of 3(1/(abc)), prints 3/(abc)
-        if (
-            isinstance(self.value, Collection)
-            and self.numerator.value.__class__ is Number
-        ):
-            if not res or res == "-":
-                res = str(self.coef)
-            res += "/" + str(self.denominator.value)
-        else:
-            res += str(self.value)
+        res = print_coef(self.coef) + str(self.value)
         if self.exp == 1:
             return res
-        exp = self.exp_const()
-        # Radical representation
-        if exp.denominator != 1:
-            if self.coef != 1:
-                val = Term(value=self.value, exp=self.exp)
-                if self.coef == -1:
-                    return "-{0}".format(repr(val))
-                return "{0}{1}".format(print_coef(self.coef), repr(val))
-            if exp.denominator <= 3:
-                if exp.numerator != 1:
-                    res = "({0}^{1})".format(res, exp.numerator)
-                if exp.denominator == 2:
-                    return "√" + res
-                if exp.denominator == 3:
-                    return "∛" + res
         # Symbolic exponent representation
-        exp = str(self.exp)
-        if (
-            self.exp.__class__ is Term
-            and (self.exp.coef != 1 or self.exp.exp != 1)
-            or "/" in exp
-        ):
-            exp = exp.join("()")
-        return "{0}^{1}".format(res, exp)
+        if self.exp.__class__ is Term:
+            exp = str(self.exp)
+            if self.exp.coef != 1:
+                exp = exp.join("()")
+            return "{0}^{1}".format(res, exp)
+        res = str(self.value)
+        if self.exp.numerator != 1:
+            res += superscript(self.exp.numerator)
+        # Radical representation
+        if self.exp.denominator == 2:
+            res = "√" + res
+        elif self.exp.denominator != 1:
+            res = superscript(self.exp.denominator) + "√" + res
+            if abs(self.coef) != 1:
+                res = res.join("()")
+        return "{0}{1}".format(print_coef(self.coef), res)
+
+    def __lt__(self, value: Term):
+        return float(self) < float(value)
+
+    def __gt__(self, value: Term):
+        return float(self) > float(value)
 
     @lru_cache
     def __contains__(self, value: Variable) -> bool:
@@ -177,6 +166,9 @@ class Term:
 
     def __pos__(self) -> Term:
         return self
+
+    def __float__(self) -> float:
+        return float(self.coef) * float(self.value) ** float(self.exp)
 
     @lru_cache
     def __neg__(self) -> Term:
@@ -280,10 +272,12 @@ class Term:
         """
         if self.value == value:
             return self.exp
-        if isinstance(self.value, Collection) and self.exp == 1:
+        if isinstance(self.value, Collection):
             for t in self.value:
                 if v := t.get_exp(value):
-                    return v
+                    if self.value.__class__ is Product:
+                        return v
+                    return self.exp
         return Number()
 
     def to_const(self) -> Number:
@@ -409,7 +403,7 @@ class Term:
             return "\\frac{0}{1}".format(
                 self.numerator.totex().join("{}"), self.denominator.totex().join("{}")
             )
-        res = print_coef(self.coef, 1)
+        res = print_coef(self.coef)
         if (
             self.value.__class__ is Number
             and self.exp.__class__ is not Number
@@ -440,7 +434,7 @@ class Term:
                 val = Term(value=self.value, exp=self.exp)
                 if self.coef == -1:
                     return "-{0}".format(val.totex())
-                return "{0}{1}".format(print_coef(self.coef, 1), val.totex())
+                return "{0}{1}".format(print_coef(self.coef), val.totex())
             if exp.numerator != 1:
                 res = "{0}^{1}".format(res, exp.numerator)
             res = res.join("{}")

@@ -23,27 +23,5 @@ class Atomic:
             res *= a**i
         return res
 
-    def ast_subs(self, mapping):
+    def ast_subs(self, mapping: dict):
         pass
-
-
-class Unknown:
-    """
-    A small class that prevents comparsions between unknowns.
-    This class should be removed and better alternatives developed
-    """
-
-    def __eq__(self, value: Any) -> bool:
-        return super().__eq__(value) and type(value) is type(self)
-
-    def __gt__(self, value: Any) -> bool:
-        return False
-
-    def __lt__(self, value: Any) -> bool:
-        return False
-
-    def __ge__(self, value: Any) -> bool:
-        return self == value
-
-    def __le__(self, value: Any) -> bool:
-        return self == value
