@@ -1,13 +1,13 @@
 from typing import Generator
 from processing.tokens import Token, TokenType
-from datatypes import Number, Variable
+from datatypes.nodes import Const, Var
 
 
 class Lexer:
     """Takes input string and Tokenizes it"""
 
     OPERS = {
-        "→": Token(TokenType.SOLVE),
+        "⟹": Token(TokenType.SOLVE),
         ",": Token(TokenType.COMMA),
         "=": Token(TokenType.EQ),
         ">": Token(TokenType.GT),
@@ -19,13 +19,15 @@ class Lexer:
         "*": (Token(TokenType.MUL), Token(TokenType.MUL, iscoef=True)),
         "/": Token(TokenType.TRUEDIV),
         "^": Token(TokenType.POW),
+        "~": Token(TokenType.APPROX),
+        "√": Token(TokenType.SQRT),
         "(": Token(TokenType.LPAREN),
         ")": Token(TokenType.RPAREN),
     }
 
     def __init__(self, expr: str) -> None:
         self.expr = iter(
-            expr.replace(">=", "≥").replace("<=", "≤").replace("->", "→").join("()")
+            expr.replace(">=", "≥").replace("<=", "≤").replace("=>", "⟹").join("()")
         )
         self.advance()
 
@@ -65,9 +67,9 @@ class Lexer:
             # A variable
             if self.curr.isalpha():
                 if was_num:
-                    # Implicit multiplication - Variable Coefficient
+                    # Implicit multiplication - Var Coefficient
                     yield self.OPERS["*"][was_num >> 1]
-                yield Token(TokenType.VAR, Variable(self.curr))
+                yield Token(TokenType.VAR, Var(self.curr))
                 was_num = 2
 
             # An operator
@@ -75,8 +77,8 @@ class Lexer:
                 yield self.OPERS[self.curr][not was_num]
                 was_num = 0
             elif self.curr in self.OPERS:
-                if was_num and self.curr == "(":
-                    # Implicit multiplication - Product
+                if was_num and self.curr in "(√":
+                    # Implicit multiplication - Mul
                     yield self.OPERS["*"][1]
                 yield self.OPERS[self.curr] if self.curr != "*" else self.OPERS["*"][0]
                 was_num = self.curr == ")"
@@ -94,11 +96,11 @@ class Lexer:
         decimals = 0
         if self.curr == "i":
             self.advance()
-            return Token(TokenType.NUMBER, Number(1j))
+            return Token(TokenType.CONST, Const(1j))
         number_str = ""
         while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
             if self.curr == ".":
-                # Number cannot have multiple decimals
+                # Const cannot have multiple decimals
                 if decimals:
                     return Token(
                         TokenType.ERROR,
@@ -108,9 +110,9 @@ class Lexer:
             number_str += self.curr
             self.advance()
 
-        # Number needs atleast one digit
+        # Const needs atleast one digit
         if number_str == ".":
             return Token(
                 TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
             )
-        return Token(TokenType.NUMBER, Number(number_str))
+        return Token(TokenType.CONST, Const(number_str))

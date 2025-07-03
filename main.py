@@ -9,7 +9,7 @@ from pylatexenc.latexwalker import (
 
 from processing import Interpreter
 from utils.constants import TEXTOKEN, SYMBOLS
-from datatypes import steps
+from datatypes.nodes import steps
 
 
 @eel.expose

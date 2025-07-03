@@ -6,19 +6,22 @@ from typing import Any
 class TokenType(Enum):
     """Supported token types"""
 
-    SOLVE = 0
-    COMMA = 1
+    APPROX = 0
+    SOLVE = 1
+    COMMA = 2
 
     EQ, GT, GE, LT, LE = 4, 4.2, 4.4, 4.6, 4.8
-    NUMBER, VAR = 5, 5.2
+    CONST, VAR = 5, 5.2
 
     ADD, SUB = 7, 7.2
     MUL, TRUEDIV = 8, 8.2
     POS, NEG = 9, 9.2
-    POW = 10
-
+    POW, SQRT = 10, 10.2
     LPAREN, RPAREN = -11, -11.2
     ERROR = -12
+
+    def is_unary(self) -> bool:
+        return self in {TokenType.POS, TokenType.NEG, TokenType.APPROX, TokenType.SQRT}
 
 
 @dataclass(frozen=True)

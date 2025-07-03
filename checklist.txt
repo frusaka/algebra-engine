@@ -1,13 +1,8 @@
-1. Return boolean outputs for Numeric only comparisons
-2. Improve multiplication of Polynomial Rationals
-4. Add simplification for cases such as:
-    3x/(x^3 + 6x^2)
-    (x^2-4)^0.5/(x+2)^0.5
-    (x+4)^0.5*x^0.5
+1. Improve multiplication of Polynomial Rationals
+2. Add simplification for cases such as:
     2/(x^2-4)^0.5 + f/(x+2)^0.5
-5. Make solver iterative
-6. Improve solving by factorizaiton
-7. Add saftey checks when solving for nested radicals or complex equations
-8. enhance equation difficulty weighing
-9. Bring back dem mixed fractions
-10. h -> S=2pr^2+2pr^2h : Failing, simplification error (S-2pr)/2pr^2 * pr^2
+3. Make solver iterative
+4. Add saftey checks when solving for nested radicals or complex equations
+5. enhance equation difficulty weighing
+6. Bring back dem mixed fractions
+

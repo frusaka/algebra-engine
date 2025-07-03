@@ -16,6 +16,7 @@ SYMBOLS = {
     "ROOT": "√",
     "NEG": "-",
     "POS": "+",
+    "IN": "∈",
 }
 
 TEXTOKEN = {
