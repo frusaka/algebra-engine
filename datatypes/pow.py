@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import utils
 
 from . import nodes
-from .base import Node
+from .base import Collection, Node
 
 
 @dataclass(frozen=True, init=False, slots=True)
@@ -19,6 +19,7 @@ class Pow(Node):
         if base == 1:
             return base
         if base.__class__ is Pow:
+            # May nullify constraints: √(x-2)^2 = |x-2|, not x-2
             base, exp = base.base, exp * base.exp
         if exp == 0:
             return nodes.Const(1)
@@ -28,7 +29,9 @@ class Pow(Node):
         if exp.__class__ is nodes.Const:
             if base.__class__ is nodes.Mul:
                 return nodes.Mul.from_terms(t**exp for t in base.args)
-            if base.__class__ is nodes.Const:
+            if isinstance(base, nodes.Number):
+                if base.__class__ is nodes.Float:
+                    return base.pow(exp)
                 if exp.denominator == 1:
                     return base.pow(exp.numerator)
                 c, base, exp = utils.simplify_radical(
@@ -43,7 +46,7 @@ class Pow(Node):
         object.__setattr__(self, "base", base)
         object.__setattr__(self, "exp", exp)
         if c != 1:
-            return nodes.Mul.from_terms([self, c], 0)
+            return nodes.Mul(self, c)
         return self
 
     if TYPE_CHECKING:
@@ -52,38 +55,40 @@ class Pow(Node):
             pass
 
     def __repr__(self) -> str:
+        base = str(self.base)
+        if (
+            isinstance(self.base, Collection)
+            or self.base.__class__ is nodes.Const
+            and self.base.denominator > 1
+        ):
+            base = base.join("()")
         if self.exp.__class__ is nodes.Const:
             p = utils.superscript(self.exp.numerator) if self.exp.numerator != 1 else ""
-            v = str(self.base)
-            v += p
+            base += p
             if self.exp.denominator != 1:
                 r = (
                     utils.superscript(self.exp.denominator)
                     if self.exp.denominator != 2
                     else ""
                 )
-                v = r + "√" + v
-                if r:
-                    v = v.join("()")
-            return v
-        exp = str(self.exp)
-        if exp.__class__ is nodes.Mul:
-            exp = exp.join("()")
-        return f"{self.base}^{exp}"
+                base = r + "√" + base
+            return base
 
-    def as_numer_denom(self) -> tuple[Node]:
-        if self.exp.canonical()[0] < 0:
+        exp = str(self.exp)
+        if isinstance(self.exp, Collection):
+            exp = exp.join("()")
+        return f"{base}^{exp}"
+
+    def as_ratio(self) -> tuple[Node]:
+        if self.exp.canonical()[0].is_neg():
             return (nodes.Const(1), Pow(self.base, -self.exp))
         return (self, nodes.Const(1))
-
-    def canonical(self):
-        return nodes.Const(1), self
 
     def simplify(self) -> Node:
         return Pow(self.base.simplify(), self.exp.simplify())
 
     def expand(self):
-        if self.exp.canonical()[0] < 0:
+        if self.exp.canonical()[0].is_neg():
             return Pow(Pow(self.base, -self.exp).expand(), nodes.Const(-1))
         base = self.base.expand()
         exp = self.exp.expand()
@@ -95,7 +100,10 @@ class Pow(Node):
         ):
             base = reduce(
                 lambda a, b: nodes.Add.from_terms(
-                    itertools.starmap(nodes.Mul, itertools.product(a, b))
+                    itertools.starmap(
+                        nodes.Mul,
+                        itertools.product(nodes.Add.flatten(a), nodes.Add.flatten(b)),
+                    )
                 ),
                 itertools.repeat(base, exp.numerator),
             )
@@ -104,20 +112,21 @@ class Pow(Node):
             exp = nodes.Const(1, exp.denominator)
         return Pow(base, exp)
 
-    def ast_subs(self, mapping):
-        if self in mapping:
-            return mapping[self]
-        return Pow(self.base.ast_subs(mapping), self.exp.ast_subs(mapping))
-
-    def domain_restriction(self, var):
-        if not self.exp.denominator % 2 and var in str(self.base):
-            return [(self.base, "GE")]
-        if self.exp.numerator < 0 and var in self.base:
-            return [(self.base, "NE")]
-        return []
+    def subs(self, mapping):
+        return Pow(self.base.subs(mapping), self.exp.subs(mapping))
 
     def approx(self) -> float | complex:
-        return self.base.approx() ** self.exp.approx()
+        v = self.base.approx()
+        e = self.exp.approx()
+        if (
+            self.exp.__class__ is nodes.Const
+            and self.exp.denominator % 2
+            and self.exp.denominator > 1
+            and not v.imag
+            and v < 0
+        ):
+            return -abs(v) ** e
+        return v**e
 
 
 __all__ = ["Pow"]

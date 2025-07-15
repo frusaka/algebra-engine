@@ -1,7 +1,8 @@
 from datatypes.nodes import *
 from solving.comparison import Comparison, CompRel
 from solving.solutions import SolutionSet
-from processing import parser
+from parsing import parser
+from solving.utils import nth_roots
 
 v = Var("v")
 w = Var("w")
@@ -123,3 +124,60 @@ def test_solve_2_quadratic():
         ),
         CompRel.IN,
     )
+
+
+def test_solve_high_degree():
+    assert parser.eval(
+        "x + y + z = 1, x^2 + y^2 + z^2 = 1, x^3 + y^3 + z^3 = 1"
+    ) == Comparison(
+        (x, y, z),
+        SolutionSet(
+            {
+                (1, 0, 0),
+                (0, 1, 0),
+                (0, 0, 1),
+            }
+        ),
+        CompRel.IN,
+    )
+
+    # The solutions are irational, just check that it finds something
+
+    # Base: x = -1, x = (1 ± √5)/2
+    assert getvar(parser.eval("x^2 + y^2 + z^2 = 4, xyz = 1, x + y + z = 0"), x) == {
+        -1,
+        (1 + Const(5) ** 0.5) / 2,
+        (1 - Const(5) ** 0.5) / 2,
+    }
+    # Base: c = unity cuberoots of 3, etc
+    assert getvar(
+        parser.eval("abc = 6, a^2 + b^2 = 6, a^2 + b^2 + c^3 = 9"), "c"
+    ) == nth_roots({Const(3)}, 3)
+
+    # exact values and approximate values
+    assert getvar(parser.eval("x^4 + y^2 = 5, yx^3 = 2"), y, 4) == {
+        2,
+        -2,
+        -0.6374,
+        0.6374,
+        0.5705j,
+        -0.5705j,
+        2.3409 + 0.1421j,
+        2.3409 - 0.1421j,
+        -2.3409 + 0.1421j,
+        -2.3409 - 0.1421j,
+    }
+
+
+def round_(n, ndigits):
+    if n.imag:
+        return complex(round(n.real, ndigits), round(n.imag, ndigits))
+    return round(n, ndigits)
+
+
+def getvar(s, v, ndigits=None):
+    res = {i[idx] for i in s.right for idx in range(len(s.left)) if s.left[idx] == v}
+    print(res)
+    if ndigits is not None:
+        return {round_(i.approx(), ndigits) for i in res}
+    return res

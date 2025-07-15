@@ -97,7 +97,6 @@ def test_nested_nodes_equality_and_hash():
     assert hash(expr1) == hash(expr2)
     assert expr1 != expr4
     assert hash(expr1) != hash(expr4)
-    # If Add is commutative, uncomment the next two lines:
     assert expr1 == expr3
     assert hash(expr1) == hash(expr3)
     # Cross-type equality

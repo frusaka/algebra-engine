@@ -1,5 +1,6 @@
+from fractions import Fraction
 from typing import Generator
-from processing.tokens import Token, TokenType
+from parsing.tokens import Token, TokenType
 from datatypes.nodes import Const, Var
 
 
@@ -115,4 +116,5 @@ class Lexer:
             return Token(
                 TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
             )
-        return Token(TokenType.CONST, Const(number_str))
+        val = Fraction(number_str).limit_denominator()
+        return Token(TokenType.CONST, Const(val.numerator, val.denominator))

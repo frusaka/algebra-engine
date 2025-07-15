@@ -38,7 +38,6 @@ class Interval:
 
         left = max(self.start, other.start, key=to_float)
         right = min(self.end, other.end, key=lambda x: to_float(x, 1))
-
         # If no overlap
         if to_float(left) > to_float(right, 1):
             return
@@ -52,7 +51,7 @@ class Interval:
                 other.end == right and not other.open[1]
             )
             if not (left_included or right_included):
-                return None
+                return
 
         left_open = self.open[0] if self.start == left else other.open[0]
         right_open = self.open[1] if self.end == right else other.open[1]
@@ -70,3 +69,6 @@ class Interval:
         else:
             end = "\\infty\\right)"
         return ",".join((start, end))
+
+
+INF = Interval(None, None, (True, True))

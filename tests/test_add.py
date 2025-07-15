@@ -1,6 +1,6 @@
 import pytest
 from datatypes.nodes import *
-from processing import parser
+from parsing import parser
 from collections import Counter
 
 x = Var("x")
@@ -76,7 +76,7 @@ def test_multiply_polynomial():
     assert Mul((x + 1), (y + 2)).expand() == Add(x * y, 2 * x, y, Const(2))
 
     # Multiplication containing a fraction
-    assert Mul((x - 4 + 12 / (x + 4)), (x + 4)) == Add(x**2, Const(-4))
+    assert Mul((x - 4 + 12 / (x + 4)), (x + 4)).expand() == Add(x**2, Const(-4))
 
     # Nested
     assert (((y + 3) * (y - 3)) ** 2).expand() == Add(y**4, -18 * y**2, Const(81))

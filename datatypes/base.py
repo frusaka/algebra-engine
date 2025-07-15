@@ -65,12 +65,12 @@ class Node:
     def __contains__(self, value: Node) -> bool:
         return value in str(self)
 
-    def multiply(self, other) -> Node:
+    def multiply(self, other: Node) -> Node:
         if other.__class__ is nodes.Add:
             return other.multiply(self)
         return self * other
 
-    def divide(self, other) -> Node:
+    def divide(self, other: Node) -> Node:
         return self * other**-1
 
     def simplify(self) -> Node:
@@ -82,14 +82,14 @@ class Node:
     def canonical(self) -> tuple[Const, Node]:
         return nodes.Const(1), self
 
-    def as_numer_denom(self) -> tuple[Node]:
+    def as_ratio(self) -> tuple[Node]:
         return (self, nodes.Const(1))
 
-    def domain_restriction(self, var: Var) -> list[tuple[Node, str]]:
-        return []
-
-    def ast_subs(self, mapping: dict[Var, Node]) -> Node:
+    def subs(self, mapping: dict[Var, Node]) -> Node:
         return mapping.get(self, self)
+
+    def totex(self) -> str:
+        return str(self)
 
 
 @dataclass(frozen=True, init=False, slots=True)
@@ -138,11 +138,8 @@ class Collection(ABC, Node):
     def merge(cls, args: Iterable[Node]) -> list[Node]:
         pass
 
-    def ast_subs(self, mapping: dict[Node]) -> Node:
-        return self.__class__.from_terms(node.ast_subs(mapping) for node in self)
-
-    def domain_restriction(self, var: Var) -> list[tuple[Node, str]]:
-        return reduce(lambda a, b: a + b, (i.domain_restriction(var) for i in self))
+    def subs(self, mapping: dict[Var, Node]) -> Node:
+        return self.__class__.from_terms(node.subs(mapping) for node in self)
 
     def approx(self) -> float | complex:
         op = self.__class__.__name__.lower()

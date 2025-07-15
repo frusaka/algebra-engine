@@ -22,9 +22,10 @@ class Add(Collection):
             op = " + "
             if v.startswith("-"):
                 op = " - "
-                v = v[1:]
+                v = str(-i)
+                # v = v[1:]
             res += op + v
-        return res.join("()")
+        return res
 
     @classmethod
     def merge(cls, args, rationalize=True) -> list[Node]:
@@ -36,9 +37,10 @@ class Add(Collection):
         def calculate(k, v):
             if k is None:
                 return den * v
-            if den.__class__ is nodes.Add:
-                n, d = k.as_numer_denom()
-                return den.multiply(v * n).divide(d)
+            if den.__class__ is nodes.Add and utils.is_polynomial(den):
+                n, d = k.as_ratio()
+                if utils.is_polynomial(n) and utils.is_polynomial(d):
+                    return utils.cancel_factors(den.multiply(v * n), d)
             return nodes.Mul(den, v, k)
 
         groups = defaultdict(nodes.Const)
@@ -54,18 +56,19 @@ class Add(Collection):
         if not rationalize or not frac or len(groups) == 1:
             return list(itertools.starmap(form, groups.items())) or [nodes.Const(0)]
 
-        # Get the LCM (Force expansion)
+        # Get the LCM
         den = nodes.Const(1)
         for k in groups:
             if k is None:
                 den *= groups[k].denominator
                 continue
-            den = utils.lcm(den, k.as_numer_denom()[1])
+            den = utils.lcm(den, k.as_ratio()[1])
         # Combine
-        num = Add.from_terms(calculate(k, v) for k, v in groups.items()).expand()
-        den = den.expand()
-        if num.__class__ is nodes.Add:
-            return list(Add.flatten(num.divide(den)))
+        num = Add.from_terms(calculate(k, v) for k, v in groups.items())  # .expand()
+        den = den  # .expand()
+
+        # if num.__class__ is nodes.Add:
+        #     return list(Add.flatten(num.expand().divide(den)))
         return list(Add.flatten(num / den))
 
     def simplify(self) -> Node:
@@ -77,9 +80,9 @@ class Add(Collection):
     def cancel_gcd(self, normalize=True) -> tuple[Node, Add]:
         den = math.lcm(*(i.canonical()[0].denominator for i in self))
         if (
-            # normalize
+            # normalize and
             utils.is_polynomial(self)
-            and utils.leading(self).canonical()[0] < 0
+            and utils.leading(self).canonical()[0].is_neg()
         ):
             den *= -1
         if den != 1:

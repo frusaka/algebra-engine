@@ -1,13 +1,13 @@
 from __future__ import annotations
+from abc import ABC, abstractmethod
+import numbers
 import sys
 import math
 from typing import TYPE_CHECKING, Any
 
-from utils.print_ import print_frac
 
 from .base import Node
 
-from fractions import Fraction
 from dataclasses import FrozenInstanceError
 from functools import lru_cache
 
@@ -39,7 +39,18 @@ def _hash_algorithm(numerator, denominator):
     return -2 if result == -1 else result
 
 
-class Const(Node):
+class Number(Node):
+    def __setattr__(self, name, value):
+        raise FrozenInstanceError(f"cannot assign to field '{name}'")
+
+    def __delattr__(self, name):
+        raise FrozenInstanceError(f"cannot delete field '{name}'")
+
+    def canonical(self):
+        return (self, None)
+
+
+class Const(Number):
     """
     A repsentation of a numeric value.
     The `numerator` attribute can be an integer or a complex number.
@@ -47,30 +58,34 @@ class Const(Node):
     The `denominator` attribute is always a positive integer.
     """
 
-    numerator: int | complex
-    denominator: int
-
     __slots__ = ("numerator", "denominator")
 
-    @lru_cache
-    def __new__(
-        cls,
-        numerator: int | complex | str = 0,
-        denominator: int = 1,
-    ) -> Const:
+    @lru_cache(maxsize=500)
+    def __new__(cls, numerator: int | complex = 0, denominator: int = 1) -> Const:
+        if denominator == 0:
+            raise ZeroDivisionError(f"{numerator}/{denominator}")
         if numerator.__class__ is complex and numerator.imag:
-            if (
-                gcd := math.gcd(denominator, int(numerator.real), int(numerator.imag))
-            ) != 1:
-                numerator /= gcd
+            rn, rd = numerator.real.as_integer_ratio()
+            in_, id_ = numerator.imag.as_integer_ratio()
+            d = math.lcm(rd, id_)
+            real = d * rn // rd
+            imag = d * in_ // id_
+            denominator *= d
+            if (gcd := math.gcd(denominator, real, imag)) != 1:
+                real //= gcd
+                imag //= gcd
                 denominator //= gcd
+            numerator = complex(real, imag)
         else:
-            if numerator.__class__ is complex:
-                numerator = numerator.real
-            val = Fraction(numerator) / denominator
-            numerator = val.numerator
-            denominator = val.denominator
-
+            if not isinstance(numerator, int):
+                numerator, d = numerator.real.as_integer_ratio()
+                denominator *= d
+            if (gcd := math.gcd(denominator, numerator)) != 1:
+                numerator //= gcd
+                denominator //= gcd
+        if denominator < 0:
+            numerator *= -1
+            denominator *= -1
         self = super(Const, cls).__new__(cls)
         object.__setattr__(self, "numerator", numerator)
         object.__setattr__(self, "denominator", denominator)
@@ -82,17 +97,14 @@ class Const(Node):
             self, numerator: int | complex | str = 0, denominator: int = 1
         ): ...
 
-    def __setattr__(self, key, value):
-        raise FrozenInstanceError(f"cannot assign to field '{key}'")
-
-    def __delattr__(self, key):
-        raise FrozenInstanceError(f"cannot delete field '{key}'")
-
     def __hash__(self):
         return _hash_algorithm(self.numerator, self.denominator)
 
     def __float__(self) -> float:
         return self.numerator / self.denominator
+
+    def __complex__(self):
+        return complex(self.numerator / self.denominator)
 
     def __bool__(self) -> bool:
         return bool(self.numerator)
@@ -121,7 +133,20 @@ class Const(Node):
         da, db = a.denominator, b.denominator
         return Const((a.numerator * db) % (b.numerator * da), da * db)
 
+    def as_ratio(self) -> tuple[Const]:
+        return (Const(self.numerator), Const(self.denominator))
+
+    def is_neg(self) -> bool:
+        if self.numerator.imag:
+            return False
+        return self.numerator < 0
+
+    def approx(self) -> float | complex:
+        return self.numerator / self.denominator
+
     def add(self, value: Const) -> Const:
+        if value.__class__ is Float:
+            return value.add(self)
         den = math.lcm(self.denominator, value.denominator)
         return Const(
             (den // self.denominator) * self.numerator
@@ -130,11 +155,15 @@ class Const(Node):
         )
 
     def mul(self, value: Const) -> Const:
+        if value.__class__ is Float:
+            return value.mul(self)
         return Const(
             self.numerator * value.numerator, self.denominator * value.denominator
         )
 
     def div(self, value: Const) -> Const:
+        if value.__class__ is Float:
+            return value.pow(-1).mul(self)
         num = self.numerator * value.denominator
         den = self.denominator * value.numerator
         if den.imag:
@@ -175,14 +204,104 @@ class Const(Node):
     def __le__(a, b: Const) -> bool:
         return a.numerator * b.denominator <= a.denominator * b.numerator
 
-    def canonical(self):
-        return (self, None)
 
-    def as_numer_denom(self) -> tuple[Node]:
-        return (Const(self.numerator), Const(self.denominator))
+class Float(Number):
+    __slots__ = ("_val",)
+
+    @lru_cache
+    def __new__(cls, value: float | complex) -> Float:
+        if isinstance(value, Node):
+            value = value.approx()
+        if abs(value.imag) <= 1e-10:
+            value = value.real
+        # c = Const(value)
+        self = super(Float, cls).__new__(cls)
+        object.__setattr__(self, "_val", value)
+        return self
+
+    if TYPE_CHECKING:
+
+        def __init__(self, value: float | complex): ...
+
+    def __repr__(self):
+        # return repr(self._val)
+        if not self._val.imag:
+            return repr(round(self._val, 4))
+        return repr(complex(round(self._val.real, 4), round(self._val.imag, 4)))
+
+    def __hash__(self):
+        return hash(self._val)
+
+    def __abs__(self):
+        return Float(abs(self._val))
+
+    def __float__(self):
+        return float(self._val)
+
+    def __complex__(self):
+        return complex(self._val)
+
+    def __eq__(a, b: Any) -> bool:
+        if not isinstance(b, (Const, int, Float)):
+            return False
+        if not isinstance(b, Float):
+            b = Float(b)
+        return a._val == b._val
+
+    def __gt__(a, b: Number) -> bool:
+        if not b.__class__ is Float:
+            b = Float(b)
+        return a._val > b._val
+
+    def __ge__(a, b: Number) -> bool:
+        if not b.__class__ is Float:
+            b = Float(b)
+        return a._val >= b._val
+
+    def __lt__(a, b: Number) -> bool:
+        if not b.__class__ is Float:
+            b = Float(b)
+        return a._val < b._val
+
+    def __le__(a, b: Number) -> bool:
+        if not b.__class__ is Float:
+            b = Float(b)
+        return a._val <= b._val
+
+    def add(self, value: Number) -> Float:
+        if not isinstance(value, Float):
+            value = Float(value)
+        return Float(self._val + value._val)
+
+    def mul(self, value: Number) -> Float:
+        if not isinstance(value, Float):
+            value = Float(value)
+        return Float(self._val * value._val)
+
+    def div(self, value: Number) -> Float:
+        if not isinstance(value, Float):
+            value = Float(value)
+        return Float(self._val / value._val)
+
+    def pow(self, value: Number) -> Float:
+        if (
+            isinstance(value, Const)
+            and value.denominator > 1
+            and value.denominator % 2
+            and self.is_neg()
+        ):
+            return Float(-abs(self._val) ** value.approx())
+        if not isinstance(value, Float):
+            value = Float(value)
+        return Float(self._val**value._val)
+
+    def is_neg(self):
+        if self._val.imag:
+            return False
+        return self._val < 0
 
     def approx(self) -> float | complex:
-        return self.numerator / self.denominator
+        return self._val
 
 
-__all__ = ["Const"]
+__all__ = ["Const", "Float"]

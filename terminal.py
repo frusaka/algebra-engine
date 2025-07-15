@@ -1,13 +1,14 @@
+import sys
 from rich.console import Console
+from rich.text import Text
 
 from datatypes.base import Node
 from solving.eval_trace import ETSteps
-from processing import parser
+from parsing import parser
 import cProfile
 import pstats
 
-from processing.lexer import Lexer
-import utils
+from parsing.lexer import Lexer
 
 print = Console().print
 
@@ -16,6 +17,8 @@ while True:
         inp = parser.Parser(Lexer(input("Expression > ")).generate_tokens())
         # with cProfile.Profile() as profile:
         res = inp.parse()
+        if res is None:
+            continue
         if isinstance(res, Node):
             res = res.simplify()
         if ETSteps.data:
@@ -27,6 +30,6 @@ while True:
     except Exception as e:
         if ETSteps.data:
             print(ETSteps.torich())
-        # raise
+        raise
         print(repr(e))
     ETSteps.clear()

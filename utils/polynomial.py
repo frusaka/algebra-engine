@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from itertools import accumulate
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 from functools import lru_cache
 
 from datatypes import nodes
@@ -13,34 +14,49 @@ if TYPE_CHECKING:
 
 
 def is_polynomial(node: Node) -> bool:
-    """Checks whether a node is a valid term to be considered or be inside a Add"""
+    """Checks whether a node is a valid term to be considered or be inside a Polynomial"""
     match node.__class__.__name__:
         case "Const" | "Var":
             return True
-        case "Pow":
-            if node.exp.__class__ is not nodes.Const or node.exp.denominator != 1:
-                return False
-            return is_polynomial(node.base)
         case "Mul" | "Add":
             return all(map(is_polynomial, node.args))
+        case "Pow":
+            return (
+                node.exp.__class__ is nodes.Const
+                and not (
+                    node.exp.denominator != 1
+                    or node.exp.numerator.imag
+                    or node.exp.numerator < 0
+                )
+                and is_polynomial(node.base)
+            )
     return False
 
 
 @lru_cache
-def degree(node: Node) -> int | None:
+def degree(node: Node, var=None) -> int | None:
     match node.__class__.__name__:
-        case "Const":
+        case "Const" | "Float":
             return 0
         case "Var":
+            if var is not None:
+                return int(node == var)
             return 1
         case "Pow":
-            if node.exp.__class__ is not nodes.Const or node.exp.denominator != 1:
+            res = degree(node.base, var)
+            if not res:
+                return res
+            if (
+                node.exp.__class__ is not nodes.Const
+                or node.exp < 0
+                or node.exp.denominator != 1
+            ):
                 return
-            return degree(node.base) * node.exp.numerator
+            return res * node.exp.numerator
         case "Mul":
-            return sum(map(degree, node.args))
+            return sum(degree(t, var) for t in node.args)
         case "Add":
-            return max(map(degree, node.args))
+            return max(degree(t, var) for t in node.args)
     raise TypeError("Unsupported type for degree", node, type(node))
 
 
@@ -56,19 +72,20 @@ def leading_options(node: Add) -> Node:
 
 
 def hasremainder(node: Node):
+    # return type(node.as_ratio()[1]) is not nodes.Const
     if node.__class__ is nodes.Pow:
-        return node.exp.canonical()[0] < 0
+        return node.exp.canonical()[0].is_neg()
     if node.__class__ is not nodes.Mul:
         return False
     for i in node.args:
         if i.__class__ is not nodes.Pow:
             continue
-        if i.exp.canonical()[0] < 0:
+        if i.exp.canonical()[0].is_neg():
             return True
     return False
 
 
-def long_division(a: Add, b: Node) -> tuple[list[Node], Node]:
+def long_division(a: Add, b: Node) -> tuple[Node, Node]:
     """
     Backend long division algorithm. `a` must have a higher degree than `b`.
     Returns Q -> Quotient, r -> remainder
@@ -90,14 +107,12 @@ def long_division(a: Add, b: Node) -> tuple[list[Node], Node]:
     # if type(a) is nodes.Const and a != 0:
     #     q = [i / a for i in q]
     #     a -= a
-    return q, a
+    return nodes.Add(*q), a
 
 
-def synthetic_divide(coeffs: list[Node], r: Node) -> tuple[list[Node], Node]:
+def synthetic_divide(coeffs: Sequence[Node], r: Node) -> tuple[list[Node], Node]:
     """Divide poly by (x - r): returns (quotient_coeffs, remainder)"""
-    q = [coeffs[0]]  # bring down the leading coefficient
-    for i in range(1, len(coeffs)):
-        q.append(q[-1] * r + coeffs[i])
+    q = list(accumulate(coeffs, lambda acc, x: acc * r + x))
     return q[:-1], q[-1]  # last is remainder
 
 
@@ -158,11 +173,14 @@ def normalize(a):
     # Normalizing the gcd
     if (d := math.lcm(*(i.denominator for i in a if i))) != 1:
         a = [i * d for i in a]
-    g = -1 if a[0] < 0 else 1
-    g *= math.gcd(*(i.numerator for i in a if i))
+    g = -1 if a[0].is_neg() else 1
+    g *= math.gcd(*(i.numerator for i in a if i and not i.approx().imag))
     if g != 1:
         a = [i / g for i in a]
-    return tuple(a), (nodes.Const(g, d),)
+    a, c = tuple(a), nodes.Const(g, d)
+    if c != 1:
+        return a, (c,)
+    return (a,)
 
 
 @lru_cache

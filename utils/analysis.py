@@ -15,13 +15,14 @@ if TYPE_CHECKING:
 
 def mult_key(v: Node, exp=False):
     match v.__class__.__name__:
-        case "Const":
+        case "Const" | "Float":
             if exp:
                 return None, v
             return v
         case "Pow":
+            # Must revisit
             if exp:
-                if v.base.__class__ is v.exp.__class__ is nodes.Const:
+                if isinstance(v.base, nodes.Number) and isinstance(v.exp, nodes.Number):
                     return nodes.Const, (v.base, v.exp)
 
                 return v.base, v.exp
@@ -34,15 +35,15 @@ def mult_key(v: Node, exp=False):
 @lru_cache
 def order_key(node: Node) -> tuple:
     match node.__class__.__name__:
-        case "Const":
+        case "Const" | "Float":
             return (0, 0)
         case "Var":
-            return (1, ord("z") - ord(node))
+            return (1, ord("z") * len(node) - sum(map(ord, node)))
         case "Pow":
             if node.exp.__class__ is not nodes.Const:
                 return (0, 0, *order_key(node.base), *order_key(node.exp))
             if node.exp.denominator != 1:
-                return (0, float(node.exp), *order_key(node.base))
+                return (-1, float(node.exp), *order_key(node.base))
             return tuple(
                 map(
                     lambda v: math.prod(v) * 1.0001,
@@ -77,13 +78,14 @@ def ordered_terms(args: Iterable[Node], reverse=False) -> list[Node]:
     return args
 
 
-def get_vars(node: Node) -> set[Var]:
+@lru_cache
+def get_vars(node: Node) -> frozenset[Var]:
     """
     Get the immedieate variables from an expression.
     Only goes up to depth 1:
         meaning if some variables are deeply nested, they are skipped
     """
-    return set(
+    return frozenset(
         mult_key(v)
         for i in nodes.Add.flatten(node)
         for v in nodes.Mul.flatten(i)

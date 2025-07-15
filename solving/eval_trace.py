@@ -1,10 +1,12 @@
 from __future__ import annotations
+from itertools import zip_longest
 import re
 from enum import Enum
 from typing import Any
 from contextlib import contextmanager
 
 from utils import superscript
+from utils.print_ import truncate
 
 
 class ETNode:
@@ -17,10 +19,15 @@ class ETNode:
     def totex(self, align=True):
         return self.result.totex(align)
 
-    def torich(self):
+    def torich(self, depth):
         from rich.text import Text
+        from rich.console import Group
 
-        return Text.from_ansi(str(self))
+        res = [Text.from_ansi(i) for i in str(self).split("\n")]
+        [t.truncate(80 - 4 * depth, overflow="ellipsis") for t in res]
+        if len(res) == 1:
+            return res[0]
+        return Group(*res)
 
 
 class ETBranchNode(ETNode):
@@ -33,7 +40,9 @@ class ETBranchNode(ETNode):
         if self.result[0].__class__.__name__ != "System":
             return ",  ".join(map(str, self.result))
         data = [str(i).split("\n") for i in self.result]
-        return "\n".join("    ".join(items) for items in zip(*data))
+        return "\n".join(
+            "    ".join(items) for items in zip_longest(*data, fillvalue="")
+        )
 
     def totex(self, align):
         return "&" * align + ",\\quad ".join(i.totex(0) for i in self.result)
@@ -48,7 +57,10 @@ class ETOperatorType(Enum):
     SQRT = 6
 
     def tostr(self, value):
-        value = str(value)
+        if value.__class__.__name__ == "Add":
+            value = str(value).join("()")
+        else:
+            value = str(value)
         color = None
         if self.name == "ADD":
             res = "+" + value
@@ -99,7 +111,7 @@ class ETOperatorNode(ETNode):
         self.padding = padding
 
     def __repr__(self):
-        return " " * self.padding + "⇓" + self.type.tostr(self.value)
+        return truncate(" " * self.padding) + "⇓" + self.type.tostr(self.value)
 
     def totex(self, align=True):
         return "&\\Downarrow".replace("&", "&" * align) + self.type.totex(self.value)
@@ -153,7 +165,7 @@ class ETVerifyNode(ETNode):
         self.state = state
 
     def __repr__(self):
-        return str(self.result) + "❌✅📉"[self.state]
+        return truncate(str(self.result), 78) + " " + "❌✅📉"[self.state]
 
     def totex(self, align):
         return "&" * align + self.result.totex(0) + "❌✅📉"[self.state]
@@ -228,6 +240,7 @@ class ETSteps:
     def end_branches(cls):
         cls.history.pop()
         cls.history.pop()
+        cls.idx.pop()
 
     class _BranchIterator:
         def __init__(self, num: int):
@@ -285,11 +298,7 @@ class ETSteps:
         def process(item):
             if isinstance(item, ETNode):
                 return str(item).split("\n")
-            nested_lines = []
-            for sub in item:
-                nested = process(sub)
-                nested_lines.extend(nested)
-            return box(nested_lines)
+            return box([j for i in item for j in process(i)])
 
         return "\n".join(process(cls.data))
 
@@ -298,15 +307,15 @@ class ETSteps:
         from rich.panel import Panel
         from rich.console import Group
 
-        def to_rich(item):
-            if not item:
-                return ""
+        def to_rich(item, depth):
             if isinstance(item, ETNode):
-                return item.torich()
-            items = Group(*(to_rich(i) for i in item[1:]))
-            return Panel(items, title=item[0].torich(), expand=False)
+                return item.torich(depth)
+            if len(item) < 2:
+                return ""
+            items = Group(*(j for i in item[1:] if (j := to_rich(i, depth + 1))))
+            return Panel(items, title=item[0].torich(max(0, depth)), expand=False)
 
-        return to_rich(cls.data)
+        return to_rich(cls.data, -1)
 
     def totex(cls) -> str:
         if not cls.data:

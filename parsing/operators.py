@@ -31,12 +31,10 @@ def ge(a: Node, b: Node) -> Comparison:
 
 def subs(a: Node | Comparison, mapping: dict[Var, Node]) -> Node | Comparison:
     """Substitute all occurances of `var` with the provided value"""
-    return a.ast_subs(mapping).expand()
+    return a.subs(mapping).expand()
 
 
 def approx(a: Any) -> Comparison | float | complex | Any:
-    if a.__class__ is Comparison:
-        return Comparison(a.left, approx(a.right), a.rel)
     if isinstance(a, tuple):
         return tuple(map(approx, a))
     return a.approx()

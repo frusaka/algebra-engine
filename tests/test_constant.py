@@ -1,6 +1,6 @@
 from datatypes.nodes import Const
 from utils import simplify_radical
-from processing import parser
+from parsing import parser
 
 
 def test_simplify_constants():

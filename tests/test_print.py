@@ -1,6 +1,6 @@
 import pytest
 from datatypes.nodes import Const, Const, Var
-from processing import parser
+from parsing import parser
 from utils import print_frac
 
 
@@ -59,10 +59,10 @@ def test_print_radical():
 
 
 def test_print_polynomial():
-    assert str(parser.eval("x+1")) == "(x + 1)"
-    assert str(parser.eval("47-600x")) == "(-600x + 47)"
-    assert str(parser.eval("1600+3x^3+y-12y^2")) == "(3x³ - 12y² + y + 1600)"
-    assert str(parser.eval("x^2+3x+1")) == "(x² + 3x + 1)"
+    assert str(parser.eval("x+1")) == "x + 1"
+    assert str(parser.eval("47-600x")) == "-600x + 47"
+    assert str(parser.eval("1600+3x^3+y-12y^2")) == "3x³ - 12y² + y + 1600"
+    assert str(parser.eval("x^2+3x+1")) == "x² + 3x + 1"
     # assert str(parser.eval("3x+(3/(c+b))-1")) == "(3x - 1 + 3/(c + b))"
 
 

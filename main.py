@@ -7,9 +7,11 @@ from pylatexenc.latexwalker import (
     LatexMacroNode,
 )
 
-from processing import Interpreter
+
+from parsing import parser
 from utils.constants import TEXTOKEN, SYMBOLS
-from datatypes.nodes import steps
+from solving.eval_trace import ETSteps
+
 
 
 @eel.expose
@@ -21,11 +23,11 @@ def evaluate(latex: str):
         .replace("\\placeholder{}", "")
     ).get_latex_nodes()
     try:
-        res = processor.eval("".join(map(stringify_node, nodes))).totex(0)
+        res = parser.eval("".join(map(stringify_node, nodes))).totex(0)
     except Exception as e:
         res = "\\textcolor{#d7170b}{\\text{$}}".replace("$", repr(e))
-    res = "\\\\".join((steps.totex(), res))
-    steps.clear()
+    res = "\\\\".join((ETSteps.totex(), res))
+    ETSteps.clear()
     return res
 
 
@@ -48,10 +50,7 @@ def stringify_node(node: LatexNode) -> str:
             .join(map(stringify_node, node.nodeargd.argnlist))
             .join("()")
         )
-    return ""
 
-
-processor = Interpreter(False)
 
 eel.init("web")
 eel.start("index.html")

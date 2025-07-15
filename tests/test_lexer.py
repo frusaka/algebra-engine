@@ -1,5 +1,5 @@
 import pytest
-from processing import Lexer, Token, TokenType
+from parsing import Lexer, Token, TokenType
 from datatypes.nodes import Const, Var
 
 

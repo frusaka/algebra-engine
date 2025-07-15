@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+import math
 from typing import TYPE_CHECKING, Generator
 
 from itertools import chain, product
@@ -29,8 +30,17 @@ if TYPE_CHECKING:
 def flatten_factors(expr: Node) -> tuple[tuple[Node]]:
     if expr.__class__ is nodes.Mul:
         return tuple(i for arg in expr for i in flatten_factors(arg))
-    if expr.__class__ is nodes.Const and not expr.numerator.imag:
-        return tuple(primes(expr).items())
+    if expr.__class__ is nodes.Const:
+        if not expr.numerator.imag:
+            return tuple(primes(expr).items())
+        if not expr.numerator.real:
+            res = {nodes.Const(1j): 1}
+            res.update(primes(nodes.Const(expr.numerator.imag, expr.denominator)))
+            return tuple(res.items())
+        if (g := math.gcd(int(expr.numerator.real), int(expr.numerator.imag))) > 1:
+            res = {nodes.Const(res.numerator / g): 1}
+            res.update(primes(nodes.Const(g, expr.denominator)))
+            return tuple(res.items())
     if expr.__class__ is nodes.Pow:
         return ((expr.base, expr.exp),)
     return ((expr, nodes.Const(1)),)
@@ -39,17 +49,31 @@ def flatten_factors(expr: Node) -> tuple[tuple[Node]]:
 def _divisors(node: Node) -> Generator[Node, None, None]:
     primes = list(flatten_factors(node))
     exponents = [range(e.numerator + 1) for _, e in primes]
-    for powers in product(*exponents):
-        factor = 1
-        for (base, _), power in zip(primes, powers):
-            factor *= base**power
-        yield factor
+    yield from (
+        reduce(
+            lambda acc, pair: acc * (pair[0] ** pair[1]),
+            zip((base for base, _ in primes), powers),
+            nodes.Const(1),
+        )
+        for powers in product(*exponents)
+    )
     yield nodes.Const(1)
 
 
 @lru_cache
 def divisors(node: Node) -> tuple[Node]:
-    return tuple(_divisors(node))
+    primes = list(flatten_factors(node))
+    exponents = [range(e.numerator + 1) for _, e in primes]
+    return tuple(
+        reduce(
+            lambda acc, pair: acc * (pair[0] ** pair[1]),
+            zip((base for base, _ in primes), powers),
+            nodes.Const(1),
+        )
+        for powers in product(*exponents)
+    )
+    # yield nodes.Const(1)
+    # return tuple(_divisors(node))
 
 
 def gcd(*args: Node, light=False) -> Node:
@@ -84,7 +108,11 @@ def lcm(a: Node, b: Node) -> Node:
     """Lowest Common Multiple of a & b"""
     if a == b:
         return a
-    if not (a.__class__ is b.__class__ is nodes.Add):
+    if not (
+        a.__class__ is b.__class__ is nodes.Add
+        and is_polynomial(a)
+        and is_polynomial(b)
+    ):
         return (a * b) / gcd(a, b)
     return cancel_factors(a.multiply(b), gcd(a, b))
 
@@ -97,10 +125,7 @@ def cancel_factors(a: Add, b: Node) -> Node:
     if fac == 1:
         return a * b**-1
 
-    return (
-        nodes.Add.from_terms(long_division(a, fac)[0])
-        * nodes.Add.from_terms(long_division(b, fac)[0]) ** -1
-    )
+    return long_division(a, fac)[0] * long_division(b, fac)[0] ** -1
 
 
 @lru_cache
@@ -122,15 +147,13 @@ def extract(poly: Add, var: Var) -> tuple[Node]:
     return tuple(coeffs.get(idx, nodes.Const(0)) for idx in range(amount, -1, -1))
 
 
-def rebuild(base: Var, coeffs: list[Node]) -> Add | Node:
-    return nodes.Add.from_terms(
-        c * base**n for n, c in zip(range(len(coeffs) - 1, -1, -1), coeffs)
-    )
+def rebuild(base: Var, coeffs: tuple[Node]) -> Add | Node:
+    return nodes.Add.from_terms(c * base**n for n, c in enumerate(reversed(coeffs)))
 
 
 @lru_cache
 def rational_roots(coeffs: tuple[Node]) -> tuple[tuple[Node]]:
-    if len(coeffs) == 1:
+    if len(coeffs) <= 2:
         return (coeffs,)
     q = next(i for i in reversed(coeffs) if i)
     p = coeffs[0]
@@ -149,7 +172,6 @@ def rational_roots(coeffs: tuple[Node]) -> tuple[tuple[Node]]:
             while True:
                 if len(coeffs) == 1:
                     break
-                # print(root, end="  ")
                 q, r = synthetic_divide(coeffs, root)
                 if r:
                     break
@@ -203,11 +225,12 @@ def factor(node: Node) -> Node:
         else:
             c = gcd(*(i for i in coeffs if i), light=True)
             res = list(rational_roots(tuple(i / c for i in coeffs)))
-            if len(res) > 1:
-                res[-1] = tuple(i * c for i in res[-1])
+            if len(res) > 1 or len(coeffs) <= 2:
+                if c != 1:
+                    res.append((c,))
             else:
                 res = (coeffs,)
-            seen[coeffs] = res
+            seen[coeffs] = tuple(res)
         return seen[coeffs]
 
     c, node = node.cancel_gcd()

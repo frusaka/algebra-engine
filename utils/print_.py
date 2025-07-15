@@ -49,3 +49,9 @@ def print_system(equations: list[str]):
     if len(equations) > 1:
         res.append("⎩ " + equations[-1])
     return " \n" + "\n".join(res)
+
+
+def truncate(text, max_length=80):
+    if len(text) <= max_length:
+        return text
+    return text[: max_length - 2] + "…"
