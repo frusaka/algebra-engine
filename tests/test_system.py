@@ -1,167 +1,183 @@
-from datatypes import *
+from datatypes.nodes import *
+from solving.comparison import Comparison, CompRel
+from solving.solutions import SolutionSet
+from parsing import parser
+from solving.utils import nth_roots
+
+v = Var("v")
+w = Var("w")
+x = Var("x")
+y = Var("y")
+z = Var("z")
 
 
-v = Variable("v")
-w = Variable("w")
-x = Variable("x")
-y = Variable("y")
-z = Variable("z")
-
-
-def test_solve_linear(processor):
+def test_solve_linear():
     # Basic system of two equations
-    assert processor.eval("(x, y) -> x + y = 5; 3x = 4y + 1") == Comparison(
-        (x, y), (Term(Number(3)), Term(Number(2)))
+    assert parser.eval("x + y = 5, 3x = 4y + 1") == Comparison((x, y), (3, 2))
+    assert parser.eval("2x + 3y = 7, x - y = 2") == Comparison(
+        (x, y), (Const(13, 5), Const(3, 5))
     )
-    processor.eval("(x, y) -> 2x + 3y = 7; x - y = 2") == Comparison(
-        (x, y), (Term(Number(13, 5)), Term(Number(3, 5)))
-    )
-    processor.eval("(x, y) -> 2x - 3 = 5y + 7; 2x + 2y = 14") == Comparison(
-        (x, y), (Term(Number(15, 4)), Term(Number(-1, 2)))
+    assert parser.eval("2x - 3 = 5y + 7, 2x + 2y = 14") == Comparison(
+        (x, y), (Const(45, 7), Const(4, 7))
     )
 
     # System of 3 equations
     assert (
-        processor.eval(
+        parser.eval(
             """
-            (x, y, z) ->
-            2x - y + 3z = 5;
-            x + 4y - 2z = 6;
+            2x - y + 3z = 5,
+            x + 4y - 2z = 6,
             3x + 2y + z = 8
             """
         )
-        == Comparison(
-            (x, y, z), (Term(Number(-2, 7)), Term(Number(3)), Term(Number(20, 7)))
-        )
+        == Comparison((x, y, z), (Const(-2, 7), 3, Const(20, 7)))
     )
     assert (
-        processor.eval(
+        parser.eval(
             """
-            (x, y, z) ->
-            x + 2y - z = 4;
-            3x - y + 4z = 10;
+            x + 2y - z = 4,
+            3x - y + 4z = 10,
             2x + 3y + z = 7
             """
         )
         == Comparison(
             (x, y, z),
-            (Term(Number(53, 14)), Term(Number(-1, 14)), Term(Number(-5, 14))),
+            (Const(53, 14), Const(-1, 14), Const(-5, 14)),
         )
     )
     # Advanced: System of 5 equations
     assert (
-        processor.eval(
+        parser.eval(
             """
-            (v, w, x, y, z) ->
-            x + 2y - z + w + 3v = 10;
-            2x - y + 3z - 2w + v = -5;
-            3x + 4y + 2z + w - v = 12;
-            x - 3y + 4z + 2w + 5v = 7;
+            x + 2y - z + w + 3v = 10,
+            2x - y + 3z - 2w + v = -5,
+            3x + 4y + 2z + w - v = 12,
+            x - 3y + 4z + 2w + 5v = 7,
             -2x + y - 3z + w + 4v = -8
             """
         )
         == Comparison(
             (v, w, x, y, z),
             (
-                Term(Number(-43, 32)),
-                Term(Number(201, 32)),
-                Term(Number(421, 40)),
-                Term(Number(-131, 32)),
-                Term(Number(-433, 80)),
+                Const(-43, 32),
+                Const(201, 32),
+                Const(421, 40),
+                Const(-131, 32),
+                Const(-433, 80),
             ),
         )
     )
 
 
-def test_solve_quadratic_linear(processor):
-    assert processor.eval("(v, w) -> v + w = 10; vw = 21") == Comparison(
-        (v, w),
-        Collection(
-            {
-                (Term(Number(3)), Term(Number(7))),
-                (Term(Number(7)), Term(Number(3))),
-            }
-        ),
+def test_solve_quadratic_linear():
+    assert parser.eval("v + w = 10, vw = 21") == Comparison(
+        (v, w), SolutionSet({(3, 7), (7, 3)}), CompRel.IN
     )
-    assert processor.eval("(x, y) -> y = x^2 - 3x - 46; y = -3x + 3") == Comparison(
+    assert parser.eval("y = x^2 - 3x - 46, y = -3x + 3") == Comparison(
+        (x, y), SolutionSet({(-7, 24), (7, -18)}), CompRel.IN
+    )
+    assert parser.eval("y = x^2 - 19x + 58, y = -3x - 5") == Comparison(
         (x, y),
-        Collection(
+        SolutionSet(
             {
-                (Term(Number(-7)), Term(Number(24))),
-                (Term(Number(7)), Term(Number(-18))),
+                (9, -32),
+                (7, -26),
             }
         ),
+        CompRel.IN,
     )
-    assert processor.eval("(x, y) -> y = x^2 - 19x + 58; y = -3x - 5") == Comparison(
+    assert parser.eval("(x - 2)^2 + y^2 = 58, x + y = -2") == Comparison(
+        (x, y), SolutionSet({(5, -7), (-5, 3)}), CompRel.IN
+    )
+    assert parser.eval("(x + 3)^2 + y^2 = 25, 2x + y = 4") == Comparison(
+        (x, y), SolutionSet({(2, 0), (0, 4)}), CompRel.IN
+    )
+    assert parser.eval("xy = z, x + y = -7, x + z = -3y - 1") == Comparison(
+        (x, y, z), SolutionSet({(-4, -3, 12), (-5, -2, 10)}), CompRel.IN
+    )
+
+
+def test_solve_2_quadratic():
+    assert parser.eval("x^2 + y^2 = 9, x^2 + 2y^2 = 9") == Comparison(
         (x, y),
-        Collection(
+        SolutionSet(
             {
-                (Term(Number(9)), Term(Number(-32))),
-                (Term(Number(7)), Term(Number(-26))),
+                (3, 0),
+                (-3, 0),
             }
         ),
+        CompRel.IN,
     )
-    assert processor.eval("(x, y) -> (x - 2)^2 + y^2 = 58; x + y = -2") == Comparison(
+    assert parser.eval("x^2 + y^2 = 25, x^2 - 9 = y^2 - 2") == Comparison(
+        (x, y), SolutionSet({(-4, -3), (-4, 3), (4, -3), (4, 3)}), CompRel.IN
+    )
+
+    assert parser.eval("x^2 + 11 = 4y^2, (x^2 + y) = 28") == Comparison(
         (x, y),
-        Collection(
+        SolutionSet(
             {
-                (Term(Number(5)), Term(Number(-7))),
-                (Term(Number(-5)), Term(Number(3))),
+                (5, 3),
+                (-5, 3),
+                (Const(5, 2) * 5 ** Const(1, 2), Const(-13, 4)),
+                (Const(-5, 2) * 5 ** Const(1, 2), Const(-13, 4)),
             }
         ),
+        CompRel.IN,
     )
-    assert processor.eval("(x, y) -> (x + 3)^2 + y^2 = 25; 2x + y = 4") == Comparison(
-        (x, y),
-        Collection(
-            {
-                (Term(Number(2)), Term(Number(0))),
-                (Term(Number(0)), Term(Number(4))),
-            }
-        ),
-    )
-    assert processor.eval(
-        "(x, y, z) -> xy = z; x + y = -7; x + z = -3y - 1"
+
+
+def test_solve_high_degree():
+    assert parser.eval(
+        "x + y + z = 1, x^2 + y^2 + z^2 = 1, x^3 + y^3 + z^3 = 1"
     ) == Comparison(
         (x, y, z),
-        Collection(
+        SolutionSet(
             {
-                (Term(Number(-4)), Term(Number(-3)), Term(Number(12))),
-                (Term(Number(-5)), Term(Number(-2)), Term(Number(10))),
+                (1, 0, 0),
+                (0, 1, 0),
+                (0, 0, 1),
             }
         ),
+        CompRel.IN,
     )
 
+    # The solutions are irational, just check that it finds something
 
-def test_solve_2_quadratic(processor):
-    assert processor.eval("(x, y) -> x^2 + y^2 = 9; x^2 + 2y^2 = 9") == Comparison(
-        (x, y),
-        Collection(
-            {
-                (Term(Number(3)), Term(Number(0))),
-                (Term(Number(-3)), Term(Number(0))),
-            }
-        ),
-    )
-    assert processor.eval("(x, y) -> x^2 + y^2 = 25; x^2 - 9 = y^2 - 2") == Comparison(
-        (x, y),
-        Collection(
-            {
-                (Term(Number(-4)), Term(Number(-3))),
-                (Term(Number(-4)), Term(Number(3))),
-                (Term(Number(4)), Term(Number(-3))),
-                (Term(Number(4)), Term(Number(3))),
-            }
-        ),
-    )
+    # Base: x = -1, x = (1 ± √5)/2
+    assert getvar(parser.eval("x^2 + y^2 + z^2 = 4, xyz = 1, x + y + z = 0"), x) == {
+        -1,
+        (1 + Const(5) ** 0.5) / 2,
+        (1 - Const(5) ** 0.5) / 2,
+    }
+    # Base: c = unity cuberoots of 3, etc
+    assert getvar(
+        parser.eval("abc = 6, a^2 + b^2 = 6, a^2 + b^2 + c^3 = 9"), "c"
+    ) == nth_roots({Const(3)}, 3)
 
-    assert processor.eval("(x, y) -> x^2 + 11 = 4y^2; (x^2 + y) = 28") == Comparison(
-        (x, y),
-        Collection(
-            {
-                (Term(Number(5)), Term(Number(3))),
-                (Term(Number(-5)), Term(Number(3))),
-                (Term(Number(5, 2), Number(5), Number(1, 2)), Term(Number(-13, 4))),
-                (Term(Number(-5, 2), Number(5), Number(1, 2)), Term(Number(-13, 4))),
-            }
-        ),
-    )
+    # exact values and approximate values
+    assert getvar(parser.eval("x^4 + y^2 = 5, yx^3 = 2"), y, 4) == {
+        2,
+        -2,
+        -0.6374,
+        0.6374,
+        0.5705j,
+        -0.5705j,
+        2.3409 + 0.1421j,
+        2.3409 - 0.1421j,
+        -2.3409 + 0.1421j,
+        -2.3409 - 0.1421j,
+    }
+
+
+def round_(n, ndigits):
+    if n.imag:
+        return complex(round(n.real, ndigits), round(n.imag, ndigits))
+    return round(n, ndigits)
+
+
+def getvar(s, v, ndigits=None):
+    res = {i[idx] for i in s.right for idx in range(len(s.left)) if s.left[idx] == v}
+    print(res)
+    if ndigits is not None:
+        return {round_(i.approx(), ndigits) for i in res}
+    return res

@@ -1,9 +1,7 @@
 SYMBOLS = {
-    "SOLVE": "→",
+    "SOLVE": "⟹",
     "COMMA": ",",
     "SEMI_COLON": ";",
-    "RATIO": ":",
-    "BOOL": "?",
     "EQ": "=",
     "NE": "≠",
     "GT": ">",
@@ -13,11 +11,23 @@ SYMBOLS = {
     "ADD": "+",
     "SUB": "-",
     "MUL": "*",
-    "TRUEDIV": "÷",
+    "TRUEDIV": "/",
     "POW": "^",
-    "ROOT": "√",
+    "SQRT": "√",
+    "APPROX": "~",
     "NEG": "-",
     "POS": "+",
+    "IN": "∈",
 }
 
-
+TEXTOKEN = {
+    "Rightarrow": "SOLVE",
+    "le": "LE",
+    "ge": "GE",
+    "frac": "TRUEDIV",
+    "div": "TRUEDIV",
+    "cdot": "MUL",
+    "times": "MUL",
+    "sqrt": "SQRT",
+    "approx": "APPROX",
+}
