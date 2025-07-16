@@ -1,4 +1,4 @@
-import eel
+import webview
 from pylatexenc.latexwalker import (
     LatexWalker,
     LatexCharsNode,
@@ -11,24 +11,6 @@ from pylatexenc.latexwalker import (
 from parsing import parser
 from utils.constants import TEXTOKEN, SYMBOLS
 from solving.eval_trace import ETSteps
-
-
-
-@eel.expose
-def evaluate(latex: str):
-    print(latex)
-    nodes, _, _ = LatexWalker(
-        latex.replace("\\left(", "(")
-        .replace("\\right)", ")")
-        .replace("\\placeholder{}", "")
-    ).get_latex_nodes()
-    try:
-        res = parser.eval("".join(map(stringify_node, nodes))).totex(0)
-    except Exception as e:
-        res = "\\textcolor{#d7170b}{\\text{$}}".replace("$", repr(e))
-    res = "\\\\".join((ETSteps.totex(), res))
-    ETSteps.clear()
-    return res
 
 
 def stringify_node(node: LatexNode) -> str:
@@ -52,5 +34,25 @@ def stringify_node(node: LatexNode) -> str:
         )
 
 
-eel.init("web")
-eel.start("index.html")
+class API:
+    def evaluate(self, latex: str, mode="solve"):
+        nodes, _, _ = LatexWalker(
+            latex.replace("\\left(", "(")
+            .replace("\\right)", ")")
+            .replace("\\placeholder{}", "")
+        ).get_latex_nodes()
+        try:
+            res = parser.eval("".join(map(stringify_node, nodes)), mode == "solve")
+            if mode != "solve":
+                res = getattr(res, mode)()
+            res = res.totex() if hasattr(res, "totex") else str(res)
+        except Exception as e:
+            res = "\\textcolor{#d7170b}{\\text{$}}".replace("$", repr(e))
+        steps = ETSteps.toHTML()
+        ETSteps.clear()
+        return [steps, res.join(("$$", "$$"))]
+
+
+if __name__ == "__main__":
+    webview.create_window("Algebra Engine", "web/index.html", js_api=API())
+    webview.start()

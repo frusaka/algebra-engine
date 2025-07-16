@@ -1,33 +1,51 @@
 from __future__ import annotations
 import math
-from typing import Sequence, TYPE_CHECKING
-from functools import cache, lru_cache
+from typing import Iterable, Sequence, TYPE_CHECKING
+from functools import lru_cache
 
-import numpy as np
+from numpy import roots as np_roots
 
-from datatypes import nodes
-from solving.eval_trace import ETSteps
-import utils
-from .solutions import SolutionSet
+from .groebner import buchberger
 
+
+from datatypes.base import Node
+from datatypes.nodes import *
 
 if TYPE_CHECKING:
-    from datatypes.base import Node
-    from datatypes.nodes import *
     from solving.comparison import Comparison
 
-from collections import defaultdict
+
+def simplify_complex(n: complex) -> Float:
+    if abs(n.imag) <= 1e-12:
+        return Float(float(n.real))
+    return Float(complex(n))
 
 
-def groupby(iterable: Sequence[Node], var: Var) -> tuple[Const, Node]:
-    groups = defaultdict(list)
-    for item in iterable:
-        exp = dict(utils.mult_key(t, 1) for t in nodes.Mul.flatten(item, 0)).get(var, 0)
-        groups[exp].append(item / var**exp)
-    return ((k, nodes.Add.from_terms(v)) for k, v in groups.items())
+def nth_roots(vals, n):
+    vals = {v ** Const(1, n) for v in vals}
+    if not n % 2:
+        vals.update(-v for v in tuple(vals))
+    elif n == 3:
+        w = (-1 + Const(3) ** 0.5 * 1j) / 2
+        w2 = (-1 - Const(3) ** 0.5 * 1j) / 2
+        vals.update(i for v in tuple(vals) for i in (v * w, v * w2))
+    return vals
 
 
-def quadratic(f: tuple[Node]) -> tuple[Node] | None:
+def compute_grobner(
+    eqns: Iterable[Comparison], vars: list[Var], sort_vars=True
+) -> set[Comparison]:
+    from .comparison import Comparison
+
+    if sort_vars:
+        eqns = arrange_eqns(eqns, vars)
+        eqns = sorted(eqns, key=eqns.get)
+        vars.reverse()
+    G = buchberger([eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns], vars)
+    return set(Comparison(t, Const(0)) for t in G)
+
+
+def quadratic_roots(f: tuple[Node]) -> tuple[Node] | None:
     """
     Find the roots of `val` given that it is a quadratic Polynomial,
     return its roots
@@ -35,7 +53,7 @@ def quadratic(f: tuple[Node]) -> tuple[Node] | None:
 
     a, b, c = f
 
-    discr = ((b**2) - 4 * a * c) ** nodes.Const(1, 2)
+    discr = ((b**2) - 4 * a * c) ** Const(1, 2)
     den = 2 * a
     return {(-b + discr) / den, (-b - discr) / den}
 
@@ -49,22 +67,11 @@ def roots_cubic(f):
     p = b - a**2 / 3
     q = 2 * a**3 / 27 - a * b / 3 + c
     Δ = (q / 2) ** 2 + (p / 3) ** 3
-    w = (-1 + nodes.Const(3) ** 0.5 * 1j) / 2
-    w2 = (-1 - nodes.Const(3) ** 0.5 * 1j) / 2
-    s = [(-q / 2 + Δ**0.5) ** nodes.Const(1, 3)]
+    w = (-1 + Const(3) ** 0.5 * 1j) / 2
+    w2 = (-1 - Const(3) ** 0.5 * 1j) / 2
+    s = [(-q / 2 + Δ**0.5) ** Const(1, 3)]
     s.extend(s[0] * i for i in (w, w2))
     return {(s - p / (3 * s) - a / 3).simplify() for s in s}
-
-
-def nth_roots(vals, n):
-    vals = {v ** nodes.Const(1, n) for v in vals}
-    if not n % 2:
-        vals.update(-v for v in tuple(vals))
-    elif n == 3:
-        w = (-1 + nodes.Const(3) ** 0.5 * 1j) / 2
-        w2 = (-1 - nodes.Const(3) ** 0.5 * 1j) / 2
-        vals.update(i for v in tuple(vals) for i in (v * w, v * w2))
-    return vals
 
 
 def roots(f: list[Node]):
@@ -77,35 +84,25 @@ def roots(f: list[Node]):
     else:
         u = 1
     if d == 2:
-        return nth_roots(quadratic(f), u)
+        return nth_roots(quadratic_roots(f), u)
     if d == 3:
         return nth_roots(roots_cubic(f), u)
     try:
-        return nth_roots(map(simplify_complex, np.roots([i.approx() for i in f])), u)
+        return nth_roots(map(simplify_complex, np_roots([i.approx() for i in f])), u)
     except:
-        raise ValueError("Multivariate high degree polynomial")
-
-
-def simplify_complex(n: complex) -> Float:
-    if abs(n.imag) <= 1e-12:
-        return nodes.Float(float(n.real))
-    return nodes.Float(complex(n))
-
-
-def _sum(vals):
-    return map(sum(zip(*vals)))
+        raise ValueError("High degree Multivariate polynomial")
 
 
 @lru_cache
 def difficulty_weight(term: Node, var: Var) -> float:
-    if isinstance(term, nodes.Number):
+    if isinstance(term, Number):
         return (0, 0, 0.01 + term.is_neg() * 0.01)
 
-    if term.__class__ is nodes.Var:
+    if term.__class__ is Var:
         if term != var:
             return (0.1, 1, 0.2)
         return (1, 0, 0.05)
-    if term.__class__ is nodes.Pow:
+    if term.__class__ is Pow:
         if term.exp.denominator != 1:
             res = term.exp.denominator * term.exp.numerator * 1.3
         else:
@@ -114,16 +111,15 @@ def difficulty_weight(term: Node, var: Var) -> float:
             res *= -1.2
         return tuple(res * i for i in difficulty_weight(term.base, var))
     res = list(zip(*(difficulty_weight(term, var) for term in term)))
-    if term.__class__ is nodes.Mul:
+    if term.__class__ is Mul:
         return tuple(map(sum, res))
-    return max(res[0]), sum(res[1]), sum(res[2]) / len(res)
-
-
-def _sum(vals):
-    return tuple(map(sum, zip(*vals)))
+    return max(res[0]), sum(res[1]), sum(res[2]) / 2
 
 
 def arrange_eqns(eqns, vars):
+    def _sum(vals):
+        return tuple(map(sum, zip(*vals)))
+
     vars.sort(
         key=lambda v: _sum(difficulty_weight(eqn.left - eqn.right, v) for eqn in eqns),
     )
@@ -161,7 +157,6 @@ def next_eqn(
 
 def domain_restriction(node, var: Var) -> tuple[Comparison]:
     from .comparison import Comparison, CompRel
-    from .system import System
 
     system = []
     seen = {}
@@ -172,13 +167,13 @@ def domain_restriction(node, var: Var) -> tuple[Comparison]:
         start_index = alphabet.index(var.lower())
         i = 0
         while True:
-            yield nodes.Var(alphabet[(start_index + i + 1) % 26])
+            yield Var(alphabet[(start_index + i + 1) % 26])
             i += 1
 
     def visit(node, register):
         if node in seen:
             return seen[node]
-        if node.__class__ is nodes.Pow and var in node:
+        if node.__class__ is Pow and var in node:
             sub = visit(node.base, 0)
 
             r = not node.exp.denominator % 2
@@ -187,23 +182,20 @@ def domain_restriction(node, var: Var) -> tuple[Comparison]:
             if f or r:
                 if register:
                     rel = ("GE", "GT")[f] if r else "NE"
-                    system.append(
-                        Comparison(sub, nodes.Const(0), getattr(CompRel, rel))
-                    )
+                    system.append(Comparison(sub, Const(0), getattr(CompRel, rel)))
                 v = next(letters)
                 tmp[v] = sub**node.exp
                 seen[node] = v
             else:
                 seen[node] = sub**node.exp
             return seen[node]
-        elif isinstance(node, (nodes.Add, nodes.Mul)):
+        elif isinstance(node, (Add, Mul)):
             return node.from_terms(visit(t, register) for t in node.args)
         seen[node] = node
         return node
 
     letters = vars()
     visit(node, 1)
-    print(tmp, system)
     return tuple(system)
 
 
@@ -212,6 +204,5 @@ __all__ = [
     "arrange_eqn",
     "domain_restriction",
     "difficulty_weight",
-    "quadratic",
     "roots",
 ]

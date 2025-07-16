@@ -78,14 +78,13 @@ def ordered_terms(args: Iterable[Node], reverse=False) -> list[Node]:
     return args
 
 
-@lru_cache
-def get_vars(node: Node) -> frozenset[Var]:
+def get_vars(node: Node) -> set[Var]:
     """
     Get the immedieate variables from an expression.
     Only goes up to depth 1:
         meaning if some variables are deeply nested, they are skipped
     """
-    return frozenset(
+    return set(
         mult_key(v)
         for i in nodes.Add.flatten(node)
         for v in nodes.Mul.flatten(i)

@@ -62,6 +62,13 @@ def _str(n: Node):
     return res
 
 
+def _tex(n: Node):
+    res = n.totex()
+    if isinstance(n, Collection):
+        return res.join("()")
+    return res
+
+
 class Mul(Collection):
     @lru_cache
     def __repr__(self) -> str:
@@ -133,6 +140,30 @@ class Mul(Collection):
                 return c, args[0]
             return c, Mul.from_terms(args, 0)
         return nodes.Const(1), self
+
+    def totex(self) -> str:
+        num, den = self.as_ratio()
+        if num.__class__ is Mul:
+            c, num = num.canonical()
+            num = utils.print_coef(c).replace("i", "\\mathrm{i}") + "".join(
+                map(_tex, (utils.ordered_terms(Mul.flatten(num, 0), True)))
+            )
+
+        else:
+            num = _tex(num)
+        if den.__class__ is Mul:
+            c, den = den.canonical()
+            den = utils.print_coef(c).replace("i", "\\mathrm{i}") + "".join(
+                map(_tex, (utils.ordered_terms(Mul.flatten(den, 0), True)))
+            )
+        else:
+            den = _tex(den)
+            if den == "1":
+                den = ""
+        if not den:
+            return num
+
+        return f"\\frac{num.join("{}")}{den.join("{}")}"
 
 
 __all__ = ["Mul"]

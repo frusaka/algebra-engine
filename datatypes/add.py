@@ -111,5 +111,18 @@ class Add(Collection):
     def canonical(self) -> tuple[Node, Add]:
         return nodes.Const(1), self
 
+    def totex(self):
+        res = ""
+        for term in utils.ordered_terms(self):
+            rep = term.totex()
+            if res:
+                if str(term.canonical()[0]).startswith("-"):
+                    res += "-"
+                    rep = (-term).totex()
+                else:
+                    res += "+"
+            res += rep
+        return res
+
 
 __all__ = ["Add"]

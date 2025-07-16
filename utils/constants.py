@@ -1,5 +1,5 @@
 SYMBOLS = {
-    "SOLVE": "→",
+    "SOLVE": "⟹",
     "COMMA": ",",
     "SEMI_COLON": ";",
     "EQ": "=",
@@ -13,7 +13,8 @@ SYMBOLS = {
     "MUL": "*",
     "TRUEDIV": "/",
     "POW": "^",
-    "ROOT": "√",
+    "SQRT": "√",
+    "APPROX": "~",
     "NEG": "-",
     "POS": "+",
     "IN": "∈",
@@ -27,5 +28,6 @@ TEXTOKEN = {
     "div": "TRUEDIV",
     "cdot": "MUL",
     "times": "MUL",
-    "sqrt": "ROOT",
+    "sqrt": "SQRT",
+    "approx": "APPROX",
 }

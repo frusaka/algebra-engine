@@ -91,7 +91,6 @@ class Node:
     def totex(self) -> str:
         return str(self)
 
-
 @dataclass(frozen=True, init=False, slots=True)
 class Collection(ABC, Node):
     args: frozenset[Node]

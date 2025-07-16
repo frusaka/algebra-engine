@@ -10,102 +10,9 @@ from datatypes.base import Node
 from .eval_trace import *
 
 from datatypes import *
-from .utils import arrange_eqns, next_eqn
+from .utils import arrange_eqns, compute_grobner, next_eqn
 from utils.print_ import print_system
 import utils
-
-if TYPE_CHECKING:
-    from .comparison import Comparison
-
-
-def leading(f: Add, vars):
-    # leading term using lex order
-    res = {}
-    for i in Add.flatten(f):
-        v = i.canonical()[1]
-        if v is None:
-            res[i] = (0,)
-            continue
-        k = dict(utils.mult_key(i, 1) for i in Mul.flatten(v, 0))
-        res[i] = tuple(k.get(vars[i], 0) for i in range(len(vars)))
-    return max(res, key=res.get)
-
-
-def spolynomial(f: Add, g: Add, vars):
-    lt_f = leading(f, vars)
-    lt_g = leading(g, vars)
-    lcm = utils.lcm(lt_f.canonical()[1] or 1, lt_g.canonical()[1] or 1)
-    return g.multiply(lcm / lt_g) - f.multiply(lcm / lt_f)
-
-
-def reduce(f, G, vars):
-    def divide(a, b, vars):
-        q = []
-        leading_b = leading(b, vars)
-        while a:
-            if utils.hasremainder(fac := (leading(a, vars) / leading_b)):
-                break
-            a += b.multiply(-fac)
-            q.append(fac)
-        return nodes.Add(*q), a
-
-    r = f
-    while r:
-        divided = False
-        for g in G:
-            # Try single division step
-            q, rem = divide(r, g, vars)
-            if q:
-                r = rem
-                divided = True
-                break  # Restart with updated r
-        if not divided:
-            break
-    return r
-
-
-def buchberger(G: list[Add], vars: list[Var]) -> list[Add | Node]:
-    G = G.copy()
-    pairs = list(itertools.combinations(range(len(G)), 2))
-
-    while pairs:
-        i, j = pairs.pop(0)
-        S = spolynomial(G[i], G[j], vars)
-        R = reduce(S, G, vars)
-        if R:
-            # Inconsistent?
-            if R.__class__ is Const:
-                return []
-            G.append(R)
-            new_idx = len(G) - 1
-            for k in range(new_idx):
-                pairs.append((k, new_idx))
-
-    reduced = []
-    for i, f in enumerate(G):
-        r = reduce(f, reduced, vars)
-        if not r:
-            continue
-        if r.__class__ is Add:
-            if (d := math.lcm(*(i.canonical()[0].denominator for i in r))) > 1:
-                r = r.multiply(d)
-            if (g := math.gcd(*(i.canonical()[0].numerator for i in r))) > 1:
-                r = r.multiply(Const(1, g))
-            reduced.append(r)
-        else:
-            reduced.append(r.as_ratio()[0])
-    return reduced
-
-
-def compute_grobner(eqns: Iterable[Comparison], vars: list[Var], sort_vars=True):
-    from .comparison import Comparison
-
-    if sort_vars:
-        eqns = arrange_eqns(eqns, vars)
-        eqns = sorted(eqns, key=eqns.get)
-        vars.reverse()
-    G = buchberger([eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns], vars)
-    return set(Comparison(t, Const(0)) for t in G)
 
 
 def _solve(eqns: set, org, v, sols):
@@ -202,19 +109,20 @@ def _foreach_solve(eqns, value):
 class System(frozenset):
     """A system of equations"""
 
-    def solve_for(self, vals: Sequence[Var]) -> System:
+    def solve_for(self, vals: Sequence[Var], groebner=True) -> System:
         if vals.__class__ is Var:
             return System(_foreach_solve(self, vals))
 
         ETSteps.register(ETTextNode("Solving for " + str(vals)[1:-1]))
         ETSteps.register(ETNode(self))
-        # eqns = set(self)
-        eqns = compute_grobner(self, list(vals))
-        if not eqns:
-            return System(eqns)
-        if eqns != self:
-            ETSteps.register(ETNode(System(eqns)))
-
+        if groebner:
+            eqns = compute_grobner(self, list(vals))
+            if not eqns:
+                return System(eqns)
+            if eqns != self:
+                ETSteps.register(ETNode(System(eqns)))
+        else:
+            eqns = set(self)
         vals = set(vals)
         sols = []
         # Solve for each variable separately
@@ -266,8 +174,8 @@ class System(frozenset):
     def subs(self, mapping: dict[Var, Node]) -> System:
         return System(i.subs(mapping) for i in self)
 
-    def totex(self, align: bool = True) -> str:
-        return "&" * align + "\\\\".join(map(lambda x: x.totex(align), self)).join(
+    def totex(self) -> str:
+        return "\\\\".join(map(lambda x: x.totex(1), self)).join(
             ("\\begin{cases}", "\\end{cases}")
         )
 

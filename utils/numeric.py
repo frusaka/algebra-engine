@@ -5,9 +5,6 @@ from typing import TYPE_CHECKING
 import math
 from collections import defaultdict
 
-import primefac
-from sympy import factorint
-
 import datatypes.nodes as nodes
 
 
@@ -24,11 +21,11 @@ def primes(n: Const) -> dict[Const, int]:
         for p, exp in den.items():
             res[p] = -exp
         return res
+    if abs(n) > 1 << 40:
+        return {n: 1}
     i = 2
     was_neg = False
     n = n.numerator
-    if abs(n) > 1 << 40:
-        return {n: 1}
     if n < 0:
         n = -n
         was_neg = True

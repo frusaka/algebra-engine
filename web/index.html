@@ -3,21 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <title>Algebra Engine</title>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css"
-    />
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="stylesheet" href="libs/katex/katex.min.css" />
 
-    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
-    <script type="text/javascript" src="/eel.js"></script>
+    <script type="module" src="libs/katex/katex.min.js"></script>
+    <script type="module" src="libs/katex/contrib/auto-render.min.js"></script>
+    <script type="module" src="libs/mathlive/mathlive.min.mjs"></script>
+
+    <link rel="stylesheet" href="style.css" />
     <script type="module" src="index.js"></script>
   </head>
   <body>
-    <math-field>x^2+11=4y^2,x^2+y=28</math-field>
+    <div class="toolbar">
+      <math-field id="math-input">x^2+11=4y^2,x^2+y=28</math-field>
+      <select name="Mode" id="mode">
+        <option id="simplify">Simplify</option>
+        <option id="expand">Expand</option>
+        <option id="solve" selected>Solve</option>
+        <option id="approx">Approximate</option>
+      </select>
+      <button id="evaluate">GO</button>
+    </div>
 
-    <p><strong>Output:</strong></p>
-    <pre id="latex-output"></pre>
+    <div id="math-steps"></div>
+    <div id="math-final"></div>
   </body>
 </html>

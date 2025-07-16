@@ -128,5 +128,21 @@ class Pow(Node):
             return -abs(v) ** e
         return v**e
 
+    def totex(self):
+        from .mul import _tex
+
+        if not isinstance(self.exp, nodes.Const) or self.exp.denominator == 1:
+            base = _tex(self.base).join("{}")
+            exp = self.exp.totex().join("{}")
+            return f"{base}^{exp}"
+        base = self.base.totex()
+        if self.exp.numerator != 1:
+            base = _tex(self.base) + "^" + str(self.exp.numerator).join("{}")
+        base = base.join("{}")
+        r = self.exp.denominator
+        if r == 2:
+            return f"\\sqrt{base}"
+        return f"\\sqrt[{r}]{base}"
+
 
 __all__ = ["Pow"]

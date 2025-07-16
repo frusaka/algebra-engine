@@ -204,6 +204,14 @@ class Const(Number):
     def __le__(a, b: Const) -> bool:
         return a.numerator * b.denominator <= a.denominator * b.numerator
 
+    def totex(self):
+        n = str(self.numerator).replace("i", "\\mathrm{i}")
+        if self.denominator == 1:
+            return n
+        n = n.join("{}")
+        d = str(self.denominator).join("{}")
+        return f"\\dfrac{n}{d}"
+
 
 class Float(Number):
     __slots__ = ("_val",)

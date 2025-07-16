@@ -1,7 +1,4 @@
-1. Improve multiplication of Polynomial Rationals
-2. Add simplification for cases such as:
+1. Add simplification for cases such as:
     2/(x^2-4)^0.5 + f/(x+2)^0.5
-3. Make solver iterative
-4. Add saftey checks when solving for nested radicals or complex equations
-5. enhance equation difficulty weighing
-6. Bring back dem mixed fractions
+2. Add saftey checks when solving for nested radicals or complex equations
+3. Bring back dem mixed fractions

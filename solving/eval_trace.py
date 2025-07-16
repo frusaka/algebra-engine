@@ -10,14 +10,18 @@ from utils.print_ import truncate
 
 
 class ETNode:
+    is_align = False
+
     def __init__(self, result):
         self.result = result
+        self.is_align = self.result.__class__.__name__ == "Comparison"
+        # self.is_align=True
 
     def __repr__(self):
         return str(self.result)
 
-    def totex(self, align=True):
-        return self.result.totex(align)
+    def totex(self):
+        return self.result.totex()
 
     def torich(self, depth):
         from rich.text import Text
@@ -44,8 +48,8 @@ class ETBranchNode(ETNode):
             "    ".join(items) for items in zip_longest(*data, fillvalue="")
         )
 
-    def totex(self, align):
-        return "&" * align + ",\\quad ".join(i.totex(0) for i in self.result)
+    def totex(self):
+        return ",\\quad ".join(i.totex() for i in self.result)
 
 
 class ETOperatorType(Enum):
@@ -93,9 +97,7 @@ class ETOperatorType(Enum):
                 "{}"
             )
         if self.name == "POW":
-            return "\\textcolor{#a219e6}" + (
-                "(\\phantom{a})^" + value.totex().join("{}")
-            ).join("{}")
+            return "\\textcolor{#a219e6}" + ("(\\phantom{a})^" + str(value)).join("{}")
         if self.name == "SQRT":
             if value == 2:
                 return "\\textcolor{#a219e6}" + "{\\sqrt{\\phantom{a}}}"
@@ -109,12 +111,13 @@ class ETOperatorNode(ETNode):
         self.type = type
         self.value = value
         self.padding = padding
+        self.is_align = True
 
     def __repr__(self):
         return truncate(" " * self.padding) + "⇓" + self.type.tostr(self.value)
 
-    def totex(self, align=True):
-        return "&\\Downarrow".replace("&", "&" * align) + self.type.totex(self.value)
+    def totex(self):
+        return "\\Downarrow" + self.type.totex(self.value)
 
 
 class ETTextNode(ETNode):
@@ -127,20 +130,18 @@ class ETTextNode(ETNode):
             return colorize_ansi(self.result, self.color)
         return self.result
 
-    def totex(self, align=True) -> str:
-        align = "&" * align
+    def totex(self) -> str:
         res = "\\text{$}".replace("$", self.result)
         if self.color:
-            return "&\\textcolor{$}".replace("$", self.color).replace(
-                "&", align
-            ) + res.join("{}")
-        return align + res
+            return "\\textcolor{$}".replace("$", self.color) + res.join("{}")
+        return res
 
 
 class ETSubNode(ETNode):
     def __init__(self, old: str, new: Any):
         self.old = old
         self.new = new
+        self.is_align = False
 
     def __repr__(self):
         return "Substitute {0} with {1}".format(
@@ -148,15 +149,10 @@ class ETSubNode(ETNode):
             colorize_ansi(str(self.new), "#21ba3a"),
         )
 
-    def totex(self, align=True):
+    def totex(self):
         old = "\\textcolor{#d7170b}" + self.old.join("{}")
-        new = "\\textcolor{#21ba3a}" + self.new.totex(0).join("{}")
-        return (
-            "&\\text{Substitute }".replace("&", "&" * align)
-            + old
-            + "\\text{ with }"
-            + new
-        )
+        new = "\\textcolor{#21ba3a}" + self.new.totex().join("{}")
+        return "\\text{Substitute }" + old + "\\text{ with }" + new
 
 
 class ETVerifyNode(ETNode):
@@ -167,8 +163,8 @@ class ETVerifyNode(ETNode):
     def __repr__(self):
         return truncate(str(self.result), 78) + " " + "❌✅📉"[self.state]
 
-    def totex(self, align):
-        return "&" * align + self.result.totex(0) + "❌✅📉"[self.state]
+    def totex(self):
+        return self.result.totex() + "❌✅📉"[self.state]
 
 
 class ETQuadraticNode(ETNode):
@@ -177,6 +173,7 @@ class ETQuadraticNode(ETNode):
         self.a = a
         self.b = b
         self.c = c
+        self.is_align = True
 
     def __repr__(self):
         a = colorize_ansi(self.a, "#3f51b5")
@@ -185,14 +182,14 @@ class ETQuadraticNode(ETNode):
 
         return f"{self.var} = (-{b} ± √({b}²-4·{a}·{c}))/2·{a}"
 
-    def totex(self, align=True):
+    def totex(self):
         a, b, c = self.a, self.b, self.c
         a = "\\textcolor{#3f51b5}" + self.a.totex().join("{}")
         b = "\\textcolor{#e91e63}" + self.b.totex().join("{}")
         c = "\\textcolor{#4caf50}" + self.c.totex().join("{}")
 
         return (
-            f"{self.var}&="
+            f"{self.var}="
             + "\\frac"
             + ("-{b} \\pm" + "\\sqrt" + f"{b}^2-4\\cdot{a}\\cdot{c}".join("{}")).join(
                 "{}"
@@ -317,19 +314,19 @@ class ETSteps:
 
         return to_rich(cls.data, -1)
 
-    def totex(cls) -> str:
-        if not cls.data:
-            return ""
+    @classmethod
+    def toHTML(cls) -> str:
+        def tex(data):
+            if not data:
+                return ""
+            if isinstance(data, ETNode):
+                return data.totex().join(("$$", "$$"))
+            tittle = f'<div class="panel-title">{data[0]}</div>'
+            content = "".join(map(tex, data[1:]))
+            content = f'<div class="panel-content">{content}</div>'
+            return f'<div class="panel">{tittle}{content}</div>'
 
-        def tex(data, depth):
-            res = "\\\\".join(
-                (step.totex(1) if isinstance(step, ETNode) else tex(step, 1))
-                for step in data
-            )
-            res = res.join(("\\begin{aligned}", "\\end{aligned}"))
-            return res.join(("&\\boxed{".replace("&", "&" * depth), "}"))
-
-        return tex(cls.data, 0)
+        return tex(cls.data)
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")

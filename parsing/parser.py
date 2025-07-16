@@ -104,15 +104,17 @@ class Parser:
             self.operand_error(oper)
         return getattr(operators, oper.name.lower())(left, right)
 
-    def parse(self) -> Node | Comparison | System | None:
+    def parse(self, autosolve: bool = True) -> Node | Comparison | System | None:
         res = self._parse()
         self.advance()
         if self.curr:
             raise SyntaxError("Malformed expression")
         # From solving
         if type(res) is tuple:
+            if not autosolve:
+                return res[1]
             return operators.solve(*res)
-        if not isinstance(res, (System, Comparison)):
+        if not autosolve or not isinstance(res, (System, Comparison)):
             return res
         # Automatically solve systems of equations or single-variable Comparisons
         vars = set(filter(str.isalpha, str(res))) - {"i"}
@@ -181,8 +183,8 @@ class Parser:
         return reversed(list(cls.postfix(tokens)))
 
 
-def eval(expr: str) -> Node:
-    return Parser(Lexer(expr).generate_tokens()).parse()
+def eval(expr: str, autosolve: bool = True) -> Node:
+    return Parser(Lexer(expr).generate_tokens()).parse(autosolve)
 
 
 def AST(expr: str) -> tuple[Node]:

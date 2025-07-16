@@ -1,26 +1,121 @@
-:root{
+:root {
   color-scheme: dark;
+
+  --bg: #1e1e28;
+  --fg: #e0e6f0;
+
+  --accent: #5fb3b3;
+  --muted: #9caecb;
+
+  --panel-bg: #2b2e3a;
+  --panel-border: #465672;
+
+  --title-bg: #35415a;
+  --title-fg: #c4d7ff;
+
+  --mathfield-bg: #263141;
+  --code-font: "Fira Code", monospace;
+  --sans-font: "Segoe UI", sans-serif;
+  --serif-font: Georgia, serif;
 }
 
 body {
-  font-family: sans-serif;
+  font-family: var(--sans-font);
+  background: var(--bg);
+  color: var(--fg);
   padding: 2rem;
-  /* background: #f9f9f9; */
+  text-align: left;
+  line-height: 1.6;
 }
+
 math-field {
-  border: 2px solid #444;
-  padding: 12px;
-  font-size: 1.5rem;
-  min-height: 2.5rem;
-  /* background: #fff; */
-  margin-bottom: 1rem;
+  border: 2px solid var(--panel-border);
+  background: var(--mathfield-bg);
+  color: var(--fg);
   display: block;
+  border-radius: 6px;
 }
-#latex-output {
-  font-family: monospace;
-  background: #444;
-  padding: 1rem;
-  border-radius: 5px;
-  font-size: 1rem;
+
+#math-final {
+  font-family: var(--code-font);
+  /* border: 2px solid var(--panel-border); */
+  border-radius: 8px;
+  background: var(--panel-bg);
+  font-size: 1.3rem;
   overflow-x: auto;
+  color: var(--fg);
+  margin: 0;
+}
+
+.panel {
+  border: 2px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 2rem 0;
+  position: relative;
+  background-color: var(--panel-bg);
+  overflow-y: visible;
+  /* overflow-x: auto; */
+  max-width: 100%;
+  width: max-content;
+  color: var(--fg);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.panel-title {
+  position: absolute;
+  top: -0.85em;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--title-bg);
+  color: var(--title-fg);
+  padding: 0 0.7em;
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-family: var(--sans-font);
+  white-space: nowrap;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.panel-content {
+  font-size: 1.15rem;
+  font-family: var(--serif-font);
+  color: var(--fg);
+  overflow-y: hidden;
+  width: max-content;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.panel-content .katex-display {
+  text-align: left;
+}
+
+.toolbar {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 70% 20% 10%;
+  width: 100%;
+  font-size: 1.4rem;
+  min-height: 2.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.toolbar select,
+.toolbar button {
+  background: var(--mathfield-bg);
+  border: 1px solid var(--panel-border);
+  padding: 0.5rem 1rem;
+  color: var(--fg);
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.toolbar select option:hover,
+.toolbar button:hover {
+  background: var(--accent);
+  color: #000;
 }

@@ -16,22 +16,19 @@ from datatypes.base import Collection, Node
 from datatypes.nodes import *
 
 import utils
-from .utils import difficulty_weight, nth_roots, roots
+from .utils import difficulty_weight, nth_roots, roots, compute_grobner
 
 
 def rewrite_radicals(expr, value):
-    from .system import compute_grobner
 
     system = []
     counter = []
     cache = {}
 
     def vars():
-        alphabet = [chr(i) for i in range(ord("a"), ord("z") + 1)]
-        start_index = alphabet.index(value.lower())
         i = 0
         while True:
-            yield Var(alphabet[(start_index + i + 1) % 26])
+            yield Var(f"r{i}")
             i += 1
 
     def visit(node):
@@ -198,11 +195,6 @@ class Comparison:
             return eqn.solve_for(value)
 
         return self.get_roots(value)
-        # Solving using the quadratic formula
-        if (v := self.try_quadratic(value)) is not None:
-            return v
-        # Try approximations at last
-        return self.try_approximate(value)
 
     def __contains__(self, value: Var) -> bool:
         return value in self.left or value in self.right
@@ -327,12 +319,9 @@ class Comparison:
     def expand(self):
         return Comparison(self.left.expand(), self.right.expand(), self.rel)
 
-    def totex(self, align: bool = True) -> str:
+    def totex(self, align: bool = False) -> str:
         left, rel, right = self.left, self.rel, self.right
-        if self.right.__class__ is Collection:
-            rel = "&" * align + "\\in"
-        else:
-            rel = rel.totex(align)
+        rel = rel.totex(align)
         if left.__class__ is tuple:
             left = ",".join(left).join(("\\left(", "\\right)"))
         else:

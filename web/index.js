@@ -1,10 +1,22 @@
-import { MathfieldElement } from "https://unpkg.com/mathlive?module";
-
 const mf = document.querySelector("math-field");
-const out = document.getElementById("latex-output");
+const steps = document.getElementById("math-steps");
+const out = document.getElementById("math-final");
+const mode = document.getElementById("mode");
 
-mf.addEventListener("keydown", async (e) => {
-  if (e.key !== "Enter") return;
-  
-  katex.render(await eel.evaluate(mf.value)(), out);
+document.getElementById("evaluate").addEventListener("click", evaluate);
+mode.addEventListener("change", evaluate);
+
+mf.addEventListener("keyup", (e) => {
+  if (e.key == "Enter") evaluate();
 });
+
+async function evaluate() {
+  let [i, j] = await window.pywebview.api.evaluate(
+    mf.value,
+    mode.options[mode.selectedIndex].id
+  );
+  steps.innerHTML = i;
+  out.innerHTML = j;
+  renderMathInElement(steps);
+  renderMathInElement(out);
+}
