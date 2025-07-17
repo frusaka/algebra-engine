@@ -36,5 +36,5 @@ Supports rational simplification, polynomial manipulation, factoring, root findi
       ```bash
       python main.py
       
-NOTE: If solving for from a multivariate equation, type `target`=>`equation`  
-Example: P => C = Prt + P, gets interepreted as find `P` given that `C = Prt + P`
+NOTE: If solving from a multivariate equation, type `target`=>`equation`  
+Example: P => C = Prt + P, gets interpreted as find `P` given that `C = Prt + P`
