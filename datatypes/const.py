@@ -1,6 +1,4 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-import numbers
 import sys
 import math
 from typing import TYPE_CHECKING, Any
@@ -205,7 +203,7 @@ class Const(Number):
         return a.numerator * b.denominator <= a.denominator * b.numerator
 
     def totex(self):
-        n = str(self.numerator).replace("i", "\\mathrm{i}")
+        n = str(self.numerator).replace("j", "\\mathrm{i}")
         if self.denominator == 1:
             return n
         n = n.join("{}")
@@ -310,6 +308,9 @@ class Float(Number):
 
     def approx(self) -> float | complex:
         return self._val
+
+    def totex(self):
+        return "\\mathrm{$}".replace("$", str(self).replace("j", "i"))
 
 
 __all__ = ["Const", "Float"]

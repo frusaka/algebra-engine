@@ -316,17 +316,36 @@ class ETSteps:
 
     @classmethod
     def toHTML(cls) -> str:
-        def tex(data):
+        def tex(data, depth):
             if not data:
                 return ""
             if isinstance(data, ETNode):
                 return data.totex().join(("$$", "$$"))
-            tittle = f'<div class="panel-title">{data[0]}</div>'
-            content = "".join(map(tex, data[1:]))
-            content = f'<div class="panel-content">{content}</div>'
-            return f'<div class="panel">{tittle}{content}</div>'
+            content = "".join(tex(i, depth + idx) for idx, i in enumerate(data[1:], 1))
+            return f"""
+            <div class="accordion" data-ae-title="{data[0]}">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button
+                            class="accordion-button"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#ae-br{depth}-body"
+                            aria-expanded="true"
+                            aria-controls="ae-br{depth}-body">
+                            {data[0]}
+                        </button>
+                    </h2>
+                    <div id="ae-br{depth}-body"
+                        class="accordion-collapse collapse show"
+                        >
+                        <div class="accordion-body">{content}</div>
+                    </div>
+                </div>
+            </div>
+            """
 
-        return tex(cls.data)
+        return tex(cls.data, 1)
 
 
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")

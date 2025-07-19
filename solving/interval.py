@@ -10,8 +10,8 @@ from datatypes.base import Node
 class Interval:
     """A prettifier for inequality solutions"""
 
-    start: int | None
-    end: int | None
+    start: Node | None
+    end: Node | None
     open: tuple[bool]
 
     def __repr__(self) -> str:
@@ -59,13 +59,13 @@ class Interval:
         return Interval(left, right, open=(left_open, right_open))
 
     def totex(self) -> str:
-        start = "\\left"
+        start = "\\left" + "[("[self.open[0]]
         if self.start is not None:
-            start += "[("[self.open[0]] + self.start.totext()
+            start += self.start.totex()
         else:
             start += "-\\infty"
         if self.end is not None:
-            end = str(self.end) + "\\right" + "])"[self.open[1]]
+            end = self.end.totex() + "\\right" + "])"[self.open[1]]
         else:
             end = "\\infty\\right)"
         return ",".join((start, end))

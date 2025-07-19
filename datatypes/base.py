@@ -62,6 +62,9 @@ class Node:
     def __neg__(self) -> Node:
         return self * -1
 
+    def __pos__(self) -> Node:
+        return self
+
     def __contains__(self, value: Node) -> bool:
         return value in str(self)
 
@@ -90,6 +93,7 @@ class Node:
 
     def totex(self) -> str:
         return str(self)
+
 
 @dataclass(frozen=True, init=False, slots=True)
 class Collection(ABC, Node):

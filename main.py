@@ -7,7 +7,6 @@ from pylatexenc.latexwalker import (
     LatexMacroNode,
 )
 
-
 from parsing import parser
 from utils.constants import TEXTOKEN, SYMBOLS
 from solving.eval_trace import ETSteps
@@ -36,6 +35,7 @@ def stringify_node(node: LatexNode) -> str:
 
 class API:
     def evaluate(self, latex: str, mode="solve"):
+        res, err = "", ""
         nodes, _, _ = LatexWalker(
             latex.replace("\\left(", "(")
             .replace("\\right)", ")")
@@ -45,14 +45,23 @@ class API:
             res = parser.eval("".join(map(stringify_node, nodes)), mode == "solve")
             if mode != "solve":
                 res = getattr(res, mode)()
-            res = res.totex() if hasattr(res, "totex") else str(res)
+            res = res.totex().join(("$$", "$$")) if hasattr(res, "totex") else str(res)
         except Exception as e:
-            res = "\\textcolor{#d7170b}{\\text{$}}".replace("$", repr(e))
+            res = ""
+            err = repr(e)
         steps = ETSteps.toHTML()
         ETSteps.clear()
-        return [steps, res.join(("$$", "$$"))]
+        return dict(steps=steps, error=err, final=res)
 
 
 if __name__ == "__main__":
-    webview.create_window("Algebra Engine", "web/index.html", js_api=API())
+    webview.create_window(
+        "Algebra Engine",
+        "web/index.html",
+        text_select=True,
+        width=650,
+        height=600,
+        min_size=(400, 400),
+        js_api=API(),
+    )
     webview.start()

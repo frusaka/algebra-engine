@@ -11,8 +11,6 @@ class SolutionSet(frozenset):
     def totex(self) -> str:
         if not self:
             return "\\emptyset"
-        if len(self) == 1:
-            return next(iter(self))
         return ",".join(
             (
                 i.totex()

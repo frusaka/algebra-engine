@@ -21,10 +21,10 @@
 
 body {
   font-family: var(--sans-font);
-  background: var(--bg);
+  background-color: var(--bg);
   color: var(--fg);
   padding: 2rem;
-  text-align: left;
+  text-align: center;
   line-height: 1.6;
 }
 
@@ -34,88 +34,22 @@ math-field {
   color: var(--fg);
   display: block;
   border-radius: 6px;
-}
-
-#math-final {
-  font-family: var(--code-font);
-  /* border: 2px solid var(--panel-border); */
-  border-radius: 8px;
-  background: var(--panel-bg);
   font-size: 1.3rem;
-  overflow-x: auto;
-  color: var(--fg);
-  margin: 0;
 }
 
-.panel {
-  border: 2px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 1rem;
-  margin: 2rem 0;
-  position: relative;
-  background-color: var(--panel-bg);
-  overflow-y: visible;
-  /* overflow-x: auto; */
-  max-width: 100%;
-  width: max-content;
-  color: var(--fg);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+.accordion {
+  margin: 1rem;
 }
 
-.panel-title {
-  position: absolute;
-  top: -0.85em;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: var(--title-bg);
-  color: var(--title-fg);
-  padding: 0 0.7em;
-  font-size: 1.1rem;
+.accordion-header {
   font-weight: 600;
-  font-family: var(--sans-font);
-  white-space: nowrap;
-  border-radius: 4px;
-  letter-spacing: 0.3px;
 }
 
-.panel-content {
-  font-size: 1.15rem;
-  font-family: var(--serif-font);
-  color: var(--fg);
-  overflow-y: hidden;
-  width: max-content;
-  overflow-x: auto;
+.accordion-body {
   max-width: 100%;
+  overflow: auto;
 }
 
-.panel-content .katex-display {
-  text-align: left;
-}
-
-.toolbar {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: 70% 20% 10%;
-  width: 100%;
-  font-size: 1.4rem;
-  min-height: 2.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.toolbar select,
-.toolbar button {
-  background: var(--mathfield-bg);
-  border: 1px solid var(--panel-border);
-  padding: 0.5rem 1rem;
-  color: var(--fg);
-  border-radius: 4px;
-  font-size: 1rem;
+.dropdown-item {
   cursor: pointer;
-  max-width: 100%;
-}
-
-.toolbar select option:hover,
-.toolbar button:hover {
-  background: var(--accent);
-  color: #000;
 }

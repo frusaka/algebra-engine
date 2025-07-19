@@ -21,11 +21,11 @@ def primes(n: Const) -> dict[Const, int]:
         for p, exp in den.items():
             res[p] = -exp
         return res
-    if abs(n) > 1 << 40:
-        return {n: 1}
-    i = 2
-    was_neg = False
     n = n.numerator
+    if abs(n) > 1 << 40:
+        return {nodes.Const(n): 1}
+    was_neg = False
+    i = 2
     if n < 0:
         n = -n
         was_neg = True

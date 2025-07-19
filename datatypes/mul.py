@@ -150,14 +150,14 @@ class Mul(Collection):
             )
 
         else:
-            num = _tex(num)
+            num = num.totex()
         if den.__class__ is Mul:
             c, den = den.canonical()
             den = utils.print_coef(c).replace("i", "\\mathrm{i}") + "".join(
                 map(_tex, (utils.ordered_terms(Mul.flatten(den, 0), True)))
             )
         else:
-            den = _tex(den)
+            den = den.totex()
             if den == "1":
                 den = ""
         if not den:
