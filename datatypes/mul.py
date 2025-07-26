@@ -97,10 +97,15 @@ class Mul(Collection):
         return "/".join((num, den))
 
     def as_ratio(self) -> tuple[Node]:
-        return tuple(map(Mul.from_terms, zip(*(t.as_ratio() for t in self))))
+        return tuple(
+            map(
+                lambda vals: Mul.from_terms(vals, distr_const=False),
+                zip(*(t.as_ratio() for t in self)),
+            )
+        )
 
     @classmethod
-    def merge(cls, args: Iterable[Node]) -> list[Node]:
+    def merge(cls, args: Iterable[Node], distr_const=True) -> list[Node]:
         res = defaultdict(nodes.Const)
         for k, v in (utils.mult_key(n, True) for n in args):
             if k is None:
@@ -112,9 +117,14 @@ class Mul(Collection):
                 combine_numeric_radicals(res, v)
             else:
                 res[k] += v
+
         res = list(filter(bool, itertools.starmap(form, res.items())))
         # Automatically distribute constant factor
-        if len(res) == 2 and set(map(type, res)) == {nodes.Add, nodes.Const}:
+        if (
+            distr_const
+            and len(res) == 2
+            and set(map(type, res)) == {nodes.Add, nodes.Const}
+        ):
             return [res.pop().multiply(res.pop())]
         return res or [nodes.Const(1)]
 

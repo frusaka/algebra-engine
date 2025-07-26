@@ -1,5 +1,5 @@
 from fractions import Fraction
-from typing import Generator
+from typing import Generator, Literal
 from parsing.tokens import Token, TokenType
 from datatypes.nodes import Const, Var
 
@@ -26,10 +26,14 @@ class Lexer:
         ")": Token(TokenType.RPAREN),
     }
 
-    def __init__(self, expr: str) -> None:
-        self.expr = iter(
-            expr.replace(">=", "≥").replace("<=", "≤").replace("=>", "⟹").join("()")
-        )
+    def __init__(self, expr: str, mode: Literal["plain", "tex"] = "plain") -> None:
+        if mode == "plain":
+            self.expr = iter(
+                expr.replace(">=", "≥").replace("<=", "≤").replace("=>", "⟹").join("()")
+            )
+        else:
+            self.expr = iter(expr.replace("\\\\", "\n").join("()"))
+        self.mode = mode
         self.advance()
 
     def advance(self) -> None:
@@ -38,7 +42,14 @@ class Lexer:
         except StopIteration:
             self.curr = None
 
-    def generate_tokens(self) -> Generator[Token, None, None]:
+    def _gen_tex(self):
+        was_num = 0  # Disambiguate unary+- vs binary +-
+        while self.curr is not None:
+            if self.curr in " \n\t":  # Ignore spaces
+                self.advance()
+                continue
+
+    def generate_tokens(self) -> Generator[Token]:
         """Generate tokens based on input string"""
         was_num = 0  # Disambiguate unary+- vs binary +-
         while self.curr is not None:

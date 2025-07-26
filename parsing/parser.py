@@ -113,18 +113,10 @@ class Parser:
         if type(res) is tuple:
             if not autosolve:
                 return res[1]
-            return operators.solve(*res)
+            return operators.solve(res[1], *res[0])
         if not autosolve or not isinstance(res, (System, Comparison)):
             return res
-        # Automatically solve systems of equations or single-variable Comparisons
-        vars = set(filter(str.isalpha, str(res))) - {"i"}
-        if not vars:
-            return res.is_close(1e-3)
-        if res.__class__ is Comparison:
-            if len(vars) == 1:
-                return operators.solve(Var(vars.pop()), res)
-            return res
-        return operators.solve(tuple(map(Var, sorted(vars))), res)
+        return operators.solve(res)
 
     @classmethod
     def postfix(cls, tokens: Iterable[Token]) -> Generator[TokenType, None, None]:

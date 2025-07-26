@@ -4,37 +4,33 @@ const out = document.getElementById("math-final");
 const ctn = document.getElementById("math-final-container");
 
 const solveTitle = document.getElementById("solve-title");
-const evaluateBtn = document.getElementById("evaluate");
-const dropdownItems = document.querySelectorAll(".dropdown-item");
 
-let mode = "solve";
-const displayMediaOptions = {
-  video: true,
-  audio: true,
+let customMacros = {
+  approx: "\\operatorname{approx}(#?)",
+  factor: "\\operatorname{factor}(#?)",
+  solve: "\\operatorname{solve}(#?)",
+  expand: "\\operatorname{expand}(#?)",
+  lcm: "\\operatorname{lcm}(#?)",
+  gcd: "\\operatorname{gcd}(#?)",
+  root: "\\sqrt[#?]{#?}",
+  i: "\\imaginaryI",
 };
 
-evaluateBtn.addEventListener("click", evaluate);
+mf.addEventListener("mount", () => {
+  mf.macros = { ...mf.macros, ...customMacros };
 
-mf.addEventListener("keyup", (e) => {
-  if (e.key == "Enter") evaluate();
+  mf.inlineShortcuts = {
+    ...mf.inlineShortcuts,
+    ...customMacros,
+  };
 });
 
-dropdownItems.forEach((item) => {
-  item.addEventListener("click", (e) => {
-    e.preventDefault();
-    // Remove active from all
-    dropdownItems.forEach((i) => i.classList.remove("active"));
-    // Set active to clicked
-    item.classList.add("active");
-    // Update current mode
-    mode = item.id;
-    evaluateBtn.textContent = item.textContent;
-    evaluate();
-  });
-});
+mf.addEventListener("change", evaluate);
 
 async function evaluate() {
-  let resp = await window.pywebview.api.evaluate(mf.value, mode);
+  let resp = await window.pywebview.api.evaluate(
+    MathfieldElement.computeEngine.parse(mf.value).json
+  );
 
   if (resp.error) {
     document.getElementById("math-success").innerText = "🚫";
@@ -56,6 +52,5 @@ async function evaluate() {
     steps.innerHTML =
       steps.firstElementChild.firstElementChild.lastElementChild.lastElementChild.innerHTML;
   }
-  renderMathInElement(steps);
-  renderMathInElement(out);
+  renderMathInElement(document.body);
 }

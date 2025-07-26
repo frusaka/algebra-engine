@@ -1,12 +1,9 @@
-from itertools import starmap
 from math import isclose
-from typing import Any
 
 import pytest
 
 from datatypes.nodes import *
 from solving.comparison import Comparison, CompRel
-from solving.eval_trace import ETSteps
 from solving.solutions import IntervalUnion, SolutionSet
 from solving.interval import INF, Interval
 from solving.core import solve
@@ -19,36 +16,36 @@ z = Var("z")
 
 
 def test_solve_basic():
-    assert solve(x, Comparison(5 * x + 3, Const(13))) == Comparison(x, 2)
-    assert solve(x, Comparison(2 * x - 3, Const(3))) == Comparison(x, 3)
-    assert solve(x, Comparison(x / 4, Const(5))) == Comparison(x, 20)
-    assert solve(x, Comparison(x + 6, 2 * x - 4)) == Comparison(x, 10)
+    assert solve(Comparison(5 * x + 3, Const(13)), x) == Comparison(x, 2)
+    assert solve(Comparison(2 * x - 3, Const(3)), x) == Comparison(x, 3)
+    assert solve(Comparison(x / 4, Const(5)), x) == Comparison(x, 20)
+    assert solve(Comparison(x + 6, 2 * x - 4), x) == Comparison(x, 10)
 
 
 def test_solve_medium():
-    assert solve(x, Comparison(3 * (x + 2), Const(15))) == Comparison(x, 3)
-    assert solve(x, Comparison((2 * x + 1) / 3, Const(5))) == Comparison(x, 7)
-    assert solve(x, Comparison((2 / x), Const(8))) == Comparison(x, Const(1, 4))
-    assert solve(x, Comparison(4 * x - 3, 2 * (x + 5))) == Comparison(x, Const(13, 2))
-    assert solve(x, Comparison(3 * x + 2 * y - 7, 5 * y + 4)) == Comparison(
+    assert solve(Comparison(3 * (x + 2), Const(15)), x) == Comparison(x, 3)
+    assert solve(Comparison((2 * x + 1) / 3, Const(5)), x) == Comparison(x, 7)
+    assert solve(Comparison((2 / x), Const(8)), x) == Comparison(x, Const(1, 4))
+    assert solve(Comparison(4 * x - 3, 2 * (x + 5)), x) == Comparison(x, Const(13, 2))
+    assert solve(Comparison(3 * x + 2 * y - 7, 5 * y + 4), x) == Comparison(
         x, y + Const(11, 3)
     )
     assert solve(
-        x, Comparison((4 * x - 5) / 3 + 7 * x / 2, Const(11, 6))
+        Comparison((4 * x - 5) / 3 + 7 * x / 2, Const(11, 6)), x
     ) == Comparison(x, Const(21, 29))
-    assert solve(x, Comparison(2 * x + 3 * y - z, Const(0))) == Comparison(
+    assert solve(Comparison(2 * x + 3 * y - z, Const(0)), x) == Comparison(
         x, Add(z / 2, -3 * y / 2)
     )
-    assert solve(x, Comparison((x - 3) / (x + 2), Const(4))) == Comparison(
+    assert solve(Comparison((x - 3) / (x + 2), Const(4)), x) == Comparison(
         x, Const(-11, 3)
     )
-    assert solve(x, Comparison(3 * x**2, 9 + 2 * x**2)) == Comparison(
+    assert solve(Comparison(3 * x**2, 9 + 2 * x**2), x) == Comparison(
         x, SolutionSet({3, -3}), CompRel.IN
     )
 
     eq = Comparison((3 / x) * y + 4, Const(9))
-    assert solve(x, eq) == Comparison(x, 3 * y / 5)
-    assert solve(y, eq) == Comparison(y, 5 * x / 3)
+    assert solve(eq, x) == Comparison(x, 3 * y / 5)
+    assert solve(eq, y) == Comparison(y, 5 * x / 3)
 
 
 def test_solve_proportions():
@@ -62,26 +59,26 @@ def test_solve_proportions():
     n = Var("n")
     c = Var("c")
 
-    assert solve(j, Comparison(4 * u - 5 / j, u / j - 20)) == Comparison(j, Const(1, 4))
+    assert solve(Comparison(4 * u - 5 / j, u / j - 20), j) == Comparison(j, Const(1, 4))
     eq = Comparison(3 / c + n / c, Const(8))
-    assert solve(c, eq).expand() == Comparison(c, Add(n / 8, (Const(3, 8))))
-    assert solve(n, eq) == Comparison(n, 8 * c - 3)
+    assert solve(eq, c).expand() == Comparison(c, Add(n / 8, (Const(3, 8))))
+    assert solve(eq, n) == Comparison(n, 8 * c - 3)
 
 
 def test_solve_factorization():
     n = Var("n")
     b = Var("b")
     eq = Comparison(parser.eval("n(2-3b) + 2 - 4b"), 2 * b - 2)
-    assert solve(n, eq) == Comparison(n, -2)
-    assert solve(b, eq) == Comparison(b, Const(2, 3))
+    assert solve(eq, n) == Comparison(n, -2)
+    assert solve(eq, b) == Comparison(b, Const(2, 3))
 
     eq = Comparison(3 * y / 2 * (3 * x - 6) + 3 * x - 5, x - 1)
-    assert solve(y, eq) == Comparison(y, Const(-4, 9))
-    assert solve(x, eq) == Comparison(x, 2)
+    assert solve(eq, y) == Comparison(y, Const(-4, 9))
+    assert solve(eq, x) == Comparison(x, 2)
 
     expected = parser.eval("(S/(2hp + 2p))^0.5")
     assert solve(
-        Var("r"), Comparison(Var("S"), parser.eval("2pr^2 + 2pr^2h"))
+        Comparison(Var("S"), parser.eval("2pr^2 + 2pr^2h")), Var("r")
     ) == Comparison("r", SolutionSet({expected, -expected}), CompRel.IN)
 
 
@@ -91,10 +88,10 @@ def test_solve_formulas():
     right = Add(Var("c") ** 2, -Var("a") ** 2) ** Const(1, 2)
 
     assert solve(
-        Var("b"), Comparison(parser.eval("a^2+b^2"), Var("c") ** 2)
+        Comparison(parser.eval("a^2+b^2"), Var("c") ** 2), Var("b")
     ) == Comparison("b", SolutionSet({right, -right}), CompRel.IN)
     # d = st, t = d/s
-    assert solve(Var("t"), Comparison(Var("d"), Var("s") * Var("t"))) == Comparison(
+    assert solve(Comparison(Var("d"), Var("s") * Var("t")), Var("t")) == Comparison(
         "t", Var("d") / Var("s")
     )
 
@@ -132,13 +129,9 @@ def test_solve_quadratic():
     )
 
     assert solve(
-        Var("a"),
-        Comparison(
-            parser.eval("(a-4)^2 "),
-            Var("c") ** 2,
-        ),
+        Comparison(parser.eval("(a-4)^2 "), Var("c") ** 2), Var("a")
     ) == Comparison("a", SolutionSet({4 - Var("c"), 4 + Var("c")}), CompRel.IN)
-    assert solve(y, Comparison(parser.eval("ay^2 + by + c"), Const(0))) == Comparison(
+    assert solve(Comparison(parser.eval("ay^2 + by + c"), Const(0)), y) == Comparison(
         y,
         SolutionSet(
             {
@@ -151,28 +144,28 @@ def test_solve_quadratic():
 
 
 def test_solve_inequalities():
-    assert solve(x, Comparison(2 * x + 3, Const(13), CompRel.GT)).right == Interval(
+    assert solve(Comparison(2 * x + 3, Const(13), CompRel.GT), x).right == Interval(
         5, None, (True, True)
     )
-    assert solve(x, Comparison(3 * x + 2, 5 * x - 4, CompRel.LT)).right == Interval(
+    assert solve(Comparison(3 * x + 2, 5 * x - 4, CompRel.LT), x).right == Interval(
         3, None, (True, True)
     )
     assert solve(
-        x, Comparison((x + 1) / (x - 1), Const(2), CompRel.GE)
+        Comparison((x + 1) / (x - 1), Const(2), CompRel.GE), x
     ).right == Interval(1, 3, (True, False))
     assert solve(
-        x, Comparison(x - 5 * x**0.5 / 2, Const(-1), CompRel.GT)
+        Comparison(x - 5 * x**0.5 / 2, Const(-1), CompRel.GT), x
     ).right == IntervalUnion(
         [Interval(0, Const(1, 4), (False, True)), Interval(4, None, (True, True))]
     )
     assert solve(
-        x, Comparison((x + 1) * x**2 / (x - 1), Const(0), CompRel.LE)
+        Comparison((x + 1) * x**2 / (x - 1), Const(0), CompRel.LE), x
     ).right == Interval(-1, 1, (False, True))
     assert solve(
-        x, Comparison((x + 1) * x**2 / (x - 1), Const(0), CompRel.LE)
+        Comparison((x + 1) * x**2 / (x - 1), Const(0), CompRel.LE), x
     ).right == Interval(-1, 1, (False, True))
     assert solve(
-        x, Comparison((x + 2) * x**0.5 / (x - 1), Const(0), CompRel.GE)
+        Comparison((x + 2) * x**0.5 / (x - 1), Const(0), CompRel.GE), x
     ).right == ({0}, Interval(1, None, (True, True)))
 
 

@@ -183,8 +183,11 @@ def rational_roots(coeffs: tuple[Node]) -> tuple[tuple[Node]]:
 def factor(node: Node) -> Node:
     if node.__class__ is nodes.Mul:
         return nodes.Mul.from_terms(map(factor, node))
-    if node.__class__ is not nodes.Add or not is_polynomial(node):
+    if node.__class__ is not nodes.Add:
         return node
+
+    if not is_polynomial(node):
+        return nodes.Mul.from_terms([node], distr_const=False)
 
     def pick_best(c, vars):
         tree = defaultdict(int)
@@ -234,7 +237,10 @@ def factor(node: Node) -> Node:
         return seen[coeffs]
 
     c, node = node.cancel_gcd()
-    return (pick_best(node, get_vars(node)) or node) * c
+    return nodes.Mul.from_terms(
+        [pick_best(node, get_vars(node)) or node, c],
+        distr_const=False,
+    )
 
 
 __all__ = [

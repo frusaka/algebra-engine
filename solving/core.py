@@ -1,6 +1,8 @@
-from itertools import product, repeat, zip_longest
+from typing import Iterable
+
 import math
-from typing import Iterable, Literal
+from itertools import product
+from functools import reduce
 
 from datatypes.base import Node
 from solving.utils import domain_restriction
@@ -11,7 +13,7 @@ from .system import System
 from .comparison import Comparison, CompRel
 from .eval_trace import *
 
-from datatypes.nodes import Const, Var, Float
+from datatypes.nodes import Pow, Var, Float
 
 
 def to_float(val: Node | None, scale: int = -1) -> float:
@@ -258,14 +260,40 @@ def solve_ineq(var, ineq: Comparison):
     return Comparison(var, interpolate_roots(var, ineq, roots, domain), CompRel.IN)
 
 
-def solve(var: Var | tuple[Var], src: Comparison | System) -> Comparison | System:
-    ETSteps.clear()
-    Comparison.solve_for.cache_clear()
+def get_vars(expr):
+    if expr.__class__ is Var:
+        return {expr}
+    if expr.__class__ is Pow:
+        return get_vars(expr.base).union(get_vars(expr.exp))
+    if expr.__class__ is Comparison:
+        return get_vars(expr.left).union(get_vars(expr.right))
+    if hasattr(expr, "__iter__"):
+        return reduce(lambda a, b: a.union(b), map(get_vars, expr))
+    return set()
+
+
+def solve(src: Comparison | System, *var: Var) -> Comparison | System:
+    if not var:
+        var = tuple(sorted(get_vars(src)))
+    if not var:
+        return bool(src)
+    var = tuple(Var(i) if not isinstance(i, Var) else i for i in var)
     if src.__class__ is Comparison:
+        if len(var) > 1:
+            ETSteps.register(ETTextNode(f"Solving for {var}"))
+            res = []
+            with ETSteps.branching(len(var)) as br:
+                for _, v in zip(br, var):
+                    sol = solve(src, v)
+                    ETSteps.register(ETNode(sol))
+                    res.append(sol)
+            return System(res)
+        var = var[0]
         ETSteps.register(ETTextNode(f"Solving for {var}"))
         if src.rel is not CompRel.EQ:
             return solve_ineq(var, src)
-
+    elif len(var) != len(v2 := get_vars(src)):
+        raise TypeError(f"solve() expected {v2}, got {var} instead")
     res = src.solve_for(var)
     s = "s" * isinstance(res, System)
     ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))

@@ -114,6 +114,8 @@ class Const(Number):
             if self.denominator == 1
             else f"{self.numerator}/{self.denominator}"
         ).replace("j", "i")
+        if abs(self.numerator.imag) == 1:
+            res = res.replace("1i", "i")
         # Python quirk: -(1j) -> (-0-1j): (0-1j) -> -1j
         if res.startswith("(-0-"):
             res = res[3:-1]
@@ -310,7 +312,7 @@ class Float(Number):
         return self._val
 
     def totex(self):
-        return "\\mathrm{$}".replace("$", str(self).replace("j", "i"))
+        return f"\\mathrm{self}"
 
 
 __all__ = ["Const", "Float"]

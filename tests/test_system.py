@@ -146,8 +146,8 @@ def test_solve_high_degree():
     # Base: x = -1, x = (1 ± √5)/2
     assert getvar(parser.eval("x^2 + y^2 + z^2 = 4, xyz = 1, x + y + z = 0"), x) == {
         -1,
-        (1 + Const(5) ** 0.5) / 2,
-        (1 - Const(5) ** 0.5) / 2,
+        Mul.from_terms([(1 + Const(5) ** 0.5), Const(1, 2)], 0),
+        Mul.from_terms([(1 - Const(5) ** 0.5), Const(1, 2)], 0),
     }
     # Base: c = unity cuberoots of 3, etc
     assert getvar(

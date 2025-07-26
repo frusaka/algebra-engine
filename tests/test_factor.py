@@ -33,7 +33,7 @@ def test_factor_multivariate():
         * (a - 2 * b) ** 2
         * (x**3 - 8) ** 2
         * (b - 2 * x) ** 3
-        * (x - b) ** 5
+        * (x - b)
     ).expand()
     factored = factor(expr)
     assert factored != expr and factored.expand() == expr

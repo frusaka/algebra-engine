@@ -114,9 +114,9 @@ class Collection(ABC, Node):
         return iter(self.args)
 
     @classmethod
-    def from_terms(cls, args: Iterable[Node], modify=True) -> Node:
+    def from_terms(cls, args: Iterable[Node], modify=True, **kwargs) -> Node:
         if modify:
-            args = cls.merge(itertools.chain(*map(cls.flatten, args)))
+            args = cls.merge(itertools.chain(*map(cls.flatten, args)), **kwargs)
         if len(args) == 1:
             return args.pop()
         obj = super(Collection, cls).__new__(cls)

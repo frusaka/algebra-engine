@@ -84,26 +84,26 @@ class ETOperatorType(Enum):
         return colorize_ansi(res, color or self.value)
 
     def totex(self, value):
-        if self.name == "ADD":
-            return "\\textcolor{#21ba3a}" + ("+" + value.totex()).join("{}")
-        if self.name == "SUB":
-            return "\\textcolor{#d7170b}" + ("-" + value.totex()).join("{}")
-        if self.name == "TIMES":
-            return "\\textcolor{#0d80f2}" + ("\\times" + value.totex().join("{}")).join(
-                "{}"
-            )
-        if self.name == "DIV":
-            return "\\textcolor{#ffc02b}" + ("\\div" + value.totex().join("{}")).join(
-                "{}"
-            )
-        if self.name == "POW":
-            return "\\textcolor{#a219e6}" + ("(\\phantom{a})^" + str(value)).join("{}")
         if self.name == "SQRT":
             if value == 2:
                 return "\\textcolor{#a219e6}" + "{\\sqrt{\\phantom{a}}}"
             return "\\textcolor{#a219e6}" + (
                 f"\\sqrt[{value}]" + "{\\phantom{a}}"
             ).join("{}")
+        if self.name == "POW":
+            return "\\textcolor{#a219e6}" + ("(\\phantom{a})^" + str(value)).join("{}")
+        if value.__class__.__name__ == "Add":
+            value = value.totex().join(("\\left(", "\\right)"))
+        else:
+            value = value.totex()
+        if self.name == "ADD":
+            return "\\textcolor{#21ba3a}" + ("+" + value).join("{}")
+        if self.name == "SUB":
+            return "\\textcolor{#d7170b}" + ("-" + value).join("{}")
+        if self.name == "TIMES":
+            return "\\textcolor{#0d80f2}" + ("\\times" + value.join("{}")).join("{}")
+        if self.name == "DIV":
+            return "\\textcolor{#ffc02b}" + ("\\div" + value.join("{}")).join("{}")
 
 
 class ETOperatorNode(ETNode):

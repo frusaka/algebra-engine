@@ -37,6 +37,11 @@ math-field {
   font-size: 1.3rem;
 }
 
+/* Hide the menu toggle */
+math-field::part(menu-toggle) {
+  display: None;
+}
+
 .accordion {
   margin: 1rem;
 }

@@ -2,3 +2,4 @@
     2/(x^2-4)^0.5 + f/(x+2)^0.5
 2. Add saftey checks when solving for nested radicals or complex equations
 3. Bring back dem mixed fractions
+pyinstaller --noconsole --onefile --add-data "web;web" --icon "favicon.ico" --paths .\.venv\Lib\site-packages  main.py

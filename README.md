@@ -1,9 +1,8 @@
-# Symbolic Math Engine 🧮
+# Algebra Engine 🧮
 
-A fast symbolic algebra engine built in Python for solving and simplifying algebraic expressions.  
-Supports rational simplification, polynomial manipulation, factoring, root finding, equation solving, and many more!  
+An educational software built in Python for manipulating algebraic expressions.
+Supports rational simplification, polynomial manipulation, factoring, root finding, equation solving, and many more!
 
-✅ Offline  
 ✅ Tree-based expression evaluation  
 ✅ Designed to match Algebra II and Pre-Calc workflows  
 🚫 (Trigonometric and exponential solving planned)
@@ -25,16 +24,28 @@ Supports rational simplification, polynomial manipulation, factoring, root findi
    ```bash
    git clone https://github.com/frusaka/algebra-engine.git
    cd algebra-engine
+   ```
 2. Install requirements:
    ```bash
    pip install -r requirements.txt
+   ```
 3. Try it:
-    - REPL (Does not support function calls, e.g simplify(expr))
-       ```bash
-       python terminal.py
-    - Or start the GUI (Recommended ✅) 
-      ```bash
-      python main.py
-      
-NOTE: If solving from a multivariate equation, type `target`=>`equation`  
-Example: P => C = Prt + P, gets interpreted as find `P` given that `C = Prt + P`
+
+   - REPL (Does not support function calls, e.g simplify(expr))
+     ```bash
+     python terminal.py
+     ```
+   - Or start the GUI (Recommended ✅)
+
+     ```bash
+     python main.py
+
+     ```
+
+4. If you want it to run without internet connection:  
+   First, make sure that [Node.js](https://nodejs.org/) is installed correctly.  
+   Then in the terminal, run
+   ```bash
+   .\prepare-lib.sh
+   python main.py
+   ```

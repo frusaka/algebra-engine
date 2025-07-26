@@ -65,10 +65,7 @@ class Add(Collection):
             den = utils.lcm(den, k.as_ratio()[1])
         # Combine
         num = Add.from_terms(calculate(k, v) for k, v in groups.items())  # .expand()
-        den = den  # .expand()
-
-        # if num.__class__ is nodes.Add:
-        #     return list(Add.flatten(num.expand().divide(den)))
+        # return list(Add.flatten(num.simplify() / den.simplify()))
         return list(Add.flatten(num / den))
 
     def simplify(self) -> Node:
