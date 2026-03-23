@@ -8,13 +8,6 @@ const resources = [
     crossOrigin: "anonymous",
   },
   {
-    tag: "script",
-    src: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js",
-    integrity:
-      "sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q",
-    crossOrigin: "anonymous",
-  },
-  {
     tag: "link",
     rel: "stylesheet",
     href: "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css",
@@ -24,18 +17,9 @@ const resources = [
   },
   {
     tag: "script",
-    defer: true,
-    src: "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js",
+    src: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js",
     integrity:
-      "sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6",
-    crossOrigin: "anonymous",
-  },
-  {
-    tag: "script",
-    defer: true,
-    src: "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js",
-    integrity:
-      "sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh",
+      "sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q",
     crossOrigin: "anonymous",
   },
   {
@@ -50,33 +34,61 @@ const resources = [
     type: "module",
     src: "https://cdn.jsdelivr.net/npm/mathlive",
   },
+  {
+    tag: "script",
+    defer: true,
+    src: "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js",
+    integrity:
+      "sha384-cMkvdD8LoxVzGF/RPUKAcvmm49FQ0oxwDF3BGKtDXcEc+T1b2N+teh/OJfpU0jr6",
+    crossOrigin: "anonymous",
+  },
+  // {
+  //   tag: "script",
+  //   defer: true,
+  //   src: "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js",
+  //   integrity:
+  //     "sha384-hCXGrW6PitJEwbkoStFjeJxv+fSOOQKOPbJxSfM6G5sWZjAyWhXiTIIAmQqnlLlh",
+  //   crossOrigin: "anonymous",
+  // },
 ];
 
-if ((await fetch("lib/mathlive.min.js")).ok) {
+if (
+  await import("./lib/bootstrap.bundle.min.js").then(
+    () => true,
+    () => false
+  )
+) {
   ["lib/katex.min.css", "lib/bootstrap.min.css"].forEach((p) => {
     const el = document.createElement("link");
     el.rel = "stylesheet";
     el.href = p;
     document.head.appendChild(el);
   });
-  [
-    "lib/bootstrap.bundle.min.js",
-    "lib/katex.min.js",
-    "lib/auto-render.min.js",
-    "lib/compute-engine.min.js",
-    "lib/mathlive.min.js",
-  ].forEach((p) => {
-    const el = document.createElement("script");
-    el.type = "module";
-    el.src = p;
-    document.head.appendChild(el);
+
+  import("./lib/mathlive.min.js");
+  import("./lib/compute-engine.min.js").then(() => {
+    document.dispatchEvent(new Event("ceready"));
   });
+  import("./lib/katex.min.js").then(() => import("./lib/auto-render.min.js"));
 } else {
-  resources.forEach((res) => {
-    const el = document.createElement(res.tag);
-    Object.entries(res).forEach(([key, value]) => {
-      if (key !== "tag") el[key] = value;
-    });
-    document.head.appendChild(el);
-  });
+  for (const res of resources) {
+    if (res.tag == "script") {
+      import(res.src).then(() => {
+        if (res.src.endsWith("katex.min.js"))
+          import(
+            "https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"
+          );
+        else if (res.src.endsWith("compute-engine.min.js"))
+          document.dispatchEvent(new Event("ceready"));
+      });
+    } else {
+      const el = document.createElement(res.tag);
+      Object.entries(res).forEach(([key, value]) => {
+        if (key !== "tag") {
+          el[key] = value;
+        }
+      });
+      document.head.appendChild(el);
+    }
+  }
 }

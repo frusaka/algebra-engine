@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import math
+from math import gcd
 from collections import defaultdict
 
 import datatypes.nodes as nodes
@@ -10,17 +10,29 @@ import datatypes.nodes as nodes
 
 if TYPE_CHECKING:
     from datatypes.nodes import *
-    from datatypes.base import Node
 
 
 def primes(n: Const) -> dict[Const, int]:
     """Get the prime factorization as a dictionary {prime:exponent}"""
     if n.denominator != 1:
-        res = primes(n.numerator)
+        res = primes(nodes.Const(n.numerator))
         den = primes(n.denominator)
         for p, exp in den.items():
             res[p] = -exp
         return res
+    if n.numerator.imag:
+        if not n.numerator.real:
+            return {
+                nodes.Const(1j): 1,
+                **primes(nodes.Const(n.numerator.imag, n.denominator)),
+            }
+
+        if (g := gcd(int(n.numerator.real), int(n.numerator.imag))) > 1:
+            return {
+                nodes.Const(n.numerator / g): 1,
+                **primes(nodes.Const(g, n.denominator)),
+            }
+        return {n: 1}
     n = n.numerator
     if abs(n) > 1 << 40:
         return {nodes.Const(n): 1}
@@ -43,43 +55,30 @@ def primes(n: Const) -> dict[Const, int]:
     return factors
 
 
-def simplify_radical(n: Const, root: int = 2, scale: Const = 1) -> tuple[Node]:
-    if n == 0 or root == 1:
+def simplify_radical(n: Const, root: int = 2) -> tuple[Const]:
+    if n == 0 or n == 1 or root == 1:
         return n, 1, 1
-    if n.numerator.imag:
-        if not n.numerator.real:
-            c, v, exp = simplify_radical(nodes.Const(n.numerator.imag), root, scale)
-            if exp.denominator == root:
-                return c * scale, v * 1j, nodes.Const(1, root)
-        return scale, n, nodes.Const(1, root)
-    if n < 0:
-        n *= -1
-        if root % 2:
-            scale *= -1
-        elif root == 2:
-            scale *= 1j
-        else:
-            c, v, exp = simplify_radical(n, root, scale)
-            if exp.denominator == root:
-                return c, -v, exp
-            if exp.denominator == 1:
-                return c, -v, nodes.Const(1, root)
-            return scale, -n, nodes.Const(1, root)
+
     factors = primes(n)
-    v = c = nodes.Const(1)
     # Check if power can be reduced further
     # E.g: 27^(1/6) => (3^3)^(1/6) => 3^(3*1/6) => 3^(1/2)
-    if factors and (cd := math.gcd(root, *factors.values())) > 1:
-        root //= cd
-        for i in factors:
-            factors[i] //= cd
+    cd = gcd(root, *factors.values())
 
+    v = c = nodes.Const(1)
     for prime, exp in factors.items():
-        whole, remainder = divmod(exp, root)
+        whole, remainder = divmod(exp // cd, root // cd)
+        b = prime**remainder
         c *= prime**whole
-        v *= prime**remainder
-    c *= scale
-    return c, v, nodes.Const(1, root)
+        if not b.numerator.imag and b < 0:
+            if root % 2:
+                c *= b
+                continue
+            if root == 2:
+                c *= b * -1j
+                continue
+        v *= b
+
+    return c, v, nodes.Const(1, root // cd)
 
 
 __all__ = ["primes", "simplify_radical"]

@@ -292,7 +292,7 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
         ETSteps.register(ETTextNode(f"Solving for {var}"))
         if src.rel is not CompRel.EQ:
             return solve_ineq(var, src)
-    elif len(var) != len(v2 := get_vars(src)):
+    elif set(var) != (v2 := get_vars(src)) or len(var)>len(v2):
         raise TypeError(f"solve() expected {v2}, got {var} instead")
     res = src.solve_for(var)
     s = "s" * isinstance(res, System)

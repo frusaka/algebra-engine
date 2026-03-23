@@ -1,6 +1,7 @@
 import webview
 import operator
 from enum import Enum
+from functools import partial
 from fractions import Fraction
 
 from datatypes.base import Node
@@ -21,7 +22,7 @@ class macro:
 
 
 class Macros(Enum):
-    ImaginaryUnit = Const(1j)
+    Imag = Const(1j)
     Nothing = None
     Complex = macro(lambda r, i: Add(r, i * 1j))
     num = macro(lambda x: Const(*Fraction(x).as_integer_ratio()))
@@ -38,14 +39,15 @@ class Macros(Enum):
     Equal = Comparison
     Less = macro(lambda a, b: Comparison(a, b, CompRel.LT))
     LessEqual = macro(lambda a, b: Comparison(a, b, CompRel.LE))
+    NotEqual = macro(lambda a, b: Comparison(a, b, CompRel.NE))
     List = macro(lambda *vals: System(vals))
     solve = macro(solve)
 
     approx = macro(lambda x: x.approx())
     factor = macro(lambda x: x.simplify())
     expand = macro(lambda x: x.expand())
-    GCD = macro(utils.gcd)
-    LCM = macro(utils.lcm)
+    gcd = GCD = macro(partial(utils.gcd, rational=False))
+    lcm = LCM = macro(utils.lcm)
 
     def inspect(self, args):
         if self is Macros.List:
@@ -69,6 +71,8 @@ class Macros(Enum):
 def parse_mathJSON(expr):
     if isinstance(expr, str):
         if expr in Macros.__members__:
+            if getattr(Macros[expr].value, "__call__", None):
+                raise TypeError(f"{expr} operator has insufficient operands")
             return Macros[expr].value
         if expr == "NaN":
             raise ZeroDivisionError()

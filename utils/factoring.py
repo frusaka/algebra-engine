@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-import math
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 from itertools import chain, product
 from functools import lru_cache, reduce
@@ -13,7 +12,6 @@ from datatypes import nodes
 from .numeric import primes
 from .analysis import mult_key, get_vars
 from .polynomial import (
-    hasremainder,
     is_polynomial,
     degree,
     long_division,
@@ -31,33 +29,11 @@ def flatten_factors(expr: Node) -> tuple[tuple[Node]]:
     if expr.__class__ is nodes.Mul:
         return tuple(i for arg in expr for i in flatten_factors(arg))
     if expr.__class__ is nodes.Const:
-        if not expr.numerator.imag:
-            return tuple(primes(expr).items())
-        if not expr.numerator.real:
-            res = {nodes.Const(1j): 1}
-            res.update(primes(nodes.Const(expr.numerator.imag, expr.denominator)))
-            return tuple(res.items())
-        if (g := math.gcd(int(expr.numerator.real), int(expr.numerator.imag))) > 1:
-            res = {nodes.Const(res.numerator / g): 1}
-            res.update(primes(nodes.Const(g, expr.denominator)))
-            return tuple(res.items())
+        return tuple(primes(expr).items())
     if expr.__class__ is nodes.Pow:
-        return ((expr.base, expr.exp),)
+        # return ((expr.base, expr.exp),)
+        return tuple((v, exp * expr.exp) for v, exp in flatten_factors(expr.base))
     return ((expr, nodes.Const(1)),)
-
-
-def _divisors(node: Node) -> Generator[Node, None, None]:
-    primes = list(flatten_factors(node))
-    exponents = [range(e.numerator + 1) for _, e in primes]
-    yield from (
-        reduce(
-            lambda acc, pair: acc * (pair[0] ** pair[1]),
-            zip((base for base, _ in primes), powers),
-            nodes.Const(1),
-        )
-        for powers in product(*exponents)
-    )
-    yield nodes.Const(1)
 
 
 @lru_cache
@@ -73,48 +49,78 @@ def divisors(node: Node) -> tuple[Node]:
         for powers in product(*exponents)
     )
     # yield nodes.Const(1)
-    # return tuple(_divisors(node))
 
 
-def gcd(*args: Node, light=False) -> Node:
-    """Greatest Common Divisor of a and b"""
+def _gcd_pow(exps, rational):
+    exps = tuple(exps)
+    if all(isinstance(i, (int, nodes.Number)) for i in exps):
+        if rational:
+            return min(i // 1 for i in exps)
+        return min(exps)
+    sybs = dict(
+        i.canonical() if not isinstance(i, (nodes.Number, int)) else (i, None)
+        for i in exps
+    )
+    if len(set(sybs.values())) == 1:
+        p = min(sybs)
+        v = sybs.popitem()[1]
+        if rational:
+            return p // 1 * v
+        return p * v
+    raise ValueError(f"unknown value for min{exps}")
+
+
+def gcd(*args: Node, light=False, rational=True) -> Node:
+    """Greatest Common Divisor"""
+    args = set(args)
+    if len(args) == 1:
+        return args.pop()
     # Find factor by traversing the node tree
     if light or not all(n.__class__ is nodes.Add and is_polynomial(n) for n in args):
         factors = [
-            {k: v // 1 for k, v in flatten_factors(n)}
-            for n in chain(*map(nodes.Add.flatten, args))
+            dict(
+                flatten_factors(n)
+                if n.__class__ is not nodes.Add
+                else chain(*map(flatten_factors, n.cancel_gcd()))
+            )
+            for n in args
         ]
         common = reduce(lambda a, b: a & b, map(dict.keys, factors))
         return nodes.Mul.from_terms(
-            t ** min(map(itemgetter(t), factors), key=abs) for t in common
+            t ** _gcd_pow(map(itemgetter(t), factors), rational) for t in common
         )
 
     # Guaranteed to be working on two or more polynomials
-    a = args[0]
-    for b in args[1:]:
+    args = [(n / v, v) for n, v in ((n, gcd(*n.args, light=True)) for n in args)]
+    c = gcd(*map(itemgetter(1), args), light=True)
+    args = set(map(itemgetter(0), args))
+    a = args.pop()
+    for b in args:
         if degree(b) > degree(a):
             a, b = b, a
         # Find common factor (Euclidean GCD)
         while b:
             q, r = long_division(a, b)
             if not q or r and r.__class__ is not nodes.Add:
-                return nodes.Const(1)
+                return c
             a, b = b, r
 
-    return a.cancel_gcd()[1]
+    return a.cancel_gcd()[1].multiply(c)
 
 
-def lcm(a: Node, b: Node) -> Node:
-    """Lowest Common Multiple of a & b"""
-    if a == b:
-        return a
-    if not (
-        a.__class__ is b.__class__ is nodes.Add
-        and is_polynomial(a)
-        and is_polynomial(b)
-    ):
-        return (a * b) / gcd(a, b)
-    return cancel_factors(a.multiply(b), gcd(a, b))
+def lcm(*args, light=False, rational=True) -> Node:
+    """Lowest Common Multiple"""
+    args = set(args)  # remove duplicates
+    if len(args) == 0:
+        raise ValueError("lcm() requires at least one argument")
+    if len(args) == 1:
+        return args.pop()
+    if light or not all(is_polynomial(i) and i.__class__ is nodes.Add for i in args):
+        return nodes.Mul.from_terms(args) / gcd(*args, light=True, rational=rational)
+
+    return cancel_factors(
+        reduce(lambda a, b: a.multiply(b), args), gcd(*args, light=False)
+    )
 
 
 def cancel_factors(a: Add, b: Node) -> Node:

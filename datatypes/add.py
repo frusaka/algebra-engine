@@ -84,10 +84,21 @@ class Add(Collection):
             den *= -1
         if den != 1:
             self = self.multiply(den)
-        gcd = utils.gcd(*self)
+        gcd = utils.gcd(*self, light=True)
 
         if gcd == den == 1:
             return gcd, self
+        # if isinstance(gcd, nodes.Add):
+        #     g = dict(itertools.chain(*map(utils.flatten_factors, gcd.cancel_gcd())))
+        # else:
+        #     g = dict(utils.flatten_factors(gcd))
+
+        # return gcd / den, Add.from_terms(
+        #     nodes.Mul.from_terms(
+        #         k ** (v - g.get(k, 0)) for k, v in utils.flatten_factors(n)
+        #     )
+        #     for n in self
+        # )
         return gcd / den, self.multiply(gcd**-1)
 
     def divide(self, b: Add) -> Node:

@@ -205,12 +205,13 @@ class Const(Number):
         return a.numerator * b.denominator <= a.denominator * b.numerator
 
     def totex(self):
-        n = str(self.numerator).replace("j", "\\mathrm{i}")
-        if self.denominator == 1:
+        n, *d = str(self).split("/")
+        n = n.replace("i", "\\mathrm{i}")
+        if not d:
             return n
         n = n.join("{}")
-        d = str(self.denominator).join("{}")
-        return f"\\dfrac{n}{d}"
+        d = d[0].join("{}")
+        return f"\\frac{n}{d}"
 
 
 class Float(Number):
@@ -312,7 +313,7 @@ class Float(Number):
         return self._val
 
     def totex(self):
-        return f"\\mathrm{self}"
+        return str(self).replace("j", "\\mathrm{j}")
 
 
 __all__ = ["Const", "Float"]

@@ -105,7 +105,7 @@ class Mul(Collection):
         )
 
     @classmethod
-    def merge(cls, args: Iterable[Node], distr_const=True) -> list[Node]:
+    def merge(cls, args: Iterable[Node], distr_const=False) -> list[Node]:
         res = defaultdict(nodes.Const)
         for k, v in (utils.mult_key(n, True) for n in args):
             if k is None:
@@ -163,7 +163,7 @@ class Mul(Collection):
             num = num.totex()
         if den.__class__ is Mul:
             c, den = den.canonical()
-            den = utils.print_coef(c).replace("i", "\\mathrm{i}") + "".join(
+            den = utils.print_coef(c).join(("\\mathrm{", "}")) + "".join(
                 map(_tex, (utils.ordered_terms(Mul.flatten(den, 0), True)))
             )
         else:
@@ -173,7 +173,7 @@ class Mul(Collection):
         if not den:
             return num
 
-        return f"\\frac{num.join("{}")}{den.join("{}")}"
+        return f'\\frac{num.join("{}")}{den.join("{}")}'
 
 
 __all__ = ["Mul"]

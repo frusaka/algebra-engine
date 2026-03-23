@@ -5,31 +5,39 @@ const ctn = document.getElementById("math-final-container");
 
 const solveTitle = document.getElementById("solve-title");
 
+let ce;
 let customMacros = {
-  approx: "\\operatorname{approx}(#?)",
-  factor: "\\operatorname{factor}(#?)",
-  solve: "\\operatorname{solve}(#?)",
-  expand: "\\operatorname{expand}(#?)",
-  lcm: "\\operatorname{lcm}(#?)",
-  gcd: "\\operatorname{gcd}(#?)",
-  root: "\\sqrt[#?]{#?}",
-  i: "\\imaginaryI",
+  approx: "\\operatorname{approx}",
+  factor: "\\operatorname{factor}",
+  solve: "\\operatorname{solve}",
+  expand: "\\operatorname{expand}",
+  lcm: "\\operatorname{lcm}",
+  gcd: "\\operatorname{gcd}",
 };
 
 mf.addEventListener("mount", () => {
-  mf.macros = { ...mf.macros, ...customMacros };
+  mf.macros = { ...customMacros, ...mf.macros, i: "\\operatorname{i}" };
 
   mf.inlineShortcuts = {
     ...mf.inlineShortcuts,
-    ...customMacros,
+    ...Object.fromEntries(
+      Object.keys(customMacros).map((k) => [
+        k,
+        "\\" + k + "{\\left(#1\\right)}",
+      ])
+    ),
+    root: "\\sqrt[#?]{#1}",
+    i: "\\i",
   };
+  loadParse();
 });
 
+document.addEventListener("ceready", loadParse);
 mf.addEventListener("change", evaluate);
 
 async function evaluate() {
   let resp = await window.pywebview.api.evaluate(
-    MathfieldElement.computeEngine.parse(mf.value).json
+    ce.parse(mf.value, { parseNumbers: "rational" }).json
   );
 
   if (resp.error) {
@@ -53,4 +61,30 @@ async function evaluate() {
       steps.firstElementChild.firstElementChild.lastElementChild.lastElementChild.innerHTML;
   }
   renderMathInElement(document.body);
+}
+
+function loadParse() {
+  if (
+    typeof MathfieldElement == "undefined" ||
+    !MathfieldElement.computeEngine ||
+    ce
+  )
+    return;
+  ce = MathfieldElement.computeEngine;
+  ce.latexDictionary = [
+    ...ce.latexDictionary,
+    ...Object.keys(customMacros).map((k) => ({
+      latexTrigger: "\\" + k,
+      kind: "function",
+      parse: (parser) => {
+        let g = parser.parseGroup() ?? ["Error", "'missing'"];
+        if (typeof g == "object" && g[0] == "Delimiter") {
+          if (!g[2]) return [k, g[1]];
+          if (g[2].str == "(,)") return [k, ...g[1].slice(1)];
+        }
+        return [k, g];
+      },
+    })),
+    { latexTrigger: "\\i", parse: "Imag" },
+  ];
 }

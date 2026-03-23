@@ -3,8 +3,6 @@ import math
 from typing import Iterable, Sequence, TYPE_CHECKING
 from functools import lru_cache
 
-from numpy import roots as np_roots
-
 from .groebner import buchberger
 
 
@@ -55,7 +53,7 @@ def quadratic_roots(f: tuple[Node]) -> tuple[Node] | None:
 
     discr = ((b**2) - 4 * a * c) ** Const(1, 2)
     den = 2 * a
-    return {(-b + discr) / den, (-b - discr) / den}
+    return {((-b + discr) / den), ((-b - discr) / den)}
 
 
 def roots_cubic(f):
@@ -71,10 +69,12 @@ def roots_cubic(f):
     w2 = (-1 - Const(3) ** 0.5 * 1j) / 2
     s = [(-q / 2 + Δ**0.5) ** Const(1, 3)]
     s.extend(s[0] * i for i in (w, w2))
-    return {(s - p / (3 * s) - a / 3).simplify() for s in s}
+    return {(s - p / (3 * s) - a / 3) for s in s}
 
 
 def roots(f: list[Node]):
+    from numpy import roots
+
     d = len(f) - 1
     u = math.gcd(*(d - i for i, c in enumerate(f) if c))
 
@@ -88,8 +88,8 @@ def roots(f: list[Node]):
     if d == 3:
         return nth_roots(roots_cubic(f), u)
     try:
-        return nth_roots(map(simplify_complex, np_roots([i.approx() for i in f])), u)
-    except:
+        return nth_roots(map(simplify_complex, roots([i.approx() for i in f])), u)
+    except AttributeError:
         raise ValueError("High degree Multivariate polynomial")
 
 
