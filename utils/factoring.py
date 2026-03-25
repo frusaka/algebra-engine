@@ -116,11 +116,16 @@ def lcm(*args, light=False, rational=True) -> Node:
     if len(args) == 1:
         return args.pop()
     if light or not all(is_polynomial(i) and i.__class__ is nodes.Add for i in args):
-        return nodes.Mul.from_terms(args) / gcd(*args, light=True, rational=rational)
-
-    return cancel_factors(
-        reduce(lambda a, b: a.multiply(b), args), gcd(*args, light=False)
-    )
+        res = args.pop()
+        while args:
+            b = args.pop()
+            res = res * b / gcd(res, b)
+        return res
+    res = res = args.pop()
+    while args:
+        b = args.pop()
+        res = cancel_factors(res.multiply(b), gcd(res, b))
+    return res
 
 
 def cancel_factors(a: Add, b: Node) -> Node:

@@ -13,7 +13,7 @@ def test_invalid():
 def test_spaced_numbers():
     for expr in ["3 4", "2 3y", "3 4+5", "3/4 5x"]:
         with pytest.raises(SyntaxError):
-            parser.eval(expr)
+            AST(expr)
 
 
 def test_unary():
@@ -152,3 +152,107 @@ def test_monomial_special():
         "b",
         2,
     )
+
+
+def test_functions():
+    assert AST("subs(x-5,x=3)") == (
+        TokenType.SUBS,
+        TokenType.COMMA,
+        TokenType.SUB,
+        "x",
+        5,
+        TokenType.EQ,
+        "x",
+        3,
+    )
+    assert AST("approx(sqrt(7))") == (TokenType.APPROX, TokenType.SQRT, 7)
+    assert AST("gcd(12,8, 10)") == (
+        TokenType.GCD,
+        TokenType.COMMA,
+        TokenType.COMMA,
+        12,
+        8,
+        10,
+    )
+    assert AST("lcm(4,6)") == (TokenType.LCM, TokenType.COMMA, 4, 6)
+    assert AST("factor(x+5)") == (TokenType.FACTOR, TokenType.ADD, "x", 5)
+    assert AST("expand(2(x+3))") == (
+        TokenType.EXPAND,
+        TokenType.MUL,
+        2,
+        TokenType.ADD,
+        "x",
+        3,
+    )
+    assert AST("subs(x,2)+approx(2/3)") == (
+        TokenType.ADD,
+        TokenType.SUBS,
+        TokenType.COMMA,
+        "x",
+        2,
+        TokenType.APPROX,
+        TokenType.TRUEDIV,
+        2,
+        3,
+    )
+    assert AST("2*factor(x)") == (TokenType.MUL, 2, TokenType.FACTOR, "x")
+    assert AST("gcd(12,8)^2") == (
+        TokenType.POW,
+        TokenType.GCD,
+        TokenType.COMMA,
+        12,
+        8,
+        2,
+    )
+
+
+def test_system():
+    assert AST("[x=3, y=5]") == (
+        TokenType.LBRACK,
+        TokenType.COMMA,
+        TokenType.EQ,
+        "x",
+        3,
+        TokenType.EQ,
+        "y",
+        5,
+    )
+    assert AST("[x+y=10, x-y=2]") == (
+        TokenType.LBRACK,
+        TokenType.COMMA,
+        TokenType.EQ,
+        TokenType.ADD,
+        "x",
+        "y",
+        10,
+        TokenType.EQ,
+        TokenType.SUB,
+        "x",
+        "y",
+        2,
+    )
+    assert AST("[2x+3y=12, x=4]") == (
+        TokenType.LBRACK,
+        TokenType.COMMA,
+        TokenType.EQ,
+        TokenType.ADD,
+        TokenType.MUL,
+        2,
+        "x",
+        TokenType.MUL,
+        3,
+        "y",
+        12,
+        TokenType.EQ,
+        "x",
+        4,
+    )
+
+    with pytest.raises(ValueError):
+        parser.eval("[x=3, x=3]")
+
+    with pytest.raises(ValueError):
+        parser.eval("[x>3, y=5]")
+
+    with pytest.raises(SyntaxError):
+        parser.eval("[x=3,]")

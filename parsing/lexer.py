@@ -1,6 +1,6 @@
 from fractions import Fraction
-from typing import Generator, Literal
-from parsing.tokens import Token, TokenType
+from typing import Generator
+from parsing.tokens import Token, TokenType, FUNCTIONS
 from datatypes.nodes import Const, Var
 
 
@@ -8,7 +8,7 @@ class Lexer:
     """Takes input string and Tokenizes it"""
 
     OPERS = {
-        "⟹": Token(TokenType.SOLVE),
+        **dict((i.lower, TokenType[i]) for i in FUNCTIONS),
         ",": Token(TokenType.COMMA),
         "=": Token(TokenType.EQ),
         ">": Token(TokenType.GT),
@@ -24,16 +24,12 @@ class Lexer:
         "√": Token(TokenType.SQRT),
         "(": Token(TokenType.LPAREN),
         ")": Token(TokenType.RPAREN),
+        "[": Token(TokenType.LBRACK),
+        "]": Token(TokenType.RBRACK),
     }
 
-    def __init__(self, expr: str, mode: Literal["plain", "tex"] = "plain") -> None:
-        if mode == "plain":
-            self.expr = iter(
-                expr.replace(">=", "≥").replace("<=", "≤").replace("=>", "⟹").join("()")
-            )
-        else:
-            self.expr = iter(expr.replace("\\\\", "\n").join("()"))
-        self.mode = mode
+    def __init__(self, expr: str) -> None:
+        self.expr = iter(expr.replace(">=", "≥").replace("<=", "≤").join("()"))
         self.advance()
 
     def advance(self) -> None:
@@ -69,13 +65,20 @@ class Lexer:
                 yield self.generate_number()
                 continue
 
-            # A variable
+            # A variable or function
             if self.curr.isalpha():
-                if was_num:
-                    # Implicit multiplication - Var Coefficient
-                    yield self.OPERS["*"][was_num >> 1]
-                yield Token(TokenType.VAR, Var(self.curr))
-                was_num = 2
+                tk = self.generate_identifier()
+                if tk.__class__ is str:
+                    for i in tk:
+                        if was_num:
+                            # Implicit multiplication - Var Coefficient
+                            yield self.OPERS["*"][was_num >> 1]
+                        yield Token(TokenType.VAR, Var(i))
+                        was_num = 2
+                else:
+                    was_num = 0
+                    yield tk
+                continue
 
             # An operator
             elif self.curr in "+-":
@@ -122,3 +125,12 @@ class Lexer:
             )
         val = Fraction(number_str).limit_denominator()
         return Token(TokenType.CONST, Const(val.numerator, val.denominator))
+
+    def generate_identifier(self) -> Token | str:
+        var = ""
+        while self.curr is not None and self.curr.isalpha():
+            var += self.curr
+            self.advance()
+        if var.upper() in FUNCTIONS:
+            return Token(TokenType[var.upper()])
+        return var

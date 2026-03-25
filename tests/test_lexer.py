@@ -46,6 +46,15 @@ def test_variable():
     assert list(Lexer("J").generate_tokens())[1:-1] != [Token(TokenType.VAR, Var("j"))]
 
 
+def test_function():
+    assert list(Lexer("sqrt").generate_tokens())[1:-1] == [Token(TokenType.SQRT)]
+    assert list(Lexer("subs").generate_tokens())[1:-1] == [Token(TokenType.SUBS)]
+    assert list(Lexer("factor").generate_tokens())[1:-1] == [Token(TokenType.FACTOR)]
+    assert list(Lexer("approx").generate_tokens())[1:-1] == [Token(TokenType.APPROX)]
+    assert list(Lexer("lcm").generate_tokens())[1:-1] == [Token(TokenType.LCM)]
+    assert list(Lexer("gcd").generate_tokens())[1:-1] == [Token(TokenType.GCD)]
+
+
 def test_parentheses():
     assert list(Lexer("(3)").generate_tokens())[1:-1] == [
         Token(TokenType.LPAREN),
@@ -56,6 +65,22 @@ def test_parentheses():
         Token(TokenType.LPAREN),
         Token(TokenType.LPAREN),
         Token(TokenType.RPAREN),
+    ]
+
+
+def test_brackets():
+    assert list(Lexer("[]").generate_tokens())[1:-1] == [
+        Token(TokenType.LBRACK),
+        Token(TokenType.RBRACK),
+    ]
+    assert list(Lexer("[[").generate_tokens())[1:-1] == [
+        Token(TokenType.LBRACK),
+        Token(TokenType.LBRACK),
+    ]
+    assert list(Lexer("[]]").generate_tokens())[1:-1] == [
+        Token(TokenType.LBRACK),
+        Token(TokenType.RBRACK),
+        Token(TokenType.RBRACK),
     ]
 
 
@@ -262,7 +287,6 @@ def test_multiple_operators():
         Token(TokenType.GT),
         Token(TokenType.CONST, Const(2)),
     ]
-
 
 def test_alt_syntax():
     assert list(Lexer("3(4)").generate_tokens())[1:-1] == [

@@ -1,7 +1,5 @@
 SYMBOLS = {
-    "SOLVE": "⟹",
     "COMMA": ",",
-    "SEMI_COLON": ";",
     "EQ": "=",
     "NE": "≠",
     "GT": ">",
@@ -18,6 +16,10 @@ SYMBOLS = {
     "NEG": "-",
     "POS": "+",
     "IN": "∈",
+    "LPAREN": "(",
+    "RPAREN": ")",
+    "LBRACK": "[",
+    "RBRACK": "]",
 }
 
 TEXTOKEN = {

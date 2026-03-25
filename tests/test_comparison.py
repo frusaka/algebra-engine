@@ -197,12 +197,12 @@ def test_solve_edge():
     assert parser.eval("(2x+3)^0.5+(x-1)^0.5=4").right == 44 - 24 * Const(3) ** 0.5
 
     # Infinite Solutions
-    assert parser.eval("x => 0x = 0").right == INF
+    assert parser.eval("solve(0x = 0, x)").right == INF
     assert parser.eval("(x-2)^2 = (x^2 - 4x + 4)").right == INF
     # No solution
     assert not parser.eval("x + 2 = x - 4").right
     assert not parser.eval("x > x").right
-    assert not parser.eval("y => mx > -mx").right
+    assert not parser.eval("solve(mx > -mx, y)").right
 
 
 @pytest.mark.skip(reason="irrelevant")

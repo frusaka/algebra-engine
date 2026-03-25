@@ -113,7 +113,8 @@ class Pow(Node):
         return Pow(base, exp)
 
     def subs(self, mapping):
-        return Pow(self.base.subs(mapping), self.exp.subs(mapping))
+        res = Pow(self.base.subs(mapping), self.exp.subs(mapping))
+        return mapping.get(res, res)
 
     def approx(self) -> float | complex:
         v = self.base.approx()
