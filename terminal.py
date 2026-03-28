@@ -8,7 +8,7 @@ print = Console().print
 
 while True:
     try:
-        inp = parser.Parser(Lexer(input("Expression > ")).generate_tokens())
+        inp = parser.Parser(Lexer(input("Expression > ")).tokenize())
         res = inp.parse()
         if res is None:
             continue

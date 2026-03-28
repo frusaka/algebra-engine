@@ -1,0 +1,99 @@
+# With Help from: https://dev.to/rahul_suryash/steps-to-build-binary-executables-for-python-code-with-github-actions-4k92
+
+name: Build and Release Executables
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Enter the version (e.g., v1.0.0)'
+        required: true
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13.1'
+
+      - name: Install Node.js dependencies
+        working-directory: ./web
+        run: npm install
+
+      - name: Install Python dependencies
+        run: |
+          pip install pip --upgrade
+          pip install setuptools --upgrade 
+          pip install pyinstaller
+          pip install -r requirements.txt
+      - name: Build web assets
+        working-directory: ./web
+        run: npm run build
+      - name: Build executable
+        run: pyinstaller --add-data=web/dist:web --noconsole --onefile main.py
+
+      - name: Rename executable
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            mv dist/main.exe dist/algebra-engine-windows.exe
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            mv dist/main dist/algebra-engine-linux
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            mv dist/main dist/algebra-engine-macos
+          fi
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: algebra-engine-${{ matrix.os }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: List downloaded files (Debugging)
+        run: ls -R
+
+      - name: Make files executable (Linux/Mac)
+        run: chmod +x algebra-engine-* || true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Release ${{ github.event.inputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            algebra-engine-linux
+            algebra-engine-windows.exe
+            algebra-engine-macos

@@ -2,4 +2,5 @@ __pycache__/
 *.py[cod]
 *.spec
 *.ico
-package*
+node_modules/
+dist/

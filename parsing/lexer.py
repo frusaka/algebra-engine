@@ -1,3 +1,11 @@
+from pylatexenc.latexwalker import (
+    LatexWalker,
+    LatexGroupNode,
+    LatexCharsNode,
+    LatexMacroNode,
+)
+
+
 from fractions import Fraction
 from typing import Generator
 from parsing.tokens import Token, TokenType, FUNCTIONS
@@ -29,8 +37,7 @@ class Lexer:
     }
 
     def __init__(self, expr: str) -> None:
-        self.expr = iter(expr.replace(">=", "≥").replace("<=", "≤").join("()"))
-        self.advance()
+        self.expr = expr.replace(">=", "≥").replace("<=", "≤")
 
     def advance(self) -> None:
         try:
@@ -38,8 +45,46 @@ class Lexer:
         except StopIteration:
             self.curr = None
 
+    def generate_number(self) -> Token:
+        """Traverse input string to form a single number"""
+        decimals = 0
+        if self.curr == "i":
+            self.advance()
+            return Token(TokenType.CONST, Const(1j))
+        number_str = ""
+        while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
+            if self.curr == ".":
+                # Const cannot have multiple decimals
+                if decimals:
+                    return Token(
+                        TokenType.ERROR,
+                        SyntaxError("only one decimal point is allowed in number"),
+                    )
+                decimals = 1
+            number_str += self.curr
+            self.advance()
+
+        # Const needs atleast one digit
+        if number_str == ".":
+            return Token(
+                TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
+            )
+        val = Fraction(number_str).limit_denominator()
+        return Token(TokenType.CONST, Const(val.numerator, val.denominator))
+
+    def generate_identifier(self) -> Token | str:
+        var = ""
+        while self.curr is not None and self.curr.isalpha():
+            var += self.curr
+            self.advance()
+        if var.upper() in FUNCTIONS:
+            return Token(TokenType[var.upper()])
+        return var
+
     def generate_tokens(self) -> Generator[Token, None, None]:
         """Generate tokens based on input string"""
+        self.expr = iter(self.expr)
+        self.advance()
         was_num = 0  # Disambiguate unary+- vs binary +-
         while self.curr is not None:
             if self.curr in " \n\t":  # Ignore spaces
@@ -99,38 +144,23 @@ class Lexer:
                 return
             self.advance()
 
-    def generate_number(self) -> Token:
-        """Traverse input string to form a single number"""
-        decimals = 0
-        if self.curr == "i":
-            self.advance()
-            return Token(TokenType.CONST, Const(1j))
-        number_str = ""
-        while self.curr is not None and (self.curr == "." or self.curr.isdigit()):
-            if self.curr == ".":
-                # Const cannot have multiple decimals
-                if decimals:
-                    return Token(
-                        TokenType.ERROR,
-                        SyntaxError("only one decimal point is allowed in number"),
-                    )
-                decimals = 1
-            number_str += self.curr
-            self.advance()
+    def tokenize(self) -> Generator[Token, None, None]:
+        def dfs(node):
+            if node.__class__ is LatexCharsNode:
+                yield from self.__class__(node.chars).generate_tokens()
+            elif node.__class__ is LatexGroupNode:
+                yield Token(TokenType.LPAREN)
+                for n in node.nodelist:
+                    yield from dfs(n)
+                yield Token(TokenType.RPAREN)
+                return
+            elif node.__class__ is LatexMacroNode:
+                if node.macroname in ("left", "right"):
+                    return
+                yield Token(TokenType[node.macroname.upper()])
+                if node.nodeargd.argnlist:
+                    for n in node.nodeargd.argnlist:
+                        yield from dfs(n)
 
-        # Const needs atleast one digit
-        if number_str == ".":
-            return Token(
-                TokenType.ERROR, SyntaxError("decimal point needs atlest one digit")
-            )
-        val = Fraction(number_str).limit_denominator()
-        return Token(TokenType.CONST, Const(val.numerator, val.denominator))
-
-    def generate_identifier(self) -> Token | str:
-        var = ""
-        while self.curr is not None and self.curr.isalpha():
-            var += self.curr
-            self.advance()
-        if var.upper() in FUNCTIONS:
-            return Token(TokenType[var.upper()])
-        return var
+        for n in LatexWalker(self.expr, tolerant_parsing=False).get_latex_nodes()[0]:
+            yield from dfs(n)

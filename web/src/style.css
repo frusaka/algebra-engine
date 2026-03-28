@@ -14,8 +14,8 @@
   --title-fg: #c4d7ff;
 
   --mathfield-bg: #263141;
-  --code-font: "Fira Code", monospace;
-  --sans-font: "Segoe UI", sans-serif;
+  --code-font: 'Fira Code', monospace;
+  --sans-font: 'Segoe UI', sans-serif;
   --serif-font: Georgia, serif;
 }
 
@@ -46,15 +46,8 @@ math-field::part(menu-toggle) {
   margin: 1rem;
 }
 
-.accordion-header {
-  font-weight: 600;
-}
-
-.accordion-body {
+.accordion {
   max-width: 100%;
   overflow: auto;
-}
-
-.dropdown-item {
-  cursor: pointer;
+  border: 1px solid var(--panel-border) !important;
 }

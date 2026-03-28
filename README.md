@@ -31,21 +31,13 @@ Supports rational simplification, polynomial manipulation, factoring, root findi
    ```
 3. Try it:
 
-   - REPL (Does not support function calls, e.g simplify(expr))
+   - REPL
      ```bash
      python terminal.py
      ```
-   - Or start the GUI (Recommended ✅)
+   - Or start the GUI
 
      ```bash
      python main.py
 
      ```
-
-4. If you want it to run without internet connection:  
-   First, make sure that [Node.js](https://nodejs.org/) is installed correctly.  
-   Then in the terminal, run
-   ```bash
-   .\prepare-lib.sh
-   python main.py
-   ```

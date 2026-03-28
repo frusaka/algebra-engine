@@ -3,4 +3,4 @@
 2. Add saftey checks when solving for nested radicals or complex equations
 3. Bring back dem mixed fractions
 4. Add tests for functions
-pyinstaller --noconsole --onefile --add-data "web;web" --icon "favicon.ico" --paths .\.venv\Lib\site-packages  main.py
+5. Fix failing tests due to pylatexenc

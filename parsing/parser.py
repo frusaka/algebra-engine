@@ -29,7 +29,12 @@ class Parser:
         """
         stack = []
         # NOTE: Reversing the tokens reverses the parentheses
-        for idx, token in enumerate(reversed(tks := list(tokens)), 1):
+        for idx, token in enumerate(
+            reversed(
+                tks := [Token(TokenType.LPAREN), *tokens, Token(TokenType.RPAREN)]
+            ),
+            1,
+        ):
             # Unkowns or operands
             if token.type is TokenType.ERROR:
                 raise token.value
@@ -200,8 +205,8 @@ class Parser:
 
 
 def eval(expr: str, autosolve: bool = True) -> Node:
-    return Parser(Lexer(expr).generate_tokens()).parse(autosolve)
+    return Parser(Lexer(expr).tokenize()).parse(autosolve)
 
 
 def AST(expr: str) -> tuple[Node]:
-    return tuple(Parser.prefix(Lexer(expr).generate_tokens()))
+    return tuple(Parser.prefix(Lexer(expr).tokenize()))
