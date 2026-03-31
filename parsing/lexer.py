@@ -116,30 +116,33 @@ class Lexer:
             elif node.__class__ is LatexCharsNode:
                 yield from self.__class__(node.chars).generate_tokens()
             elif node.__class__ is LatexGroupNode:
-                yield Token(TokenType.LPAREN)
-                for n in node.nodelist:
-                    yield from dfs(n)
-                yield Token(
-                    TokenType.RPAREN, tag="GR" if "[" in node.delimiters else ""
-                )
-                return
+                if (
+                    len(node.nodelist) == 1
+                    and node.nodelist[0].__class__ is not LatexCharsNode
+                ):
+                    yield from dfs(node.nodelist[0])
+                else:
+                    yield Token(TokenType.LPAREN)
+                    for n in node.nodelist:
+                        yield from dfs(n)
+                    yield Token(TokenType.RPAREN)
             elif node.__class__ is LatexMacroNode:
-                if node.macroname in ("left", "right"):
+                if node.macroname in ("left", "right", "operatorname"):
                     return
-                tk = Token(TokenType[node.macroname.upper()])
+                if node.macroname == "mathrm":
+                    for n in node.nodeargd.argnlist[0].nodelist:
+                        yield from dfs(n)
+                    return
+                if not TokenType.__members__.get(node.macroname.upper()):
+                    yield Token(
+                        TokenType.ERROR,
+                        SyntaxError(f"unknown operator: '{node.macroname}'"),
+                    )
+                    return
+                yield Token(TokenType[node.macroname.upper()])
                 if not node.nodeargd or not node.nodeargd.argnlist:
-                    yield tk
                     return
                 nodes = node.nodeargd.argnlist
-                # Normal operators like \add, \sub, or even aliases like \frac and \div
-                if node.macroname.upper() not in FUNCTIONS:
-                    for idx, n in enumerate(nodes):
-                        yield from dfs(n)
-                        if not idx or len(nodes) == 1:
-                            yield tk
-                    return
-                # Other operators like \solve, \factor, etc
-                yield tk
                 if len(nodes) > 1:
                     yield Token(TokenType.LPAREN)
                 for idx, n in enumerate(nodes):
@@ -160,8 +163,12 @@ class Lexer:
                 )
 
         was_num = 0
+        num_dict = {TokenType.CONST: 3, TokenType.VAR: 2, TokenType.RPAREN: 1}
         for i in LatexWalker(self.expr).get_latex_nodes()[0]:
             for j in dfs(i):
+                if j.type is TokenType.ERROR:
+                    yield j
+                    return
                 if was_num:
                     if j.type is TokenType.POS:
                         was_num = 0
@@ -192,12 +199,7 @@ class Lexer:
                             return
                         was_num = 0
                         yield Token(TokenType.MUL, iscoef=j.type is TokenType.VAR)
+                    if j.type.name in FUNCTIONS:
+                        yield Token(TokenType.MUL)
                 yield j
-                if j.type is TokenType.RPAREN:
-                    was_num = not j.tag
-                elif j.type is TokenType.VAR:
-                    was_num = 2
-                elif j.type is TokenType.CONST:
-                    was_num = 3
-                else:
-                    was_num = 0
+                was_num = num_dict.get(j.type, 0)

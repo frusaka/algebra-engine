@@ -6,6 +6,9 @@ from parsing.lexer import Lexer
 
 print = Console().print
 
+print("[bold magenta]Algebra Engine[/bold magenta]")
+print("Type an expression to evaluate it, or press Ctrl+C to exit.")
+
 while True:
     try:
         inp = parser.Parser(Lexer(input("Expression > ")).tokenize())
@@ -20,3 +23,7 @@ while True:
             print(ETSteps.torich())
         # raise
         print(repr(e))
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        break
+    ETSteps.clear()

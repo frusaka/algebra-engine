@@ -30,7 +30,7 @@ def test_validate_inputs():
     s = System([c, Comparison(n, a)])
     t = m, a
     # fmt: off
-    bin_funcs = ["add", "sub", "mul", "div", "pow", "sqrt", "eq", "lt", "le", "gt", "ge"]
+    bin_funcs = ["add", "sub", "mul", "div", "frac", "pow", "sqrt", "eq", "lt", "le", "gt", "ge"]
     un_funcs = ["factor", "expand", "neg", "pos", "approx"]
     inv_bin_pairs = [(n, c), (s, c), (c, s), (a, s), (s, a), (c, t), (t, c), (p, s), (s, p)]
     val_bin_pairs = [(n, n), (n, m), (m, n), (m, m), (a, n), (n, a), (a, a), (a, m), (m, a), (p, n), (n, p), (p, a), (a, p), (p, m), (m, p), (p, p)]

@@ -15,9 +15,27 @@ It was initially built as a side project to test my understanding of Algebra II 
 - [x] Solving equations and inequalities with domain analysis
 - [x] Verbose equation transformation steps with Custom pretty-printer (`LaTeX` + `HTML` or python rich library in terminal)
 
+## Examples
+
+### Solving equations
+
+<img style="display: block; margin : 5px;" src="examples/ae-poly.png" alt="Equation example" width="400"/> 
+<img style="display: block; margin : 5px;" src="examples/ae-default.png" alt="Systems of equations example" width="400"/>
+
+### Evaluating expressions
+
+<img style="display: block; margin : 5px;" src="examples/ae-factor-expand.png" alt="Factoring example" width="400"/>  
+<img style="display: block; margin : 5px;" src="examples/ae-factor-lcm.png" alt="LCM example" width="400"/>  
+<img style="display: block; margin : 5px;" src="examples/ae-gcd.png" alt="GCD example" width="400"/>
+
+### Terminal REPL
+
+<img style="display: block; margin : 5px;" src="examples/ae-default-terminal.png" alt="Terminal REPL example" width="350"/>  
+<img style="display: block; margin : 5px;" src="examples/ae-ineq-terminal.png" alt="Terminal REPL example" width="280"/>
+
 ## 🚀 Getting Started
 
-The easiest way to try it out is to download the latest release executable from the [Releases](https://github.com/frusaka/algebra-engine/releases) page.
+Download the latest release executable for your operating system from the [Releases](https://github.com/frusaka/algebra-engine/releases) page.
 
 If you want to run it from source, follow these steps:
 
@@ -31,7 +49,7 @@ If you want to run it from source, follow these steps:
 2. 📦 Install dependencies:  
    Ensure that you have [Python 3.10](https://www.python.org/downloads/) or higher installed. Then, create a virtual environment and install the dependencies:
    ```bash
-   pip install -r dev-requirements.txt
+   pip install -r requirements.txt
    ```
 3. 🎨 Build the frontend assets:  
    Ensure that you have [Node.js](https://nodejs.org) and npm installed to build the frontend assets. Then, run the following commands:

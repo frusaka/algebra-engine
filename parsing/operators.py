@@ -20,6 +20,10 @@ def mul(a: Node, b: Node) -> Node:
     return a * b
 
 
+def frac(a: Node, b: Node) -> Node:
+    return a / b
+
+
 def div(a: Node, b: Node) -> Node:
     return a / b
 

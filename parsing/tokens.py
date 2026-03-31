@@ -13,9 +13,10 @@ class TokenType(Enum):
     CONST, VAR, NaN = 5, 5.2, 5.3
     ADD, SUB = 7, 7.2
     MUL = TIMES = CDOT = 8
-    DIV = FRAC = 8.2
+    DIV = 8.2
     POS, NEG = 9, 9.2
-    POW, SQRT = 10, 10.2
+    POW, SQRT = 10, 10.1
+    FRAC = DFRAC = 10.2
     GCD = 10.3
     LCM = 10.4
     FACTOR = 10.5
@@ -38,7 +39,6 @@ class Token:
     type: TokenType
     value: Any = None
     iscoef: bool = False
-    tag: str = ""
 
     def __repr__(self) -> str:
         return self.type.name + (f": {self.value}" if self.value is not None else "")

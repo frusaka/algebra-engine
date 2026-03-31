@@ -160,9 +160,12 @@ def test_binary():
     ]
     # Latex operators
     assert list(Lexer("\\frac34").tokenize()) == [
+        Token(TokenType.FRAC),
+        Token(TokenType.LPAREN),
         Token(TokenType.CONST, Const(3)),
-        Token(TokenType.DIV),
+        Token(TokenType.COMMA),
         Token(TokenType.CONST, Const(4)),
+        Token(TokenType.RPAREN),
     ]
     assert list(Lexer("3\\cdot4").tokenize()) == [
         Token(TokenType.CONST, Const(3)),
