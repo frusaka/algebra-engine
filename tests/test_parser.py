@@ -26,7 +26,7 @@ def test_unary():
 
 def test_binary():
     assert AST("2*3") == (TokenType.MUL, 2, 3)
-    assert AST("2/3") == (TokenType.TRUEDIV, 2, 3)
+    assert AST("2/3") == (TokenType.DIV, 2, 3)
     assert AST("x+3") == (TokenType.ADD, "x", 3)
     assert AST("x+z") == (TokenType.ADD, "x", "z")
     assert AST("x=3") == (TokenType.EQ, "x", 3)
@@ -53,9 +53,9 @@ def test_unary_vs_binary():
 def test_PEMDAS():
     # Basic operations
     assert AST("3+5*2") == (TokenType.ADD, 3, TokenType.MUL, 5, 2)
-    assert AST("3-5/2") == (TokenType.SUB, 3, TokenType.TRUEDIV, 5, 2)
-    assert AST("3/5*2") == (TokenType.MUL, TokenType.TRUEDIV, 3, 5, 2)
-    assert AST("3*5/2") == (TokenType.TRUEDIV, TokenType.MUL, 3, 5, 2)
+    assert AST("3-5/2") == (TokenType.SUB, 3, TokenType.DIV, 5, 2)
+    assert AST("3/5*2") == (TokenType.MUL, TokenType.DIV, 3, 5, 2)
+    assert AST("3*5/2") == (TokenType.DIV, TokenType.MUL, 3, 5, 2)
 
     # Exponentiation
     assert AST("3^5*2") == (TokenType.MUL, TokenType.POW, 3, 5, 2)
@@ -72,14 +72,14 @@ def test_PEMDAS():
         TokenType.ADD,
         5,
         2,
-        TokenType.TRUEDIV,
+        TokenType.DIV,
         8,
         4,
     )
     assert AST("3+(5*2-8)/4") == (
         TokenType.ADD,
         3,
-        TokenType.TRUEDIV,
+        TokenType.DIV,
         TokenType.SUB,
         TokenType.MUL,
         5,
@@ -130,7 +130,7 @@ def test_PEMDAS():
 
 def test_monomial_special():
     assert AST("6a/8b") == (
-        TokenType.TRUEDIV,
+        TokenType.DIV,
         TokenType.MUL,
         6,
         "a",
@@ -138,11 +138,11 @@ def test_monomial_special():
         8,
         "b",
     )
-    assert AST("6/8b") == (TokenType.TRUEDIV, 6, TokenType.MUL, 8, "b")
-    assert AST("6/8*b") == (TokenType.MUL, TokenType.TRUEDIV, 6, 8, "b")
-    assert AST("6a/8") == (TokenType.TRUEDIV, TokenType.MUL, 6, "a", 8)
+    assert AST("6/8b") == (TokenType.DIV, 6, TokenType.MUL, 8, "b")
+    assert AST("6/8*b") == (TokenType.MUL, TokenType.DIV, 6, 8, "b")
+    assert AST("6a/8") == (TokenType.DIV, TokenType.MUL, 6, "a", 8)
     assert AST("6a/8b^2") == (
-        TokenType.TRUEDIV,
+        TokenType.DIV,
         TokenType.MUL,
         6,
         "a",
@@ -191,7 +191,7 @@ def test_functions():
         "x",
         2,
         TokenType.APPROX,
-        TokenType.TRUEDIV,
+        TokenType.DIV,
         2,
         3,
     )

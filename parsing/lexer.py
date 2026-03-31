@@ -1,9 +1,4 @@
-from pylatexenc.latexwalker import (
-    LatexWalker,
-    LatexGroupNode,
-    LatexCharsNode,
-    LatexMacroNode,
-)
+from pylatexenc.latexwalker import *
 
 
 from fractions import Fraction
@@ -23,13 +18,12 @@ class Lexer:
         "≥": Token(TokenType.GE),
         "<": Token(TokenType.LT),
         "≤": Token(TokenType.LE),
-        "+": (Token(TokenType.ADD), Token(TokenType.POS)),
-        "-": (Token(TokenType.SUB), Token(TokenType.NEG)),
-        "*": (Token(TokenType.MUL), Token(TokenType.MUL, iscoef=True)),
-        "/": Token(TokenType.TRUEDIV),
+        "+": Token(TokenType.POS),
+        "-": Token(TokenType.NEG),
+        "*": Token(TokenType.MUL),
+        "/": Token(TokenType.DIV),
         "^": Token(TokenType.POW),
         "~": Token(TokenType.APPROX),
-        "√": Token(TokenType.SQRT),
         "(": Token(TokenType.LPAREN),
         ")": Token(TokenType.RPAREN),
         "[": Token(TokenType.LBRACK),
@@ -85,28 +79,12 @@ class Lexer:
         """Generate tokens based on input string"""
         self.expr = iter(self.expr)
         self.advance()
-        was_num = 0  # Disambiguate unary+- vs binary +-
         while self.curr is not None:
             if self.curr in " \n\t":  # Ignore spaces
                 self.advance()
                 continue
 
             if self.curr in "i." or self.curr.isdigit():
-                # Can be toggled off to experiment with other notations (prefix & postfix)
-                if was_num:
-                    if self.curr != "i" and was_num != 1:
-                        yield Token(
-                            TokenType.ERROR,
-                            SyntaxError(
-                                "no operator between numbers"
-                                if was_num == 3
-                                else "variable preceeding digit"
-                            ),
-                        )
-                        return
-                    # Implicit multiplication - Parenthesis or consecutive numbers and variables
-                    yield self.OPERS["*"][was_num >> 1]
-                was_num = 3 - (self.curr == "i")
                 yield self.generate_number()
                 continue
 
@@ -115,27 +93,14 @@ class Lexer:
                 tk = self.generate_identifier()
                 if tk.__class__ is str:
                     for i in tk:
-                        if was_num:
-                            # Implicit multiplication - Var Coefficient
-                            yield self.OPERS["*"][was_num >> 1]
                         yield Token(TokenType.VAR, Var(i))
-                        was_num = 2
                 else:
-                    was_num = 0
                     yield tk
                 continue
 
             # An operator
-            elif self.curr in "+-":
-                yield self.OPERS[self.curr][not was_num]
-                was_num = 0
             elif self.curr in self.OPERS:
-                if was_num and self.curr in "(√":
-                    # Implicit multiplication - Mul
-                    yield self.OPERS["*"][1]
-                yield self.OPERS[self.curr] if self.curr != "*" else self.OPERS["*"][0]
-                was_num = self.curr == ")"
-
+                yield self.OPERS[self.curr]
             # An unknown symbol. Terminates immediately
             else:
                 yield Token(
@@ -146,21 +111,93 @@ class Lexer:
 
     def tokenize(self) -> Generator[Token, None, None]:
         def dfs(node):
-            if node.__class__ is LatexCharsNode:
+            if node is None:
+                yield Token(TokenType.NaN)
+            elif node.__class__ is LatexCharsNode:
                 yield from self.__class__(node.chars).generate_tokens()
             elif node.__class__ is LatexGroupNode:
                 yield Token(TokenType.LPAREN)
                 for n in node.nodelist:
                     yield from dfs(n)
-                yield Token(TokenType.RPAREN)
+                yield Token(
+                    TokenType.RPAREN, tag="GR" if "[" in node.delimiters else ""
+                )
                 return
             elif node.__class__ is LatexMacroNode:
                 if node.macroname in ("left", "right"):
                     return
-                yield Token(TokenType[node.macroname.upper()])
-                if node.nodeargd.argnlist:
-                    for n in node.nodeargd.argnlist:
+                tk = Token(TokenType[node.macroname.upper()])
+                if not node.nodeargd or not node.nodeargd.argnlist:
+                    yield tk
+                    return
+                nodes = node.nodeargd.argnlist
+                # Normal operators like \add, \sub, or even aliases like \frac and \div
+                if node.macroname.upper() not in FUNCTIONS:
+                    for idx, n in enumerate(nodes):
                         yield from dfs(n)
+                        if not idx or len(nodes) == 1:
+                            yield tk
+                    return
+                # Other operators like \solve, \factor, etc
+                yield tk
+                if len(nodes) > 1:
+                    yield Token(TokenType.LPAREN)
+                for idx, n in enumerate(nodes):
+                    yield from dfs(n)
+                    if idx + 1 < len(nodes):
+                        yield Token(TokenType.COMMA)
+                if len(nodes) > 1:
+                    yield Token(TokenType.RPAREN)
+            elif node.__class__ is LatexMathNode:
+                for i in node.nodelist:
+                    yield from dfs(i)
+            elif node.__class__ is LatexSpecialsNode:
+                yield from self.__class__(node.specials_chars).generate_tokens()
+            else:
+                yield Token(
+                    TokenType.ERROR,
+                    SyntaxError(f"unexpected latex node: {node.__class__.__name__}"),
+                )
 
-        for n in LatexWalker(self.expr, tolerant_parsing=False).get_latex_nodes()[0]:
-            yield from dfs(n)
+        was_num = 0
+        for i in LatexWalker(self.expr).get_latex_nodes()[0]:
+            for j in dfs(i):
+                if was_num:
+                    if j.type is TokenType.POS:
+                        was_num = 0
+                        yield Token(TokenType.ADD)
+                        continue
+                    if j.type is TokenType.NEG:
+                        was_num = 0
+                        yield Token(TokenType.SUB)
+                        continue
+                    if j.type in (
+                        TokenType.LPAREN,
+                        TokenType.CONST,
+                        TokenType.VAR,
+                    ):
+                        if (
+                            j.type is TokenType.CONST
+                            and not j.value.numerator.imag
+                            and was_num > 1
+                        ):
+                            yield Token(
+                                TokenType.ERROR,
+                                SyntaxError(
+                                    "no operator between numbers"
+                                    if was_num == 3
+                                    else "variable preceeding digit"
+                                ),
+                            )
+                            return
+                        was_num = 0
+                        yield Token(TokenType.MUL, iscoef=j.type is TokenType.VAR)
+                yield j
+                if j.type is TokenType.RPAREN:
+                    was_num = not j.tag
+                elif j.type is TokenType.VAR:
+                    was_num = 2
+                elif j.type is TokenType.CONST:
+                    was_num = 3
+                else:
+                    was_num = 0

@@ -1,4 +1,7 @@
-from typing import Generator, Iterable
+import inspect
+import types
+from typing import Generator, Iterable, get_origin, get_args, Union
+
 from solving.comparison import Comparison, CompRel
 from datatypes.base import Node
 from solving.system import System
@@ -7,13 +10,95 @@ from .tokens import FUNCTIONS, Token, TokenType
 from .lexer import Lexer
 from utils.constants import SYMBOLS
 
+_eval = eval
+
+
+def validate(func, *args, call=True):
+    def check_type(value, expected):
+        origin = get_origin(expected)
+        # Plain type
+        if origin is None:
+            if isinstance(expected, str):
+                return isinstance(value, _eval(expected))
+            return isinstance(value, expected)
+
+        # Union (typing.Union or | syntax)
+        if origin is Union or origin is types.UnionType:
+            return any(check_type(value, t) for t in get_args(expected))
+
+        return True
+
+    def format_type(t):
+        if t is None:
+            return "None"
+
+        origin = get_origin(t)
+
+        # Simple types (int, Var, etc.)
+        if origin is None:
+            if hasattr(t, "__name__"):
+                return t.__name__
+            return str(t).replace("<class '", "").replace("'>", "")
+
+        # Handle Union (Union[...] or | syntax)
+        if origin is Union or origin is types.UnionType:
+            return " | ".join(format_type(arg) for arg in get_args(t))
+
+        # Handle generics like list[int], dict[str, int]
+        args = ", ".join(format_type(arg) for arg in get_args(t))
+
+        if hasattr(origin, "__name__"):
+            return f"{origin.__name__}[{args}]"
+
+        return str(t)
+
+    sig = inspect.signature(func)
+    args = tuple(i if i is not TokenType.NaN else None for i in args if i is not None)
+    sig_str = func.__name__ + ", ".join(
+        (
+            (k if not v.kind == inspect.Parameter.VAR_POSITIONAL else "*" + k)
+            + ": "
+            + format_type(v.annotation)
+        )
+        for k, v in sig.parameters.items()
+    ).join("()")
+    sig_str = sig_str.replace("Node", "Term").replace("node", "term")
+    try:
+        bound = sig.bind(*args)
+    except TypeError as e:
+        raise SyntaxError(f"{sig_str} {e}".replace("node", "term"))
+    bound.apply_defaults()
+    for name, value in bound.arguments.items():
+        param = sig.parameters[name]
+        expected = param.annotation
+        exp = format_type(expected).replace("Node", "Term")
+
+        if expected is inspect._empty:
+            continue
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            for item in value:
+                if not check_type(item, expected):
+                    got = item.__class__.__name__ if item is not Node else "Term"
+                    raise TypeError(
+                        f"Argument mismatch: {sig_str} arguments '{name}' must be "
+                        f"{exp}, got {got}"
+                    )
+        elif not check_type(value, expected):
+            got = value.__class__.__name__ if value is not Node else "Term"
+            raise TypeError(
+                f"Argument mismatch: {sig_str} argument '{name}' must {exp}, got {got}"
+            )
+    if call:
+        return func(*args)
+    return True
+
 
 class Parser:
     """Takes input tokens and converts it to AST following operator precedence"""
 
     def __init__(self, tokens: Iterable[Token]) -> None:
-        self.tokens = self.prefix(tokens)
-        self.advance()
+        self.tokens = reversed(list(self.postfix(tokens)))
+        self.empty = not tokens
 
     def advance(self) -> None:
         try:
@@ -40,7 +125,9 @@ class Parser:
                 raise token.value
             if token.type in (TokenType.CONST, TokenType.VAR):
                 yield token.value
-
+            # None
+            elif token.type is TokenType.NaN:
+                yield token.type
             # Opening parenthesis
             elif token.type in (TokenType.RPAREN, TokenType.RBRACK):
                 stack.append(token)
@@ -87,11 +174,6 @@ class Parser:
             if i.type in (TokenType.RPAREN, TokenType.RBRACK):
                 cls.paren_error(i.type)
             yield i.type
-
-    @classmethod
-    def prefix(cls, tokens: Iterable[Token]) -> Generator[TokenType, None, None]:
-        """Takes tokens and converts them to prefix notation"""
-        return reversed(list(cls.postfix(tokens)))
 
     @staticmethod
     def operator_error(oper) -> None:
@@ -151,50 +233,35 @@ class Parser:
     def _parse(self):
         if self.curr is None:
             return
-        if not isinstance(self.curr, TokenType):
+        if not isinstance(self.curr, TokenType) or self.curr is TokenType.NaN:
             return self.curr
         if self.curr is TokenType.COMMA:
             return tuple(self.generate_iterable())
         oper = self.curr
         self.advance()
         left = self._parse()
-        if left is None:
-            self.operator_error(oper)
         if oper is TokenType.LBRACK:
             return operators.System(self.generate_system(left))
+        func = getattr(operators, oper.name.lower())
         if oper.is_unary():
             if isinstance(left, tuple):
-                return getattr(operators, oper.name.lower())(*left)
-            if not isinstance(left, Node) and oper.value >= 6:
-                self.operand_error(oper)
-            return getattr(operators, oper.name.lower())(left)
+                return validate(func, *left)
+            if oper is TokenType.SQRT:
+                return validate(func, TokenType.NaN, left)
+            return validate(func, left)
         self.advance()
         right = self._parse()
-
-        if right is None:
-            self.operator_error(oper)
-        if oper.value // 1 == 4:
-            # Reject nested (in)equalities
-            if isinstance(left, Comparison) or isinstance(right, Comparison):
-                raise SyntaxError("nested (in)equality")
-            # Reject (in)equality if any of the operands are not term expressions
-            if not isinstance(left, Node) or not isinstance(right, Node):
-                self.operand_error(oper)
-        # Reject operators between terms and non-terms
-        elif (
-            oper.value >= 6
-            and not isinstance(left, Node)
-            or not isinstance(right, Node)
-        ):
-            self.operand_error(oper)
-        return getattr(operators, oper.name.lower())(left, right)
+        return validate(func, left, right)
 
     def parse(self, autosolve: bool = True) -> Node | Comparison | System | None:
+        self.advance()
         op = self.curr
         res = self._parse()
         self.advance()
         if self.curr:
             raise SyntaxError("Malformed expression")
+        if res is None and not self.empty:
+            raise SyntaxError("Empty Expression")
         if (
             isinstance(res, (System, Comparison))
             and autosolve
@@ -209,4 +276,4 @@ def eval(expr: str, autosolve: bool = True) -> Node:
 
 
 def AST(expr: str) -> tuple[Node]:
-    return tuple(Parser.prefix(Lexer(expr).tokenize()))
+    return tuple(Parser(Lexer(expr).tokenize()).tokens)

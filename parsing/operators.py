@@ -1,5 +1,3 @@
-from typing import Any
-from operator import *
 from datatypes.base import Node
 from solving.comparison import CompRel, Comparison
 
@@ -8,6 +6,34 @@ from solving.system import System
 from datatypes.nodes import *
 from solving.core import solve
 from utils import lcm, gcd, factor
+
+
+def add(a: Node, b: Node) -> Node:
+    return a + b
+
+
+def sub(a: Node, b: Node) -> Node:
+    return a - b
+
+
+def mul(a: Node, b: Node) -> Node:
+    return a * b
+
+
+def div(a: Node, b: Node) -> Node:
+    return a / b
+
+
+def pow(a: Node, b: Node) -> Node:
+    return a**b
+
+
+def pos(a: Node) -> Node:
+    return a
+
+
+def neg(a: Node) -> Node:
+    return -a
 
 
 def eq(a: Node, b: Node) -> Comparison:
@@ -30,20 +56,20 @@ def ge(a: Node, b: Node) -> Comparison:
     return Comparison(a, b, CompRel.GE)
 
 
-def subs(a: Node | Comparison, *eqns: Comparison) -> Node | Comparison:
+def subs(a: Node | Comparison | System, *eqns: Comparison):
     """Substitute all occurances of `var` with the provided value"""
     return a.subs(dict((eqn.left, eqn.right) for eqn in eqns))  # .expand()
 
 
-def approx(a: Any) -> Comparison | float | complex | Any:
-    if isinstance(a, tuple):
-        return tuple(map(approx, a))
+def approx(a: Node) -> float | complex:
     return a.approx()
 
 
-def sqrt(a: Node, b=2) -> Node:
-    return a ** (Const(1) / b)
+def sqrt(n: Node | None, a: Node) -> Node:
+    if n is None:
+        return a ** Const(1, 2)
+    return a ** (Const(1) / n)
 
 
-def expand(a):
+def expand(a: Node) -> Node:
     return a.expand()

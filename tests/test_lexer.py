@@ -40,6 +40,32 @@ def test_function():
     assert list(Lexer("lcm").tokenize()) == [Token(TokenType.LCM)]
     assert list(Lexer("gcd").tokenize()) == [Token(TokenType.GCD)]
 
+    # latex functions
+    assert list(Lexer("\\sqrt").tokenize()) == [Token(TokenType.SQRT)]
+    assert list(Lexer("\\sqrt 4").tokenize()) == [
+        Token(TokenType.SQRT),
+        Token(TokenType.LPAREN),
+        Token(TokenType.NaN),
+        Token(TokenType.COMMA),
+        Token(TokenType.CONST, Const(4)),
+        Token(TokenType.RPAREN),
+    ]
+    assert list(Lexer("\\solve").tokenize()) == [Token(TokenType.SOLVE)]
+    assert list(Lexer("\\factor").tokenize()) == [Token(TokenType.FACTOR)]
+    assert list(Lexer("\\expand").tokenize()) == [Token(TokenType.EXPAND)]
+    assert list(Lexer("\\subs").tokenize()) == [Token(TokenType.SUBS)]
+    assert list(Lexer("\\approx").tokenize()) == [Token(TokenType.APPROX)]
+    assert list(Lexer("\\lcm").tokenize()) == [Token(TokenType.LCM)]
+    assert list(Lexer("\\gcd").tokenize()) == [Token(TokenType.GCD)]
+    assert list(Lexer("\\solve{x=5}").tokenize()) == [
+        Token(TokenType.SOLVE),
+        Token(TokenType.LPAREN),
+        Token(TokenType.VAR, Var("x")),
+        Token(TokenType.EQ),
+        Token(TokenType.CONST, Const(5)),
+        Token(TokenType.RPAREN),
+    ]
+
 
 def test_parentheses():
     assert list(Lexer("(3)").tokenize()) == [
@@ -52,9 +78,11 @@ def test_parentheses():
         Token(TokenType.LPAREN),
         Token(TokenType.RPAREN),
     ]
+    assert list(Lexer("\\left(\\right)").tokenize()) == [
+        Token(TokenType.LPAREN),
+        Token(TokenType.RPAREN),
+    ]
 
-
-def test_brackets():
     assert list(Lexer("[]").tokenize()) == [
         Token(TokenType.LBRACK),
         Token(TokenType.RBRACK),
@@ -66,6 +94,15 @@ def test_brackets():
     assert list(Lexer("[]]").tokenize()) == [
         Token(TokenType.LBRACK),
         Token(TokenType.RBRACK),
+        Token(TokenType.RBRACK),
+    ]
+
+    assert list(Lexer("\\left[\\right]").tokenize()) == [
+        Token(TokenType.LBRACK),
+        Token(TokenType.RBRACK),
+    ]
+    assert list(Lexer("\\left\\lbrack\\right\\rbrack").tokenize()) == [
+        Token(TokenType.LBRACK),
         Token(TokenType.RBRACK),
     ]
 
@@ -88,7 +125,7 @@ def test_binary():
     ]
     assert list(Lexer("2/3").tokenize()) == [
         Token(TokenType.CONST, Const(2)),
-        Token(TokenType.TRUEDIV),
+        Token(TokenType.DIV),
         Token(TokenType.CONST, Const(3)),
     ]
     assert list(Lexer("2^3").tokenize()) == [
@@ -120,6 +157,27 @@ def test_binary():
         Token(TokenType.VAR, Var("x")),
         Token(TokenType.LT),
         Token(TokenType.CONST, Const(5)),
+    ]
+    # Latex operators
+    assert list(Lexer("\\frac34").tokenize()) == [
+        Token(TokenType.CONST, Const(3)),
+        Token(TokenType.DIV),
+        Token(TokenType.CONST, Const(4)),
+    ]
+    assert list(Lexer("3\\cdot4").tokenize()) == [
+        Token(TokenType.CONST, Const(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.CONST, Const(4)),
+    ]
+    assert list(Lexer("3\\times4").tokenize()) == [
+        Token(TokenType.CONST, Const(3)),
+        Token(TokenType.MUL),
+        Token(TokenType.CONST, Const(4)),
+    ]
+    assert list(Lexer("3\\div4").tokenize()) == [
+        Token(TokenType.CONST, Const(3)),
+        Token(TokenType.DIV),
+        Token(TokenType.CONST, Const(4)),
     ]
 
 
@@ -218,9 +276,9 @@ def test_multiple_operators():
     ]
     assert list(Lexer("3/5/2").tokenize()) == [
         Token(TokenType.CONST, Const(3)),
-        Token(TokenType.TRUEDIV),
+        Token(TokenType.DIV),
         Token(TokenType.CONST, Const(5)),
-        Token(TokenType.TRUEDIV),
+        Token(TokenType.DIV),
         Token(TokenType.CONST, Const(2)),
     ]
     assert list(Lexer("3+5^2").tokenize()) == [
@@ -278,7 +336,7 @@ def test_multiple_operators():
 def test_alt_syntax():
     assert list(Lexer("3(4)").tokenize()) == [
         Token(TokenType.CONST, Const(3)),
-        Token(TokenType.MUL, iscoef=True),
+        Token(TokenType.MUL),
         Token(TokenType.LPAREN),
         Token(TokenType.CONST, Const(4)),
         Token(TokenType.RPAREN),

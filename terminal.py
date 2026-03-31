@@ -20,4 +20,3 @@ while True:
             print(ETSteps.torich())
         # raise
         print(repr(e))
-    ETSteps.clear()

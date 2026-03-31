@@ -41,14 +41,13 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install pip --upgrade
-          pip install setuptools --upgrade 
-          pip install pyinstaller
+          pip install setuptools --upgrade
           pip install -r requirements.txt
       - name: Build web assets
         working-directory: ./web
         run: npm run build
       - name: Build executable
-        run: pyinstaller --add-data=web/dist:web --noconsole --onefile main.py
+        run: pyinstaller --add-data=web/dist:web/dist --noconsole --onefile main.py
 
       - name: Rename executable
         run: |
@@ -87,10 +86,10 @@ jobs:
         run: chmod +x algebra-engine-* || true
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.6.1
         with:
           tag_name: ${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
+          name: Algebra Engine ${{ github.event.inputs.version }}
           draft: false
           prerelease: false
           files: |

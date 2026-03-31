@@ -1,6 +1,5 @@
 __pycache__/
 *.py[cod]
 *.spec
-*.ico
 node_modules/
 dist/

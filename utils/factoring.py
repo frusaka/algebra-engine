@@ -73,6 +73,8 @@ def _gcd_pow(exps, rational):
 def gcd(*args: Node, light=False, rational=True) -> Node:
     """Greatest Common Divisor"""
     args = set(args)
+    if len(args) == 0:
+        raise ValueError("gcd() requires at least one argument")
     if len(args) == 1:
         return args.pop()
     # Find factor by traversing the node tree
@@ -108,7 +110,7 @@ def gcd(*args: Node, light=False, rational=True) -> Node:
     return a.cancel_gcd()[1].multiply(c)
 
 
-def lcm(*args, light=False, rational=True) -> Node:
+def lcm(*args: Node, light=False, rational=True) -> Node:
     """Lowest Common Multiple"""
     args = set(args)  # remove duplicates
     if len(args) == 0:

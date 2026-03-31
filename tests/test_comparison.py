@@ -4,6 +4,7 @@ import pytest
 
 from datatypes.nodes import *
 from solving.comparison import Comparison, CompRel
+from solving.eval_trace import ETNode, ETOperatorNode, ETSteps, ETTextNode, ETVerifyNode
 from solving.solutions import IntervalUnion, SolutionSet
 from solving.interval import INF, Interval
 from solving.core import solve
@@ -13,6 +14,27 @@ from parsing import parser
 x = Var("x")
 y = Var("y")
 z = Var("z")
+
+
+def test_records_steps():
+    eq = Comparison(2 * x + 3, Const(13))
+    solve(eq)
+    steps = ETSteps.data
+    # Labels the process
+    assert type(steps[0]) is ETTextNode
+    assert steps[0].result == "Solving for x"
+    # Shows the original equation
+    assert type(steps[1]) is ETNode
+    assert steps[1].result is eq
+    # Shows an operator
+    assert type(steps[2]) is ETOperatorNode
+    # Verifies solution
+    assert type(steps[0]) is ETTextNode
+    assert steps[-2].result == "Verifying solution"
+    # Validates a correct solution
+    assert type(steps[-1]) is ETVerifyNode
+    assert type(steps[-1].result) is Comparison
+    assert steps[-1].state
 
 
 def test_solve_basic():
@@ -173,10 +195,10 @@ def test_solve_radicals():
     # 3x^3=(2+((x-3)^3)^(1/5)+x^.5)^(1/3)-x^2
     # (a+3)^.5+(a^2-4)^(1/3)=4
     # (a^2+3a+2)^.25+(a+1)^(1/3)=3
-    assert parser.eval("x + √(2x - 1) + √(2x + 3) = 2.5").right == Const(1, 2)
+    assert parser.eval("x + sqrt(2x - 1) + sqrt(2x + 3) = 2.5").right == Const(1, 2)
     # approximations
     assert isclose(
-        parser.eval("x + √(x - 1) + √(2x + 3) = 9").right, 3.9694, abs_tol=1e-4
+        parser.eval("x + sqrt(x - 1) + sqrt(2x + 3) = 9").right, 3.9694, abs_tol=1e-4
     )
     assert isclose(parser.eval("(a+(a+a^.5)^.5)^.5=2").right, 2.1119, abs_tol=1e-4)
     assert isclose(

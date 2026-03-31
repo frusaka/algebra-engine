@@ -1,6 +1,9 @@
 import pytest
-from datatypes.nodes import Const, Const, Var
+from datatypes.nodes import Const, Var
 from parsing import parser
+from solving.comparison import CompRel, Comparison
+from solving.eval_trace import ETNode, ETOperatorNode, ETOperatorType, ETTextNode
+from solving.system import System
 from utils import print_frac
 
 
@@ -58,7 +61,7 @@ def test_print_radical():
     assert str(parser.eval("2 * 5^0.5 / 3")) == "2√5/3"
 
 
-def test_print_polynomial():
+def test_print_add():
     assert str(parser.eval("x+1")) == "x + 1"
     assert str(parser.eval("47-600x")) == "-600x + 47"
     assert str(parser.eval("1600+3x^3+y-12y^2")) == "3x³ - 12y² + y + 1600"
@@ -66,10 +69,32 @@ def test_print_polynomial():
     # assert str(parser.eval("3x+(3/(c+b))-1")) == "(3x - 1 + 3/(c + b))"
 
 
-def test_print_product():
+def test_print_mul():
     assert str(parser.eval("-2xb")) == "-2bx"
     assert str(parser.eval("x^3*y^-5")) == "x³/y⁵"
     assert str(parser.eval("-10(m^-1*n^-1)")) == "-10/(mn)"
     assert str(parser.eval("(-2/3)(y^2n^-1)")) == "-2y²/(3n)"
     assert str(parser.eval("n/a - 5/4a")) == "(4n - 5)/(4a)"
     assert str(parser.eval("s^3*d^-5*z^2/3")) == "z²s³/(3d⁵)"
+
+
+def test_print_comparison():
+    x = Var("x")
+    assert str(Comparison(x**2 + 3, Const(0))) == "x² + 3 = 0"
+    assert str(Comparison(x**2 + 3, Const(0), CompRel.GT)) == "x² + 3 > 0"
+    assert str(Comparison(x**2 - 5, Const(7), CompRel.LE)) == "x² - 5 ≤ 7"
+    assert str(Comparison(x - 5, Const(7), CompRel.GE)) == "x - 5 ≥ 7"
+
+
+def test_print_system():
+    x, y, z = Var("x"), Var("y"), Var("z")
+    eq1 = Comparison(x + y, Const(5))
+    eq2 = Comparison(x - y, Const(1))
+    eq3 = Comparison(x * y, z)
+    assert str(System([eq1, eq2])) == "\n⎧ x + y = 5\n⎩ x - y = 1"
+    # Aligns by the equal sign
+    assert str(System([eq1, eq2, eq3])) == "\n⎧ x + y = 5\n⎪ x - y = 1\n⎩    xy = z"
+
+
+def test_print_ETsteps():
+    pass

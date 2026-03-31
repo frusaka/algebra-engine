@@ -10,11 +10,10 @@ class TokenType(Enum):
     SOLVE = 1
 
     EQ, GT, GE, LT, LE = 4, 4.2, 4.4, 4.6, 4.8
-    CONST, VAR = 5, 5.2
-
+    CONST, VAR, NaN = 5, 5.2, 5.3
     ADD, SUB = 7, 7.2
     MUL = TIMES = CDOT = 8
-    TRUEDIV = FRAC = 8.2
+    DIV = FRAC = 8.2
     POS, NEG = 9, 9.2
     POW, SQRT = 10, 10.2
     GCD = 10.3
@@ -29,7 +28,7 @@ class TokenType(Enum):
     ERROR = -12
 
     def is_unary(self) -> bool:
-        return self.name in {"POS", "NEG", "SQRT", *FUNCTIONS, "LBRACK"}
+        return self.name in {"POS", "NEG", *FUNCTIONS, "LBRACK"}
 
 
 @dataclass(frozen=True)
@@ -39,6 +38,7 @@ class Token:
     type: TokenType
     value: Any = None
     iscoef: bool = False
+    tag: str = ""
 
     def __repr__(self) -> str:
         return self.type.name + (f": {self.value}" if self.value is not None else "")

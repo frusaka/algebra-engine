@@ -27,7 +27,7 @@ class API:
 if __name__ == "__main__":
     webview.create_window(
         "Algebra Engine",
-        "web/index.html",
+        "web/dist/index.html",
         text_select=True,
         width=650,
         height=600,
