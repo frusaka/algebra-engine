@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import 'mathlive'
+import { MathfieldElement } from 'mathlive'
 import Accordion from 'react-bootstrap/Accordion'
 import renderMathInElement from 'katex/dist/contrib/auto-render'
 
