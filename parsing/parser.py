@@ -80,13 +80,13 @@ def validate(func, *args, call=True):
                 if not check_type(item, expected):
                     got = item.__class__.__name__ if item is not Node else "Term"
                     raise TypeError(
-                        f"Argument mismatch: {sig_str} arguments '{name}' must be "
+                        f"Argument mismatch: {sig_str} arguments '{name}' must be of type"
                         f"{exp}, got {got}"
                     )
         elif not check_type(value, expected):
             got = value.__class__.__name__ if value is not Node else "Term"
             raise TypeError(
-                f"Argument mismatch: {sig_str} argument '{name}' must {exp}, got {got}"
+                f"Argument mismatch: {sig_str} argument '{name}' must be of type {exp}, got {got}"
             )
     if call:
         return func(*args)

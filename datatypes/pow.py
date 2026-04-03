@@ -28,7 +28,9 @@ class Pow(Node):
         c = 1
         if exp.__class__ is nodes.Const:
             if base.__class__ is nodes.Mul:
-                return nodes.Mul.from_terms(t**exp for t in base.args)
+                return nodes.Mul.from_terms(
+                    (t**exp for t in base.args), distr_const=True
+                )
             if isinstance(base, nodes.Number):
                 if base.__class__ is nodes.Float:
                     return base.pow(exp)
@@ -113,8 +115,9 @@ class Pow(Node):
         return Pow(base, exp)
 
     def subs(self, mapping):
-        res = Pow(self.base.subs(mapping), self.exp.subs(mapping))
-        return mapping.get(res, res)
+        if (res := mapping.get(self, None)) is not None:
+            return res
+        return Pow(self.base.subs(mapping), self.exp.subs(mapping))
 
     def approx(self) -> float | complex:
         v = self.base.approx()

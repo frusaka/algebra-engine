@@ -76,15 +76,9 @@ def buchberger(G: list[Add], vars: list[Var]) -> list[Add | Node]:
         r = reduce(f, reduced, vars)
         if not r:
             continue
-        if r.__class__ is Add:
-            if (d := math.lcm(*(i.canonical()[0].denominator for i in r))) > 1:
-                r = r.multiply(d)
-            if (g := math.gcd(*(i.canonical()[0].numerator for i in r))) > 1:
-                r = r.multiply(Const(1, g))
+        if r not in reduced:
             reduced.append(r)
-        else:
-            reduced.append(r.as_ratio()[0])
-    return reduced
+    return [i.as_ratio()[0] for i in reduced]
 
 
 __all__ = ["buchberger"]

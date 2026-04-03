@@ -10,18 +10,16 @@ class API:
     def evaluate(self, expr):
         Comparison.solve_for.cache_clear()
         ETSteps.clear()
-        res, err = "", ""
-        # print(expr)
+        res, success = "", True
         try:
             res = Parser(Lexer(expr).tokenize()).parse()
             res = res.totex().join(("$$", "$$")) if hasattr(res, "totex") else str(res)
         except Exception as e:
             # raise
-            res = ""
-            err = repr(e)
+            success = False
+            res = repr(e)
         steps = ETSteps.toJSON()
-        # print(steps)
-        return dict(steps=steps, error=err, final=res)
+        return {"output": res, "success": success, "steps": steps}
 
 
 if __name__ == "__main__":
@@ -29,6 +27,7 @@ if __name__ == "__main__":
         "Algebra Engine",
         "web/dist/index.html",
         text_select=True,
+        zoomable=True,
         width=650,
         height=600,
         min_size=(400, 400),

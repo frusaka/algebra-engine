@@ -1,8 +1,11 @@
 1. Add simplification for cases such as:
     2/(x^2-4)^0.5 + f/(x+2)^0.5
-2. Add saftey checks when solving for nested radicals or complex equations
+2. Add saftey checks when solving for complex equations
 3. Bring back dem mixed fractions
 4. Rewrite steps tracker to be tied to function?
 5. Add tests to check steps are properly rendered
 6. Add performance tests?
 7: Failing: factor(expand((a^4-b^4)(x^3-8)^2(3x-4b+1))), expansion error
+8. Make solver expand before doing the `rewrite_radicals` trick
+9. Create a toggle for groebner basis, implement solving by elimination
+10. Add support for exponential equations

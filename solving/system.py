@@ -109,21 +109,21 @@ def _foreach_solve(eqns, value):
 class System(frozenset):
     """A system of equations"""
 
-    def solve_for(self, vals: Sequence[Var], groebner=True) -> System:
+    def solve_for(self, vals: Sequence[Var], groebner=False) -> System:
         if vals.__class__ is Var:
             return System(_foreach_solve(self, vals))
 
         ETSteps.register(ETTextNode("Solving for " + str(vals)[1:-1]))
         ETSteps.register(ETNode(self))
         if groebner:
-            eqns = compute_grobner(self, list(vals))
+            eqns = set(compute_grobner(self, list(vals)))
             if not eqns:
                 return System(eqns)
             if eqns != self:
                 ETSteps.register(ETNode(System(eqns)))
         else:
             eqns = set(self)
-        vals = set(vals)
+        vals = list(vals)
         sols = []
         # Solve for each variable separately
         with ETSteps.branching(len(vals)) as branches:

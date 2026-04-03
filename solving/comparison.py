@@ -55,12 +55,8 @@ def rewrite_radicals(expr, value):
     if not system:
         return
 
-    def key(t):
-        v = difficulty_weight(t.left, value)
-        return (bool(v[1]), *v)
-
     system.append(Comparison(final_expr, Const(0)))
-    return min(compute_grobner(system, counter + [value], False), key=key)
+    return compute_grobner(system, counter + [value], False)[-1]
 
 
 def simple_isolate_radical(comp, value):

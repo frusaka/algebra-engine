@@ -24,7 +24,6 @@ body {
   background-color: var(--bg);
   color: var(--fg);
   padding: 2rem;
-  text-align: center;
   line-height: 1.6;
 }
 
@@ -37,17 +36,14 @@ math-field {
   font-size: 1.3rem;
 }
 
-/* Hide the menu toggle */
 math-field::part(menu-toggle) {
   display: None;
 }
 
-.accordion {
-  margin: 1rem;
+math-field::part(virtual-keyboard-toggle) {
+  display: None;
 }
 
-.accordion {
-  max-width: 100%;
-  overflow: auto;
-  border: 1px solid var(--panel-border) !important;
+h1 {
+  text-align: center;
 }

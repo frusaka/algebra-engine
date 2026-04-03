@@ -68,6 +68,11 @@ class Add(Collection):
         # return list(Add.flatten(num.simplify() / den.simplify()))
         return list(Add.flatten(num / den))
 
+    def as_ratio(self):
+        c, a = self.cancel_gcd()
+        n, d = c.as_ratio()
+        return (a.multiply(n), nodes.Const(d))
+
     def simplify(self) -> Node:
         return utils.factor(self.expand())
 

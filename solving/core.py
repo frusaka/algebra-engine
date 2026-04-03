@@ -228,7 +228,7 @@ def validate_solution(
 
 
 def verify_systems(
-    vars: tuple[Var], org: System | System, solutions: Iterable[System]
+    vars: tuple[Var], org: System, solutions: Iterable[System]
 ) -> set[Comparison]:
     res = set()
     for i in solutions:
@@ -279,45 +279,52 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
         var = tuple(sorted(get_vars(src)))
     if not var:
         return bool(src)
+
+    def fin(var, res):
+        if isinstance(src, System) or len(var) > 1:
+            if len(res) == 0:
+                sol = res
+            else:
+                if not next(iter(res)).__class__ is System:
+                    res = [res]
+                sol = verify_systems(var, src, res)
+        else:
+            if isinstance(res, Comparison) and res.left != var:
+                if validate_solution(src, res, {}):
+                    return Comparison(var, INF, CompRel.IN)
+                return Comparison(var, SolutionSet(), CompRel.IN)
+            if not isinstance(res, System):
+                res = [res]
+            sol = {i.right for i in res if validate_solution(src, i, {var: i.right})}
+        # One solution
+        if len(sol) == 1:
+            return Comparison(var, sol.pop())
+        # Multiple or No solution
+        return Comparison(var, SolutionSet(sol), CompRel.IN)
+
     var = tuple(Var(i) if not isinstance(i, Var) else i for i in var)
     if src.__class__ is Comparison:
         if len(var) > 1:
-            ETSteps.register(ETTextNode(f"Solving for {var}"))
+            ETSteps.register(ETTextNode("Solving for " + str(var)[1:-1]))
+            ETSteps.register(ETNode(src))
             res = []
             with ETSteps.branching(len(var)) as br:
                 for _, v in zip(br, var):
-                    sol = solve(src, v)
-                    ETSteps.register(ETNode(sol))
-                    res.append(sol)
-            return System(res)
-        var = var[0]
-        ETSteps.register(ETTextNode(f"Solving for {var}"))
-        if src.rel is not CompRel.EQ:
-            return solve_ineq(var, src)
+                    ETSteps.register(ETTextNode(f"Solve for {v}"))
+                    res.append((v, src.solve_for(v)))
+            ETSteps.register(ETTextNode(f"Verifying solutions", "#0d80f2"))
+            return System(fin(k, v) for k, v in res)
+        else:
+            var = var[0]
+            ETSteps.register(ETTextNode(f"Solving for {var}"))
+            if src.rel is not CompRel.EQ:
+                return solve_ineq(var, src)
+            res = src.solve_for(var)
     elif set(var) != (v2 := get_vars(src)) or len(var) > len(v2):
         raise TypeError(f"solve() expected {v2}, got {var} instead")
-    res = src.solve_for(var)
+    else:
+        res = src.solve_for(var)
     s = "s" * isinstance(res, System)
     ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
 
-    if isinstance(src, System):
-        if len(res) == 0:
-            # print()
-            sol = res
-        else:
-            if not next(iter(res)).__class__ is System:
-                res = [res]
-            sol = verify_systems(var, src, res)
-    else:
-        if isinstance(res, Comparison) and res.left != var:
-            if validate_solution(src, res, {}):
-                return Comparison(var, INF, CompRel.IN)
-            return Comparison(var, SolutionSet(), CompRel.IN)
-        if not isinstance(res, System):
-            res = [res]
-        sol = {i.right for i in res if validate_solution(src, i, {var: i.right})}
-    # One solution
-    if len(sol) == 1:
-        return Comparison(var, sol.pop())
-    # Multiple or No solution
-    return Comparison(var, SolutionSet(sol), CompRel.IN)
+    return fin(var, res)

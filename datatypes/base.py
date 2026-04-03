@@ -142,8 +142,12 @@ class Collection(ABC, Node):
         pass
 
     def subs(self, mapping: dict[Var, Node]) -> Node:
-        res = self.__class__.from_terms(node.subs(mapping) for node in self)
-        return mapping.get(res, res)
+        if (res := mapping.get(self, None)) is not None:
+            return res
+        args = (node.subs(mapping) for node in self)
+        if self.__class__ is nodes.Mul:
+            return nodes.Mul.from_terms(args, distr_const=True)
+        return nodes.Add.from_terms(args)
 
     def approx(self) -> float | complex:
         op = self.__class__.__name__.lower()

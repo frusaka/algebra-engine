@@ -40,7 +40,7 @@ def compute_grobner(
         eqns = sorted(eqns, key=eqns.get)
         vars.reverse()
     G = buchberger([eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns], vars)
-    return set(Comparison(t, Const(0)) for t in G)
+    return [Comparison(t, Const(0)) for t in G]
 
 
 def quadratic_roots(f: tuple[Node]) -> tuple[Node] | None:
@@ -148,7 +148,7 @@ def next_eqn(
 
     weights = arrange_eqns(eqns, vars)
     best = min(weights, key=weights.get)
-    _, _, v = weights[best]
+    *_, v = weights[best]
 
     if v is None:
         raise ValueError(err_msg)
