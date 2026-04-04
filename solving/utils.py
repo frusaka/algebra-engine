@@ -1,7 +1,7 @@
 from __future__ import annotations
 import math
 from typing import Iterable, Sequence, TYPE_CHECKING
-from functools import lru_cache
+from functools import lru_cache, reduce
 
 from .groebner import buchberger
 
@@ -28,19 +28,6 @@ def nth_roots(vals, n):
         w2 = (-1 - Const(3) ** 0.5 * 1j) / 2
         vals.update(i for v in tuple(vals) for i in (v * w, v * w2))
     return vals
-
-
-def compute_grobner(
-    eqns: Iterable[Comparison], vars: list[Var], sort_vars=True
-) -> set[Comparison]:
-    from .comparison import Comparison
-
-    if sort_vars:
-        eqns = arrange_eqns(eqns, vars)
-        eqns = sorted(eqns, key=eqns.get)
-        vars.reverse()
-    G = buchberger([eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns], vars)
-    return [Comparison(t, Const(0)) for t in G]
 
 
 def quadratic_roots(f: tuple[Node]) -> tuple[Node] | None:
@@ -91,6 +78,31 @@ def roots(f: list[Node]):
         return nth_roots(map(simplify_complex, roots([i.approx() for i in f])), u)
     except AttributeError:
         raise ValueError("High degree Multivariate polynomial")
+
+
+def get_vars(expr):
+    if expr.__class__ is Var:
+        return {expr}
+    if expr.__class__ is Pow:
+        return get_vars(expr.base).union(get_vars(expr.exp))
+    if expr.__class__.__name__ == "Comparison":
+        return get_vars(expr.left).union(get_vars(expr.right))
+    if hasattr(expr, "__iter__"):
+        return reduce(lambda a, b: a.union(b), map(get_vars, expr))
+    return set()
+
+
+def compute_grobner(
+    eqns: Iterable[Comparison], vars: list[Var], sort_vars=True
+) -> set[Comparison]:
+    from .comparison import Comparison
+
+    if sort_vars:
+        eqns = arrange_eqns(eqns, vars)
+        eqns = sorted(eqns, key=eqns.get)
+        vars.reverse()
+    G = buchberger([eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns], vars)
+    return [Comparison(t, Const(0)) for t in G]
 
 
 @lru_cache
@@ -200,6 +212,7 @@ def domain_restriction(node, var: Var) -> tuple[Comparison]:
 
 
 __all__ = [
+    "get_vars",
     "next_eqn",
     "arrange_eqn",
     "domain_restriction",

@@ -17,16 +17,10 @@ It was initially built as a side project to test my understanding of Algebra II 
 
 ## Examples
 
-### Solving equations
+<img style="display: block; margin : 5px;" src="examples/ae-poly-solve.png" alt="Equation example" width="400"/> 
+<img style="display: block; margin : 5px;" src="examples/ae-sys-solve.png" alt="Systems of equations example" width="400"/>
 
-<img style="display: block; margin : 5px;" src="examples/ae-poly.png" alt="Equation example" width="400"/> 
-<img style="display: block; margin : 5px;" src="examples/ae-default.png" alt="Systems of equations example" width="400"/>
-
-### Evaluating expressions
-
-<img style="display: block; margin : 5px;" src="examples/ae-factor-expand.png" alt="Factoring example" width="400"/>  
-<img style="display: block; margin : 5px;" src="examples/ae-factor-lcm.png" alt="LCM example" width="400"/>  
-<img style="display: block; margin : 5px;" src="examples/ae-gcd.png" alt="GCD example" width="400"/>
+<img style="display: block; margin : 5px;" src="examples/ae-expr.png" alt="Expressions example" width="400"/>
 
 ### Terminal REPL
 

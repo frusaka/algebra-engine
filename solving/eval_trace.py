@@ -264,42 +264,6 @@ class ETSteps:
             cls.end_branches()
 
     @classmethod
-    def tostr(cls):
-        if not cls.data:
-            return ""
-        padding = 1
-
-        def pad_line(line, max_len):
-            visible = strip_ansi(line)
-            pad = " " * padding
-            trailing = " " * (max_len - len(visible) - (visible[-1] in "❌✅📉"))
-            return pad + line + trailing + pad
-
-        def box(lines):
-            if not lines:
-                return lines
-            max_len = max(
-                len(strip_ansi(line)) + (line[-1] in "❌✅📉") for line in lines
-            )
-            width = max_len + 2 * padding
-            tittle = " " * padding + lines[0] + " " * padding
-            spacing = width - len(tittle)
-            lpad, rpad = (spacing // 2,) * 2
-            if spacing % 2:
-                lpad += 1
-            top = "╭" + "─" * lpad + tittle + "─" * rpad + "╮"
-            body = ["│" + pad_line(line, max_len) + "│" for line in lines[1:]]
-            bottom = "╰" + "─" * width + "╯"
-            return [top] + body + [bottom]
-
-        def process(item):
-            if isinstance(item, ETNode):
-                return str(item).split("\n")
-            return box([j for i in item for j in process(i)])
-
-        return "\n".join(process(cls.data))
-
-    @classmethod
     def torich(cls):
         from rich.panel import Panel
         from rich.console import Group

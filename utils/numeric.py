@@ -27,7 +27,7 @@ def primes(n: Const) -> dict[Const, int]:
                 **primes(nodes.Const(n.numerator.imag, n.denominator)),
             }
 
-        if (g := gcd(int(n.numerator.real), int(n.numerator.imag))) > 1:
+        if (g := gcd(n.numerator.real, n.numerator.imag)) > 1:
             return {
                 nodes.Const(n.numerator / g): 1,
                 **primes(nodes.Const(g, n.denominator)),

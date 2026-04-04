@@ -48,6 +48,111 @@ class Number(Node):
         return (self, None)
 
 
+class Complex:
+    __slots__ = ("real", "imag")
+
+    @lru_cache(maxsize=500)
+    def __new__(cls, real: int = 0, imag: int = 0) -> Complex | complex | float | int:
+        if int(real) != real or int(imag) != imag:
+            if not imag:
+                return real
+            return complex(real, imag)
+        real, imag = int(real), int(imag)
+        if not imag:
+            return real
+        self = super(Complex, cls).__new__(cls)
+        object.__setattr__(self, "real", real)
+        object.__setattr__(self, "imag", imag)
+        return self
+
+    if TYPE_CHECKING:
+
+        def __init__(self, real: int = 0, imag: int = 0): ...
+
+    def __setattr__(self, name, value):
+        raise FrozenInstanceError(f"cannot assign to field '{name}'")
+
+    def __delattr__(self, name):
+        raise FrozenInstanceError(f"cannot delete field '{name}'")
+
+    def __repr__(self) -> str:
+        r = str(self.real)
+        i = str(self.imag) + "i"
+        if abs(self.imag) == 1:
+            i = i.replace("1i", "i")
+        if not self.real:
+            return i
+        op = "" if i.startswith("-") else "+"
+        return (r + op + i).join("()")
+
+    def __complex__(self):
+        return complex(float(self.real), float(self.imag))
+
+    def __float__(self) -> float:
+        if self.imag == Const(0):
+            return float(self.real)
+        raise ValueError("can't convert complex to float")
+
+    def __bool__(self) -> bool:
+        return bool(self.real) or bool(self.imag)
+
+    def __hash__(self):
+        return _hash_algorithm(self.real, 1) + _HASH_IMAG * _hash_algorithm(
+            self.imag, 1
+        )
+
+    def __eq__(self, value: Any) -> bool:
+        if value.__class__ not in {Complex, Const, int}:
+            return False
+        if value.__class__ is Complex:
+            return self.real == value.real and self.imag == value.imag
+        return self.real == value and self.imag == 0
+
+    def __add__(self, other):
+        return Complex(self.real + other.real, self.imag + other.imag)
+
+    def __radd__(self, other):
+        return self + other
+
+    def __sub__(self, other):
+        return Complex(self.real - other.real, self.imag - other.imag)
+
+    def __rsub__(self, other):
+        return -self + other
+
+    def __mul__(self, other):
+        a, b = self.real, self.imag
+        c, d = other.real, other.imag
+        return Complex(a * c - b * d, a * d + b * c)
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __truediv__(self, other):
+        a, b = self.real, self.imag
+        c, d = other.real, other.imag
+        denom = c * c + d * d
+        return Complex((a * c + b * d) / denom, (b * c - a * d) / denom)
+
+    def __rtruediv__(self, other):
+        return Complex(other) / self
+
+    def __pow__(self, other):
+        assert type(other) is int and other >= 0
+        if other == 0:
+            return 1
+        res = 1
+        for _ in range(other):
+            res *= self
+        return res
+
+    def __neg__(self):
+        return Complex(-self.real, -self.imag)
+
+    def conjugate(self):
+        return Complex(self.real, -self.imag)
+
+
 class Const(Number):
     """
     A repsentation of a numeric value.
@@ -59,10 +164,10 @@ class Const(Number):
     __slots__ = ("numerator", "denominator")
 
     @lru_cache(maxsize=500)
-    def __new__(cls, numerator: int | complex = 0, denominator: int = 1) -> Const:
+    def __new__(cls, numerator: int | Complex = 0, denominator: int = 1) -> Const:
         if denominator == 0:
             raise ZeroDivisionError(f"{numerator}/{denominator}")
-        if numerator.__class__ is complex and numerator.imag:
+        if numerator.__class__ in {complex, Complex} and numerator.imag:
             rn, rd = numerator.real.as_integer_ratio()
             in_, id_ = numerator.imag.as_integer_ratio()
             d = math.lcm(rd, id_)
@@ -73,7 +178,7 @@ class Const(Number):
                 real //= gcd
                 imag //= gcd
                 denominator //= gcd
-            numerator = complex(real, imag)
+            numerator = Complex(real, imag)
         else:
             if not isinstance(numerator, int):
                 numerator, d = numerator.real.as_integer_ratio()
@@ -109,19 +214,11 @@ class Const(Number):
 
     def __repr__(self) -> str:
         # Lazy print
-        res = (
+        return (
             str(self.numerator)
             if self.denominator == 1
             else f"{self.numerator}/{self.denominator}"
-        ).replace("j", "i")
-        if abs(self.numerator.imag) == 1:
-            res = res.replace("1i", "i")
-        # Python quirk: -(1j) -> (-0-1j): (0-1j) -> -1j
-        if res.startswith("(-0-"):
-            res = res[3:-1]
-        if abs(self.numerator.imag) == 1:
-            return res.replace("1i", "i")
-        return res
+        )
 
     def __floor__(a):
         return a.numerator // a.denominator
@@ -168,7 +265,7 @@ class Const(Number):
         den = self.denominator * value.numerator
         if den.imag:
             conjugate = den.conjugate()
-            den = int((den * conjugate).real)
+            den *= conjugate
             num *= conjugate
         return Const(num, den)
 
@@ -236,7 +333,9 @@ class Float(Number):
         # return repr(self._val)
         if not self._val.imag:
             return repr(round(self._val, 4))
-        return repr(complex(round(self._val.real, 4), round(self._val.imag, 4)))
+        return repr(
+            complex(round(self._val.real, 4), round(self._val.imag, 4))
+        ).replace("j", "i")
 
     def __hash__(self):
         return hash(self._val)
@@ -313,7 +412,7 @@ class Float(Number):
         return self._val
 
     def totex(self):
-        return str(self).replace("j", "\\mathrm{j}")
+        return str(self).replace("i", "\\mathrm{i}")
 
 
-__all__ = ["Const", "Float"]
+__all__ = ["Complex", "Const", "Float"]

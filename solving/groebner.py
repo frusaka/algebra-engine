@@ -1,6 +1,5 @@
 from __future__ import annotations
 import itertools
-import math
 
 from datatypes.base import Node
 
@@ -72,13 +71,16 @@ def buchberger(G: list[Add], vars: list[Var]) -> list[Add | Node]:
                 pairs.append((k, new_idx))
 
     reduced = []
-    for i, f in enumerate(G):
+    for f in G:
         r = reduce(f, reduced, vars)
         if not r:
             continue
-        if r not in reduced:
+        r = r.as_ratio()[0]
+        if r.__class__ is nodes.Add and (g := utils.gcd(*r).canonical()[0]) > 1:
+            reduced.append(r / g)
+        else:
             reduced.append(r)
-    return [i.as_ratio()[0] for i in reduced]
+    return reduced
 
 
 __all__ = ["buchberger"]

@@ -2,10 +2,9 @@ from typing import Iterable
 
 import math
 from itertools import product
-from functools import reduce
 
 from datatypes.base import Node
-from solving.utils import domain_restriction
+from .utils import domain_restriction, get_vars
 
 from .interval import Interval, INF
 from .solutions import IntervalUnion, SolutionSet
@@ -258,18 +257,6 @@ def solve_ineq(var, ineq: Comparison):
 
     # Third split domain by roots
     return Comparison(var, interpolate_roots(var, ineq, roots, domain), CompRel.IN)
-
-
-def get_vars(expr):
-    if expr.__class__ is Var:
-        return {expr}
-    if expr.__class__ is Pow:
-        return get_vars(expr.base).union(get_vars(expr.exp))
-    if expr.__class__ is Comparison:
-        return get_vars(expr.left).union(get_vars(expr.right))
-    if hasattr(expr, "__iter__"):
-        return reduce(lambda a, b: a.union(b), map(get_vars, expr))
-    return set()
 
 
 def solve(src: Comparison | System, *var: Var) -> Comparison | System:
