@@ -196,13 +196,44 @@ def rational_roots(coeffs: tuple[Node]) -> tuple[tuple[Node]]:
 def factor(node: Node) -> Node:
     if node.__class__ is nodes.Mul:
         return nodes.Mul.from_terms(map(factor, node))
+    if node.__class__ is nodes.Pow:
+        return nodes.Pow(factor(node.base), node.exp)
     if node.__class__ is not nodes.Add:
         return node
 
     if not is_polynomial(node):
         return nodes.Mul.from_terms([node], distr_const=False)
 
-    def pick_best(c, vars):
+    seen = {}
+    vars_dict = {}
+
+    prev = 0
+
+    def next_var(v):
+        nonlocal prev
+        for i, j in vars_dict.items():
+            if j == v:
+                return i
+        out = 1
+        for v in nodes.Mul.flatten(v):
+            e = 1
+            if v.__class__ is nodes.Pow:
+                v, e = v.base, v.exp
+            for i, j in vars_dict.items():
+                if j == v:
+                    res = i
+                    break
+            else:
+                if v.__class__ is nodes.Var:
+                    res = v
+                else:
+                    res = nodes.Var(f"r{prev}")
+                    vars_dict[res] = v
+                    prev += 1
+            out *= res**e
+        return out
+
+    def pick_best(c, vars, finalize=False):
         tree = defaultdict(int)
         for i in c:
             for j in nodes.Mul.flatten(i, 0):
@@ -210,48 +241,63 @@ def factor(node: Node) -> Node:
                 if k not in vars:
                     continue
                 tree[k] += v
-        # v = min(vars, key=tree.get)
         for v in sorted(vars, key=tree.get):
             res = dfs(extract(c, v), vars - {v})
-            if len(res) > 1 or len(res[0]) <= 2:
-                return nodes.Mul.from_terms(rebuild(v, i) for i in res)
-            # break
+            if not res or any(i.__class__ is nodes.Add for j in res for i in j):
+                continue
+            res = nodes.Mul.from_terms(rebuild(v, i) for i in res)
+            if finalize and vars_dict:
+                return res.subs({k: v.subs(vars_dict) for k, v in vars_dict.items()})
+            return res
 
-    seen = {}
-
-    def dfs(coeffs, vars):
-        key = coeffs
+    def dfs(
+        coeffs,
+        vars,
+    ):
         if coeffs in seen:
             return seen[coeffs]
-        if vars:
-            temp = list(coeffs)
-            # recursively factor groups
-            for idx, c in enumerate(coeffs):
-                if c.__class__ is nodes.Add and (vars_ := {i for i in vars if i in c}):
-                    res = pick_best(c, vars_)
-                    # Early break
-                    if not res:
-                        seen[key] = (coeffs,)
-                        return seen[key]
-                    temp[idx] = res
-            coeffs = tuple(temp)
         if not vars:
-            sqf = Counter(tuple(i) for i in square_free(coeffs)).items()
-            seen[coeffs] = tuple(root for k, v in sqf for root in rational_roots(k) * v)
-        else:
-            c = gcd(*(i for i in coeffs if i), light=True)
-            res = list(rational_roots(tuple(i / c for i in coeffs)))
-            if len(res) > 1 or len(coeffs) <= 2:
-                if c != 1:
-                    res.append((c,))
-            else:
-                res = (coeffs,)
-            seen[coeffs] = tuple(res)
+            sqf_ = square_free(coeffs)
+            sqf = defaultdict(int)
+            c = 1
+            for i in sqf_:
+                if len(i) > 1:
+                    sqf[i] += 1
+                else:
+                    c *= i[0]
+            res = list(root for k, v in sqf.items() for root in rational_roots(k) * v)
+            if not (len(res) > 1 or len(res[0]) <= 2):
+                res = None
+            elif c != 1:
+                res.append((c,))
+            seen[coeffs] = res
+            return seen[coeffs]
+        temp = list(coeffs)
+        # recursively factor groups
+        for idx, c in enumerate(coeffs):
+            if c.__class__ is nodes.Add and (vars_ := {i for i in vars if i in c}):
+                res = pick_best(c, vars_)
+                # Early break
+                if not res:
+                    seen[coeffs] = None
+                    return seen[coeffs]
+                c, b = res.canonical()
+                temp[idx] = c * next_var(b)
+        c = gcd(*(i for i in temp if i))
+        temp = tuple(i / c for i in temp)
+        res = list(rational_roots(temp))
+        if not (len(res) > 1 or len(list(filter(bool, res[0]))) <= 2):
+            res = None
+        elif c != 1 and c != -1:
+            res.append((c,))
+        seen[coeffs] = seen[temp] = res
         return seen[coeffs]
 
     c, node = node.cancel_gcd()
+    node = node.expand()
+
     return nodes.Mul.from_terms(
-        [pick_best(node, get_vars(node)) or node, c],
+        [pick_best(node, get_vars(node), True) or node, c],
         distr_const=False,
     )
 
