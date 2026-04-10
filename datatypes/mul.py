@@ -69,6 +69,35 @@ def _tex(n: Node):
     return res
 
 
+@lru_cache
+def order_key(node: Node) -> tuple:
+    # Format:
+    # (a, b, *c)
+    # a = Type priority: Numbers, then Variables, then Power and so on
+    # b = Exponent  weight (not degree)
+    #     This is so that Pow first inherits the priorty of the base
+    #     e.g x(y + 5)(x + 2)^2 is prefered over x(x + 2)^2(y + 5)
+    # *c = Extra type-specific weight
+    if isinstance(node, nodes.Number):
+        if node.__class__ is nodes.Float:
+            return (0, 0, 0, str(node._val))
+        if node.numerator.imag:
+            return (0, 0, 0, str(node))
+        return (0, 0, node)
+    if node.__class__ is nodes.Var:
+        return (1, 1, str(node))
+    if node.__class__ is nodes.Pow:
+        return (order_key(node.base)[0], 2, order_key(node.exp), order_key(node.base))
+    order = tuple(map(order_key, node.args))
+    if node.__class__ is nodes.Mul:
+        return (3, 1, order)
+    return (4, 1, order)
+
+
+def ordered_terms(args: Iterable[Node]) -> list[Node]:
+    return sorted(args, key=order_key)
+
+
 class Mul(Collection):
     @lru_cache
     def __repr__(self) -> str:
@@ -76,17 +105,13 @@ class Mul(Collection):
         num, den = self.as_ratio()
         if num.__class__ is Mul:
             c, num = num.canonical()
-            num = utils.print_coef(c) + "".join(
-                map(_str, (utils.ordered_terms(Mul.flatten(num, 0), True)))
-            )
+            num = utils.print_coef(c) + "".join(map(_str, Mul.flatten(num, 0)))
 
         else:
             num = _str(num)
         if den.__class__ is Mul:
             c, den = den.canonical()
-            den = utils.print_coef(c) + "".join(
-                map(_str, (utils.ordered_terms(Mul.flatten(den, 0), True)))
-            )
+            den = utils.print_coef(c) + "".join(map(_str, Mul.flatten(den, 0)))
             den = den.join("()")
         else:
             den = _str(den)
@@ -104,6 +129,10 @@ class Mul(Collection):
             )
         )
 
+    @staticmethod
+    def sort_terms(args) -> list[Node]:
+        return ordered_terms(args)
+
     @classmethod
     def merge(cls, args: Iterable[Node], distr_const=False) -> list[Node]:
         res = defaultdict(nodes.Const)
@@ -118,7 +147,7 @@ class Mul(Collection):
             else:
                 res[k] += v
 
-        res = list(filter(bool, itertools.starmap(form, res.items())))
+        res = ordered_terms(filter(bool, itertools.starmap(form, res.items())))
         # Automatically distribute constant factor
         if (
             distr_const
@@ -143,20 +172,18 @@ class Mul(Collection):
         return num.multiply(den**-1)
 
     def canonical(self) -> tuple[Node, Node]:
-        if c := next((i for i in self.args if i.__class__ is nodes.Const), 0):
-            args = list(self.args)
-            args.remove(c)
-            if len(args) == 1:
-                return c, args[0]
-            return c, Mul.from_terms(args, 0)
-        return nodes.Const(1), self
+        if not isinstance(self.args[0], nodes.Number):
+            return (nodes.Const(1), self)
+        if len(self.args) == 2:
+            return self.args
+        return self.args[0], Mul.from_terms(self.args[1:], 0)
 
     def totex(self) -> str:
         num, den = self.as_ratio()
         if num.__class__ is Mul:
             c, num = num.canonical()
             num = utils.print_coef(c).replace("i", "\\mathrm{i}") + "".join(
-                map(_tex, (utils.ordered_terms(Mul.flatten(num, 0), True)))
+                map(_tex, Mul.flatten(num, 0))
             )
 
         else:
@@ -164,7 +191,7 @@ class Mul(Collection):
         if den.__class__ is Mul:
             c, den = den.canonical()
             den = utils.print_coef(c).join(("\\mathrm{", "}")) + "".join(
-                map(_tex, (utils.ordered_terms(Mul.flatten(den, 0), True)))
+                map(_tex, Mul.flatten(den, 0))
             )
         else:
             den = den.totex()

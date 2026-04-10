@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Iterable
 
 import math
 import itertools
@@ -10,11 +11,49 @@ from . import nodes
 import utils
 
 
+@lru_cache
+def order_key(node: Node) -> tuple:
+    # Format:
+    # (a, b, *c)
+    # a = Exponent
+    # b = Type priority: Numbers, then Variables, then Power and so on
+    # *c = Extra type-specific weight
+    if isinstance(node, nodes.Number):
+        if node.__class__ is nodes.Float:
+            return ((0, 0), 0, 0, str(node._val))
+        if node.numerator.imag:
+            return ((0, 0), 0, 0, str(node))
+        return ((0, 0), 0, node)
+    if node.__class__ is nodes.Var:
+        return ((0, 1), 1, ord("z") * len(node) - sum(map(ord, node)))
+    if node.__class__ is nodes.Pow:
+        deg = order_key(node.exp)
+        if deg[0][0] == 0:
+            deg = (0, deg[2])
+        return (
+            deg,
+            order_key(node.base)[1],
+            order_key(node.exp),
+            order_key(node.base),
+        )
+    order = tuple(map(order_key, node.args))
+    if node.__class__ is nodes.Mul:
+        # for x-y: remains x-y instead of -y+x
+        if len(order) == 2 and sum(i[1] for i in order) == 1:
+            return (*order[1], order[0][1:])
+        return ((0, 1), 3, order)
+    return ((0, 1), 4, order)
+
+
+def ordered_terms(args: Iterable[Node]) -> list[Node]:
+    return sorted(args, key=order_key, reverse=True)
+
+
 class Add(Collection):
     @lru_cache
     def __repr__(self) -> str:
         res = ""
-        for i in utils.ordered_terms(self.args):
+        for i in self.args:
             v = repr(i)
             if not res:
                 res = v
@@ -26,6 +65,10 @@ class Add(Collection):
                 # v = v[1:]
             res += op + v
         return res
+
+    @staticmethod
+    def sort_terms(args) -> list[Node]:
+        return ordered_terms(args)
 
     @classmethod
     def merge(cls, args, rationalize=True) -> list[Node]:
@@ -54,7 +97,9 @@ class Add(Collection):
                 groups.pop(val)
 
         if not rationalize or not frac or len(groups) == 1:
-            return list(itertools.starmap(form, groups.items())) or [nodes.Const(0)]
+            return ordered_terms(itertools.starmap(form, groups.items())) or [
+                nodes.Const(0)
+            ]
 
         # Get the LCM
         den = nodes.Const(1)
@@ -66,7 +111,7 @@ class Add(Collection):
         # Combine
         num = Add.from_terms(calculate(k, v) for k, v in groups.items())  # .expand()
         # return list(Add.flatten(num.simplify() / den.simplify()))
-        return list(Add.flatten(num / den))
+        return ordered_terms(Add.flatten(num / den))
 
     def as_ratio(self):
         c, a = self.cancel_gcd()
@@ -74,7 +119,7 @@ class Add(Collection):
         return (a.multiply(n), nodes.Const(d))
 
     def simplify(self) -> Node:
-        return utils.factor(self.expand())
+        return utils.factor(self)
 
     def expand(self) -> Node:
         return Add.from_terms(node.expand() for node in self)
@@ -84,7 +129,7 @@ class Add(Collection):
         if (
             # normalize and
             utils.is_polynomial(self)
-            and utils.leading(self).canonical()[0].is_neg()
+            and self.args[0].canonical()[0].is_neg()
         ):
             den *= -1
         if den != 1:

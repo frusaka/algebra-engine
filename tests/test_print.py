@@ -77,6 +77,9 @@ def test_print_mul():
     assert str(parser.eval("n/a - 5/4a")) == "(4n - 5)/(4a)"
     assert str(parser.eval("s^3*d^-5*z^2/3")) == "z²s³/(3d⁵)"
 
+    assert str(parser.eval("x^2*(x+2)yb^2")) == "yb²x²(x + 2)"
+    assert str(parser.eval("x(y+5)(x+2)^2")) == "x(y + 5)(x + 2)²"
+
 
 def test_print_comparison():
     x = Var("x")

@@ -97,7 +97,7 @@ class Node:
 
 @dataclass(frozen=True, init=False, slots=True)
 class Collection(ABC, Node):
-    args: frozenset[Node]
+    args: tuple[Node]
 
     @lru_cache
     def __new__(cls, *args: Node) -> Node:
@@ -115,12 +115,13 @@ class Collection(ABC, Node):
 
     @classmethod
     def from_terms(cls, args: Iterable[Node], modify=True, **kwargs) -> Node:
+        # args = itertools.chain(*map(cls.flatten, args))
         if modify:
             args = cls.merge(itertools.chain(*map(cls.flatten, args)), **kwargs)
         if len(args) == 1:
             return args.pop()
         obj = super(Collection, cls).__new__(cls)
-        object.__setattr__(obj, "args", frozenset(args))
+        object.__setattr__(obj, "args", tuple(args))
         object.__setattr__(obj, "_hash", hash((cls, obj.args)))
         return obj
 
@@ -139,6 +140,11 @@ class Collection(ABC, Node):
     @classmethod
     @abstractmethod
     def merge(cls, args: Iterable[Node]) -> list[Node]:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def sort_terms(args: Iterable[Node]) -> list[Node]:
         pass
 
     def subs(self, mapping: dict[Var, Node]) -> Node:

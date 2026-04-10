@@ -87,7 +87,7 @@ def simple_isolate_radical(comp, value):
             ETSteps.register(ETNode(comp))
         t, k = rad
         if comp.left.__class__ is Add:
-            comp -= Add(*comp.left.args - {t})
+            comp -= Add(*set(comp.left.args) - {t})
             ETSteps.register(ETNode(comp))
         comp **= k
         rad = None
@@ -215,7 +215,7 @@ class Comparison:
             ETSteps.register(ETOperatorNode(ETOperatorType.TIMES, value**-1, pad))
         # Used set expression to cancel Floating-Point factors
         return Comparison(
-            Mul(*self.left.args ^ set(Mul.flatten(value))),
+            Mul(*set(self.left.args) ^ set(Mul.flatten(value))),
             self.right / value,
             self.reverse_sign(value),
         )

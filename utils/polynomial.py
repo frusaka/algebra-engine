@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Sequence
 from functools import lru_cache
 
 from datatypes import nodes
-from .analysis import order_key
 
 if TYPE_CHECKING:
     from datatypes.base import Node
@@ -62,13 +61,12 @@ def degree(node: Node, var=None) -> int | None:
 
 def leading(node: Node) -> Node:
     if node.__class__ is nodes.Add:
-        return max(node, key=order_key)
+        return node.args[0]
     return node
 
 
 def leading_options(node: Add) -> Node:
-    lead = leading(node)
-    return (i for i in node.args if degree(i) == degree(lead))
+    return (i for i in node.args if degree(i) == degree(node.args[0]))
 
 
 def hasremainder(node: Node):
