@@ -126,18 +126,20 @@ def poly_divide(dividend, divisor):
     dividend = list(dividend)
     divisor = list(divisor)
 
-    quotient = [0] * (deg_dividend - deg_divisor + 1)
+    quotient = [nodes.Const(0)] * (deg_dividend - deg_divisor + 1)
     remainder = dividend[:]
     for i in range(len(quotient)):
         lead_coeff = remainder[i] / divisor[0]
-        if hasremainder(lead_coeff):
-            raise ValueError("Expected list of coefficients")
         quotient[i] = lead_coeff
-
         # Subtract lead_coeff * (divisor shifted)
-
         for j in range(len(divisor)):
-            remainder[i + j] -= lead_coeff * divisor[j]
+            k = nodes.Add(remainder[i + j], -lead_coeff * divisor[j], rationalize=False)
+            if k.__class__ is nodes.Add:
+                break
+            remainder[i + j] = k
+        else:
+            continue
+        break
     # Trim leading zeroes
     while remainder and remainder[0] == 0:
         remainder.pop(0)
@@ -158,7 +160,6 @@ def square_free(poly: tuple[Const]) -> tuple:
 
     prime = derivative(poly)
     g = poly_gcd(poly, prime)
-
     if len(g) == 1:
         return normalize(poly)
 
@@ -168,14 +169,17 @@ def square_free(poly: tuple[Const]) -> tuple:
 
 
 def normalize(a):
+    from .factoring import gcd
+
     # Normalizing the gcd
-    if (d := math.lcm(*(i.denominator for i in a if i))) != 1:
+    if (d := math.lcm(*(i.canonical()[0].denominator for i in a if i))) != 1:
         a = [i * d for i in a]
-    g = -1 if a[0].is_neg() else 1
-    g *= math.gcd(*(i.numerator for i in a if i and not i.approx().imag))
+    g = -1 if a[0].canonical()[0].is_neg() else 1
+    g *= gcd(*(i for i in a if i))
+    # g *= math.gcd(*(i.numerator for i in a if i and not i.approx().imag))
     if g != 1:
         a = [i / g for i in a]
-    a, c = tuple(a), nodes.Const(g, d)
+    a, c = tuple(a), g / d  # nodes.Const(g, d)
     if c != 1:
         return a, (c,)
     return (a,)

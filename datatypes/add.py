@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING
 
 import math
 import itertools
@@ -13,36 +13,30 @@ import utils
 
 @lru_cache
 def order_key(node: Node) -> tuple:
-    # Format:
-    # (a, b, *c)
-    # a = Exponent
-    # b = Type priority: Numbers, then Variables, then Power and so on
-    # *c = Extra type-specific weight
+    # Format: (Exponent, Type, *Value)
     if isinstance(node, nodes.Number):
         if node.__class__ is nodes.Float:
-            return ((0, 0), 0, 0, str(node._val))
+            return (0, 0, 0, str(node._val))
         if node.numerator.imag:
-            return ((0, 0), 0, 0, str(node))
-        return ((0, 0), 0, node)
+            return (0, 0, 0, str(node))
+        return (0, 0, node)
     if node.__class__ is nodes.Var:
-        return ((0, 1), 1, ord("z") * len(node) - sum(map(ord, node)))
+        return (1, 4, ord("z") * len(node) - sum(map(ord, node)))
     if node.__class__ is nodes.Pow:
         deg = order_key(node.exp)
-        if deg[0][0] == 0:
-            deg = (0, deg[2])
+        deg = deg[2] if deg[1] == 0 and deg[2] else 1
         return (
-            deg,
-            order_key(node.base)[1],
+            deg * order_key(node.base)[0],
+            3,
             order_key(node.exp),
             order_key(node.base),
         )
     order = tuple(map(order_key, node.args))
     if node.__class__ is nodes.Mul:
-        # for x-y: remains x-y instead of -y+x
-        if len(order) == 2 and sum(i[1] for i in order) == 1:
+        if len(order) == 2 and order[0][1] == 0:
             return (*order[1], order[0][1:])
-        return ((0, 1), 3, order)
-    return ((0, 1), 4, order)
+        return (sum(i[0] for i in order), 2, order[::-1])
+    return (max(i[0] for i in order), 1, order)
 
 
 def ordered_terms(args: Iterable[Node]) -> list[Node]:
@@ -50,6 +44,10 @@ def ordered_terms(args: Iterable[Node]) -> list[Node]:
 
 
 class Add(Collection):
+    if TYPE_CHECKING:
+
+        def __init__(self, *args: Node, rationalize=True): ...
+
     @lru_cache
     def __repr__(self) -> str:
         res = ""
@@ -100,7 +98,6 @@ class Add(Collection):
             return ordered_terms(itertools.starmap(form, groups.items())) or [
                 nodes.Const(0)
             ]
-
         # Get the LCM
         den = nodes.Const(1)
         for k in groups:
@@ -111,7 +108,7 @@ class Add(Collection):
         # Combine
         num = Add.from_terms(calculate(k, v) for k, v in groups.items())  # .expand()
         # return list(Add.flatten(num.simplify() / den.simplify()))
-        return ordered_terms(Add.flatten(num / den))
+        return list(Add.flatten(num / den))
 
     def as_ratio(self):
         c, a = self.cancel_gcd()
@@ -166,12 +163,9 @@ class Add(Collection):
             return Add.from_terms(i * j for i in self for j in b)
         return Add.from_terms(i * b for i in self)
 
-    def canonical(self) -> tuple[Node, Add]:
-        return nodes.Const(1), self
-
     def totex(self):
         res = ""
-        for term in utils.ordered_terms(self):
+        for term in self:
             rep = term.totex()
             if res:
                 if str(term.canonical()[0]).startswith("-"):

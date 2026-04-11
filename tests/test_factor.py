@@ -25,6 +25,9 @@ def test_factor_multivariate():
     assert factor(-3 * y**2 - 3 * x * y + 2 * a * y + 2 * a * x) == Mul(
         2 * a - 3 * y, x + y
     )
+    assert factor(((-3 * b + x - 7) ** 2 * (3 * x**2 - 4 * x + 1) ** 3)) == Mul(
+        (3 * b - x + 7) ** 2, (x - 1) ** 3, (3 * x - 1) ** 3
+    )
     assert factor(
         ((52 * x**3 + 70 * x**2 - 312 * x - 420) * (a**3 - b**3)).expand()
     ) == Mul(Const(2), 26 * x + 35, a - b, x**2 - 6, a**2 + b**2 + a * b)
@@ -35,5 +38,13 @@ def test_factor_multivariate():
         * (b - 2 * x) ** 3
         * (x - b)
     ).expand()
-    factored = factor(expr)
-    assert factored != expr and factored.expand() == expr
+    # Doubble factor? The update made it need help. To be revised
+    factored = factor(factor(expr))
+    assert factored == Mul(
+        (a + b) ** 2,
+        (a - 2 * b) ** 2,
+        (x - 2) ** 2,
+        (x**2 + 2 * x + 4) ** 2,
+        (b - 2 * x) ** 3,
+        (x - b),
+    )

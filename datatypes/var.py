@@ -1,5 +1,4 @@
 from .base import Node
-from . import nodes
 
 
 class Var(Node, str):

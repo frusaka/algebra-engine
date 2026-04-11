@@ -100,12 +100,12 @@ class Collection(ABC, Node):
     args: tuple[Node]
 
     @lru_cache
-    def __new__(cls, *args: Node) -> Node:
-        return cls.from_terms(args)
+    def __new__(cls, *args: Node, **kwargs) -> Node:
+        return cls.from_terms(args, **kwargs)
 
     if TYPE_CHECKING:
 
-        def __init__(self, *args: Node): ...
+        def __init__(self, *args: Node, **kwargs): ...
 
     def __hash__(self) -> int:
         return self._hash

@@ -1,10 +1,11 @@
 from __future__ import annotations
 import itertools
 import math
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from . import nodes
 from .base import Node, Collection
+from .add import order_key as standard_key
 from functools import lru_cache, reduce
 from collections import defaultdict
 
@@ -71,8 +72,7 @@ def _tex(n: Node):
 
 @lru_cache
 def order_key(node: Node) -> tuple:
-    # Format:
-    # (a, b, *c)
+    # Format: (a, b, *c)
     # a = Type priority: Numbers, then Variables, then Power and so on
     # b = Exponent  weight (not degree)
     #     This is so that Pow first inherits the priorty of the base
@@ -88,10 +88,9 @@ def order_key(node: Node) -> tuple:
         return (1, 1, str(node))
     if node.__class__ is nodes.Pow:
         return (order_key(node.base)[0], 2, order_key(node.exp), order_key(node.base))
-    order = tuple(map(order_key, node.args))
     if node.__class__ is nodes.Mul:
-        return (3, 1, order)
-    return (4, 1, order)
+        return (3, 1, tuple(map(order_key, node.args))[::-1])
+    return (4, 1, standard_key(node))
 
 
 def ordered_terms(args: Iterable[Node]) -> list[Node]:
@@ -99,6 +98,10 @@ def ordered_terms(args: Iterable[Node]) -> list[Node]:
 
 
 class Mul(Collection):
+    if TYPE_CHECKING:
+
+        def __init__(self, *args: Node, distr_const=True): ...
+
     @lru_cache
     def __repr__(self) -> str:
         # return "*".join(map(str, utils.ordered_terms(self, True)))

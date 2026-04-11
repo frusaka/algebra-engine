@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import defaultdict
+import math
 from typing import TYPE_CHECKING
 
 from itertools import chain, product
@@ -79,14 +80,37 @@ def gcd(*args: Node, light=False, rational=True) -> Node:
         return args.pop()
     # Find factor by traversing the node tree
     if light or not all(n.__class__ is nodes.Add and is_polynomial(n) for n in args):
+        # Find GCD of symbols and numbers seperately
+        nums, symbs = zip(*(i.canonical() for i in args))
+        n = [1] * len(nums)
+        d = n[:]
+        for idx, i in enumerate(nums):
+            if i.__class__ is not nodes.Const:
+                break
+            d[idx] = i.denominator
+            if i.numerator.imag:
+                if not i.numerator.real:
+                    n[idx] = i.numerator.imag
+                else:
+                    n[idx] = math.gcd(i.numerator.real, i.numerator.imag)
+            else:
+                n[idx] = i.numerator
         factors = [
-            dict(
-                flatten_factors(n)
-                if n.__class__ is not nodes.Add
-                else chain(*map(flatten_factors, n.cancel_gcd()))
+            (
+                dict(
+                    flatten_factors(n)
+                    if n.__class__ is not nodes.Add
+                    else chain(*map(flatten_factors, n.cancel_gcd()))
+                )
+                if n
+                else {}
             )
-            for n in args
+            for n in symbs
         ]
+        n, d = nodes.Const(math.gcd(*n)), nodes.Const(math.gcd(*d))
+        for idx in range(len(nums)):
+            factors[idx][n] = 1
+            factors[idx][d] = -1
         common = reduce(lambda a, b: a & b, map(dict.keys, factors))
         return nodes.Mul.from_terms(
             t ** _gcd_pow(map(itemgetter(t), factors), rational) for t in common
@@ -256,46 +280,42 @@ def factor(node: Node) -> Node:
     ):
         if coeffs in seen:
             return seen[coeffs]
-        if not vars:
-            sqf_ = square_free(coeffs)
-            sqf = defaultdict(int)
-            c = 1
-            for i in sqf_:
-                if len(i) > 1:
-                    sqf[i] += 1
-                else:
-                    c *= i[0]
-            res = list(root for k, v in sqf.items() for root in rational_roots(k) * v)
-            if not (len(res) > 1 or len(res[0]) <= 2):
-                res = None
-            elif c != 1:
-                res.append((c,))
-            seen[coeffs] = res
-            return seen[coeffs]
-        temp = list(coeffs)
-        # recursively factor groups
-        for idx, c in enumerate(coeffs):
-            if c.__class__ is nodes.Add and (vars_ := {i for i in vars if i in c}):
-                res = pick_best(c, vars_)
-                # Early break
-                if not res:
-                    seen[coeffs] = None
-                    return seen[coeffs]
-                c, b = res.canonical()
-                temp[idx] = c * next_var(b)
+        temp = coeffs
+        if vars:
+            temp = list(coeffs)
+            # recursively factor groups
+            for idx, c in enumerate(coeffs):
+                if c.__class__ is nodes.Add and (vars_ := {i for i in vars if i in c}):
+                    res = pick_best(c, vars_)
+                    # Early break
+                    if not res:
+                        seen[coeffs] = None
+                        return seen[coeffs]
+                    c, b = res.canonical()
+                    temp[idx] = c * next_var(b)
         c = gcd(*(i for i in temp if i))
         temp = tuple(i / c for i in temp)
-        res = list(rational_roots(temp))
-        if not (len(res) > 1 or len(list(filter(bool, res[0]))) <= 2):
+        n = 0
+
+        sqf_ = square_free(temp)
+        sqf = defaultdict(int)
+        for i in sqf_:
+            if len(i) > 1:
+                n += 1
+                sqf[i] += 1
+            else:
+                c *= i[0]
+        res = list(root for k, v in sqf.items() for root in rational_roots(k) * v)
+        # Hacky: What constitutes af "factored" vs "infactorable"?
+        if not (n > 1 or len(res) > 1 or len(res[0]) <= 2):
             res = None
-        elif c != 1 and c != -1:
+        elif c != 1:
             res.append((c,))
         seen[coeffs] = seen[temp] = res
         return seen[coeffs]
 
     c, node = node.cancel_gcd()
     node = node.expand()
-
     return nodes.Mul.from_terms(
         [pick_best(node, get_vars(node), True) or node, c],
         distr_const=False,
