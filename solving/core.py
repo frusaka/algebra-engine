@@ -4,6 +4,7 @@ import math
 from itertools import product
 
 from datatypes.base import Node
+from step_tracking.eval_trace import tracked
 from .utils import domain_restriction, get_vars
 
 from .interval import Interval, INF
@@ -219,7 +220,7 @@ def validate_solution(
                 res = 0
     except:
         res = 0
-    if verbose:
+    if False:#verbose:
         ETSteps.register(
             ETVerifyNode(sol if sol.__class__ is Comparison else ETBranchNode(sol), res)
         )
@@ -259,9 +260,10 @@ def solve_ineq(var, ineq: Comparison):
     return Comparison(var, interpolate_roots(var, ineq, roots, domain), CompRel.IN)
 
 
+@tracked("solve")
 def solve(src: Comparison | System, *var: Var) -> Comparison | System:
-    Comparison.solve_for.cache_clear()
-    ETSteps.clear()
+    # Comparison.solve_for.cache_clear()
+    # ETSteps.clear()
     if not var:
         var = tuple(sorted(get_vars(src)))
     if not var:
@@ -292,18 +294,18 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     var = tuple(Var(i) if not isinstance(i, Var) else i for i in var)
     if src.__class__ is Comparison:
         if len(var) > 1:
-            ETSteps.register(ETTextNode("Solving for " + str(var)[1:-1]))
-            ETSteps.register(ETNode(src))
+            # ETSteps.register(ETTextNode("Solving for " + str(var)[1:-1]))
+            # ETSteps.register(ETNode(src))
             res = []
             with ETSteps.branching(len(var)) as br:
                 for _, v in zip(br, var):
-                    ETSteps.register(ETTextNode(f"Solve for {v}"))
+                    # ETSteps.register(ETTextNode(f"Solve for {v}"))
                     res.append((v, src.solve_for(v)))
-            ETSteps.register(ETTextNode(f"Verifying solutions", "#0d80f2"))
+            # ETSteps.register(ETTextNode(f"Verifying solutions", "#0d80f2"))
             return System(fin(k, v) for k, v in res)
         else:
             var = var[0]
-            ETSteps.register(ETTextNode(f"Solving for {var}"))
+            # ETSteps.register(ETTextNode(f"Solving for {var}"))
             if src.rel is not CompRel.EQ:
                 return solve_ineq(var, src)
             res = src.solve_for(var)
@@ -312,6 +314,6 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     else:
         res = src.solve_for(var)
     s = "s" * isinstance(res, System)
-    ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
+    # ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
 
     return fin(var, res)

@@ -100,7 +100,7 @@ def ordered_terms(args: Iterable[Node]) -> list[Node]:
 class Mul(Collection):
     if TYPE_CHECKING:
 
-        def __init__(self, *args: Node, distr_const=True): ...
+        def __init__(self, *args: Node, distr_const=False): ...
 
     @lru_cache
     def __repr__(self) -> str:
@@ -158,12 +158,14 @@ class Mul(Collection):
             and set(map(type, res)) == {nodes.Add, nodes.Const}
         ):
             return [res.pop().multiply(res.pop())]
+        # if len(res) == 2:
+        #     print("mul", res)
         return res or [nodes.Const(1)]
 
-    def simplify(self) -> Node:
+    def _simplify(self) -> Node:
         return Mul.from_terms(i.simplify() for i in self.args)
 
-    def expand(self) -> Node:
+    def _expand(self) -> Node:
         num, den = self.as_ratio()
         mul = lambda a, b: a.multiply(b)
         num = reduce(mul, (num.expand() for num in Mul.flatten(num)))

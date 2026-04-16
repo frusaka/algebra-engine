@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from functools import lru_cache, reduce
 
+from step_tracking import tracked
+
 from . import nodes
 
 
@@ -17,47 +19,75 @@ if TYPE_CHECKING:
 
 
 class Node:
+    @tracked("ADD", "Add")
     def __add__(self, other) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
         return nodes.Add(self, other)
 
-    def __radd__(self, other) -> Node:
-        return nodes.Add(nodes.Const(other), self)
+    @__add__.check_changed
+    def _add_changed(result, args):
+        # print(result, args, tuple(itertools.chain(*map(nodes.Add.flatten, args))))
+        return not isinstance(result, nodes.Add) or len(result.args) < len(
+            tuple(itertools.chain(*map(nodes.Add.flatten, args)))
+        )
 
+    def __radd__(self, other) -> Node:
+        return nodes.Const(other) + self
+
+    @tracked("SUB", "Subtract")
     def __sub__(self, other) -> Node:
-        return self + other * -1
+        if not isinstance(other, Node):
+            other = nodes.Const(other)
+        return nodes.Add(self, nodes.Mul(other, nodes.Const(-1)))
+
+    __sub__.check_changed(_add_changed)
 
     def __rsub__(self, other) -> Node:
-        return nodes.Add(nodes.Const(other), self * -1)
+        return nodes.Const(other) - self
 
+    @tracked("MUL", "Multiply")
     def __mul__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
-        if self.__class__ is nodes.Const and other.__class__ is not nodes.Const:
-            self, other = other, self
-        if self.__class__ is nodes.Add and other.__class__ is nodes.Const:
-            return self.multiply(other)
-        return nodes.Mul(self, other)
+        # if self.__class__ is nodes.Const and other.__class__ is not nodes.Const:
+        #     self, other = other, self
+        # if self.__class__ is nodes.Add and other.__class__ is nodes.Const:
+        #     return self.multiply(other)
+        return nodes.Mul(self, other, distr_const=True)
+
+    @__mul__.check_changed
+    def _mul_changed(result, args):
+        return not isinstance(result, nodes.Mul) or len(result.args) < len(
+            list(itertools.chain(*map(nodes.Mul.flatten, args)))
+        )
 
     def __rmul__(self, other) -> Node:
         return self * other
 
+    @tracked("DIV", "Divide")
     def __truediv__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
-        return self * other**-1
+        return nodes.Mul(self, nodes.Pow(other, nodes.Const(-1)), distr_const=True)
+
+    __truediv__.check_changed(_mul_changed)
 
     def __rtruediv__(self, other):
         return nodes.Const(other) / self
 
+    @tracked("POW", "Exponentiate")
     def __pow__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
         return nodes.Pow(self, other)
 
+    @__pow__.check_changed
+    def _(result, args) -> bool:
+        return result.__class__ is not nodes.Pow or (result.base, result.exp) != args
+
     def __rpow__(self, other) -> Node:
-        return nodes.Pow(nodes.Const(other), self)
+        return nodes.Const(other) ** self
 
     def __neg__(self) -> Node:
         return self * -1
@@ -76,11 +106,25 @@ class Node:
     def divide(self, other: Node) -> Node:
         return self * other**-1
 
-    def simplify(self) -> Node:
+    def _simplify(self):
         return self
 
-    def expand(self) -> Node:
+    @tracked("factor")
+    def simplify(self) -> Node:
+        return self._simplify()
+
+    @simplify.check_changed
+    def _simp_changed(result, args):
+        return args[0] != result
+
+    def _expand(self):
         return self
+
+    @tracked("expand")
+    def expand(self) -> Node:
+        return self._expand()
+
+    expand.check_changed(_simp_changed)
 
     def canonical(self) -> tuple[Const, Node]:
         return nodes.Const(1), self
@@ -112,6 +156,13 @@ class Collection(ABC, Node):
 
     def __iter__(self):
         return iter(self.args)
+
+    def __copy__(self):
+        cls = type(self)
+        obj = super(Collection, cls).__new__(cls)
+        object.__setattr__(obj, "args", self.args)
+        object.__setattr__(obj, "_hash", self._hash)
+        return obj
 
     @classmethod
     def from_terms(cls, args: Iterable[Node], modify=True, **kwargs) -> Node:

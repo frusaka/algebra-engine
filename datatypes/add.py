@@ -6,6 +6,8 @@ import itertools
 from collections import defaultdict
 from functools import lru_cache
 
+from step_tracking.eval_trace import tracked
+
 from .base import Node, Collection
 from . import nodes
 import utils
@@ -113,14 +115,15 @@ class Add(Collection):
     def as_ratio(self):
         c, a = self.cancel_gcd()
         n, d = c.as_ratio()
-        return (a.multiply(n), nodes.Const(d))
+        return (a.multiply(n), d)
 
-    def simplify(self) -> Node:
+    def _simplify(self) -> Node:
         return utils.factor(self)
 
-    def expand(self) -> Node:
+    def _expand(self) -> Node:
         return Add.from_terms(node.expand() for node in self)
 
+    @tracked("canonicalize", "Canonicalize")
     def cancel_gcd(self, normalize=True) -> tuple[Node, Add]:
         den = math.lcm(*(i.canonical()[0].denominator for i in self))
         if (
@@ -135,18 +138,11 @@ class Add(Collection):
 
         if gcd == den == 1:
             return gcd, self
-        # if isinstance(gcd, nodes.Add):
-        #     g = dict(itertools.chain(*map(utils.flatten_factors, gcd.cancel_gcd())))
-        # else:
-        #     g = dict(utils.flatten_factors(gcd))
-
-        # return gcd / den, Add.from_terms(
-        #     nodes.Mul.from_terms(
-        #         k ** (v - g.get(k, 0)) for k, v in utils.flatten_factors(n)
-        #     )
-        #     for n in self
-        # )
         return gcd / den, self.multiply(gcd**-1)
+
+    @cancel_gcd.check_changed
+    def _(result, args):
+        return result[1] != args[0]
 
     def divide(self, b: Add) -> Node:
         if self == b:

@@ -200,8 +200,15 @@ class Const(Number):
             self, numerator: int | complex | str = 0, denominator: int = 1
         ): ...
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return _hash_algorithm(self.numerator, self.denominator)
+
+    def __copy__(self) -> Const:
+        cls = type(self)
+        obj = super(Const, cls).__new__(cls)
+        object.__setattr__(obj, "numerator", self.numerator)
+        object.__setattr__(obj, "denominator", self.denominator)
+        return obj
 
     def __float__(self) -> float:
         return self.numerator / self.denominator
@@ -220,7 +227,7 @@ class Const(Number):
             else f"{self.numerator}/{self.denominator}"
         )
 
-    def __floor__(a):
+    def __floor__(a) -> int:
         return a.numerator // a.denominator
 
     def __floordiv__(a, b: Const) -> int:
@@ -301,7 +308,7 @@ class Const(Number):
     def __le__(a, b: Const) -> bool:
         return a.numerator * b.denominator <= a.denominator * b.numerator
 
-    def totex(self):
+    def totex(self) -> str:
         n, *d = str(self).split("/")
         n = n.replace("i", "\\mathrm{i}")
         if not d:
@@ -329,7 +336,7 @@ class Float(Number):
 
         def __init__(self, value: float | complex): ...
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         # return repr(self._val)
         if not self._val.imag:
             return repr(round(self._val, 4))
@@ -337,16 +344,22 @@ class Float(Number):
             complex(round(self._val.real, 4), round(self._val.imag, 4))
         ).replace("j", "i")
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._val)
 
-    def __abs__(self):
+    def __copy__(self) -> Float:
+        cls = type(self)
+        obj = super(Float, cls).__new__(cls)
+        object.__setattr__(self, "_val", self._val)
+        return obj
+
+    def __abs__(self) -> Float:
         return Float(abs(self._val))
 
-    def __float__(self):
+    def __float__(self) -> float:
         return float(self._val)
 
-    def __complex__(self):
+    def __complex__(self) -> complex:
         return complex(self._val)
 
     def __eq__(a, b: Any) -> bool:
@@ -403,7 +416,7 @@ class Float(Number):
             value = Float(value)
         return Float(self._val**value._val)
 
-    def is_neg(self):
+    def is_neg(self) -> bool:
         if self._val.imag:
             return False
         return self._val < 0
@@ -411,7 +424,7 @@ class Float(Number):
     def approx(self) -> float | complex:
         return self._val
 
-    def totex(self):
+    def totex(self) -> str:
         return str(self).replace("i", "\\mathrm{i}")
 
 

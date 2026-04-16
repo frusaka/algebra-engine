@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 import math
 import operator
 from dataclasses import dataclass
@@ -14,6 +13,7 @@ from .eval_trace import *
 # from datatypes import nodes
 from datatypes.base import Collection, Node
 from datatypes.nodes import *
+from step_tracking import *
 
 import utils
 from .utils import difficulty_weight, nth_roots, roots, compute_grobner
@@ -136,13 +136,11 @@ class Comparison:
             return bool(Comparison(v, 0, self.rel))
         return abs(v) <= threshold
 
-    @lru_cache
+    @tracked("solve")
     def solve_for(self, value: Var) -> Comparison:
-        ETSteps.register(ETNode(self))
         # Rewrite the comparison to put the target variable on the left
         if value in self.right and not value in self.left:
-            self = self.reverse()
-            ETSteps.register(ETNode(self))
+            return self.reverse().solve_for(value)
         # Moving target terms to the left
         self = self.collect(value)
         if value not in self:
@@ -187,7 +185,6 @@ class Comparison:
         # Normalize
         if self.right:
             self -= self.right
-            ETSteps.register(ETNode(self))
 
         if (eqn := self.expand()) != self:
             return eqn.solve_for(value)
@@ -196,38 +193,58 @@ class Comparison:
 
         return self.get_roots(value)
 
+    @solve_for.check_changed
+    def _(result, args):
+        return result != args[0]
+
     def __contains__(self, value: Var) -> bool:
         return value in self.left or value in self.right
 
+    @tracked("SUB", "Subtract from both sides")
     def __sub__(self, value: Node) -> Comparison:
-        pad = len(str(self.left)) + 1
-        if not value.canonical()[0].is_neg():
-            ETSteps.register(ETOperatorNode(ETOperatorType.SUB, value, pad))
-        else:
-            ETSteps.register(ETOperatorNode(ETOperatorType.ADD, -value, pad))
-        return Comparison(self.left - value, self.right - value, self.rel)
+        lhs, rhs = self.left - value, self.right - value
+        register(lhs)
+        register(rhs)
+        # pad = len(str(self.left)) + 1
+        # if not value.canonical()[0].is_neg():
+        #     register()
+        #     ETSteps.register(ETOperatorNode(ETOperatorType.SUB, value, pad))
+        # else:
+        #     ETSteps.register(ETOperatorNode(ETOperatorType.ADD, -value, pad))
+        return Comparison((lhs), (rhs), self.rel)
 
+    @__sub__.check_changed
+    def _(*_):
+        return False
+
+    @tracked("DIV", "Divide both sides")
     def __truediv__(self, value: Node) -> Comparison:
-        pad = len(str(self.left)) + 1
-        if value.as_ratio()[1] == 1:
-            ETSteps.register(ETOperatorNode(ETOperatorType.DIV, value, pad))
-        else:
-            ETSteps.register(ETOperatorNode(ETOperatorType.TIMES, value**-1, pad))
+        lhs, rhs = self.left / value, self.right / value
+        register(lhs)
+        register(rhs)
+        # if type(lhs) is Mul and lhs.args[0] == 1:
+        #     lhs = Mul(*lhs.args[0:])
+        # pad = len(str(self.left)) + 1
+        # if value.as_ratio()[1] == 1:
+        #     ETSteps.register(ETOperatorNode(ETOperatorType.DIV, value, pad))
+        # else:
+        #     ETSteps.register(ETOperatorNode(ETOperatorType.TIMES, value**-1, pad))
         # Used set expression to cancel Floating-Point factors
-        return Comparison(
-            Mul(*set(self.left.args) ^ set(Mul.flatten(value))),
-            self.right / value,
-            self.reverse_sign(value),
-        )
+        return Comparison((lhs), (rhs), self.reverse_sign(value))
 
+    @__truediv__.check_changed
+    def _(*_):
+        return False
+
+    @tracked("POW", "Raise both sides")
     def __pow__(self, value: Const) -> Comparison:
-        pad = len(str(self.left)) + 1
-        if value.denominator != 1 and value.numerator == 1:
-            ETSteps.register(
-                ETOperatorNode(ETOperatorType.SQRT, value.denominator, pad)
-            )
-        else:
-            ETSteps.register(ETOperatorNode(ETOperatorType.POW, value, pad))
+        # pad = len(str(self.left)) + 1
+        # if value.denominator != 1 and value.numerator == 1:
+        #     ETSteps.register(
+        #         ETOperatorNode(ETOperatorType.SQRT, value.denominator, pad)
+        #     )
+        # else:
+        #     ETSteps.register(ETOperatorNode(ETOperatorType.POW, value, pad))
         lhs = self.left**value
         if value.denominator > 1:
             rhs = nth_roots({self.right}, value.denominator)
@@ -236,7 +253,13 @@ class Comparison:
             rhs = rhs.pop()
         else:
             rhs = self.right**value
+        register(lhs)
+        register(rhs)
         return Comparison(lhs, rhs, self.rel)
+
+    @__pow__.check_changed
+    def _(*_):
+        return False
 
     def __bool__(self) -> bool:
         return getattr(operator, self.rel.name.lower())(self.left, self.right)
@@ -248,15 +271,14 @@ class Comparison:
                 remove.append(t)
         if remove:
             self -= Add.from_terms(remove, 0)
-            ETSteps.register(ETNode(self))
         return self
 
     def handle_exponents(self, value: Var) -> Comparison:
         self, changed = simple_isolate_radical(self, value)
         rad = rewrite_radicals(self.left - self.right, value)
         if rad is not None:
-            if changed:
-                ETSteps.register(ETNode(self))
+            # if changed:
+            #     ETSteps.register(ETNode(self))
             return rad
         if (
             exp := math.gcd(
@@ -267,8 +289,8 @@ class Comparison:
                 )
             )
         ) > 1 and value not in self.right:
-            if changed:
-                ETSteps.register(ETNode(self))
+            # if changed:
+            #     ETSteps.register(ETNode(self))
             return self ** Const(1, exp)
         return self
 
@@ -286,12 +308,13 @@ class Comparison:
 
         if len(Z) == 1:
             r = Comparison(value, Z.pop())
-            ETSteps.register(ETNode(r))
+            # ETSteps.register(ETNode(r))
         else:
             r = System(Comparison(value, root) for root in Z)
-            ETSteps.register(ETBranchNode(r))
+            # ETSteps.register(ETBranchNode(r))
         return r
 
+    @tracked("flip", "Flip")
     def reverse(self) -> Comparison:
         """Write the comparison in reverse"""
         return Comparison(self.right, self.left, self.rel.reverse())

@@ -109,7 +109,7 @@ def _foreach_solve(eqns, value):
 class System(frozenset):
     """A system of equations"""
 
-    def solve_for(self, vals: Sequence[Var], groebner=False) -> System:
+    def solve_for(self, vals: Sequence[Var], groebner=True) -> System:
         if vals.__class__ is Var:
             return System(_foreach_solve(self, vals))
 

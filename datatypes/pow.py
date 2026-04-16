@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 import itertools
 from functools import lru_cache, reduce
@@ -56,6 +58,13 @@ class Pow(Node):
         def __init__(self, base: Node, exp: Node) -> None:
             pass
 
+    def __copy__(self) -> Pow:
+        cls = type(self)
+        obj = super(Pow, cls).__new__(cls)
+        object.__setattr__(obj, "base", self.base)
+        object.__setattr__(obj, "exp", self.exp)
+        return obj
+
     def __repr__(self) -> str:
         base = str(self.base)
         if (
@@ -89,7 +98,7 @@ class Pow(Node):
     def simplify(self) -> Node:
         return Pow(self.base.simplify(), self.exp.simplify())
 
-    def expand(self):
+    def expand(self) -> Node:
         if self.exp.canonical()[0].is_neg():
             return Pow(Pow(self.base, -self.exp).expand(), nodes.Const(-1))
         base = self.base.expand()
@@ -114,7 +123,7 @@ class Pow(Node):
             exp = nodes.Const(1, exp.denominator)
         return Pow(base, exp)
 
-    def subs(self, mapping):
+    def subs(self, mapping) -> Node:
         if (res := mapping.get(self, None)) is not None:
             return res
         return Pow(self.base.subs(mapping), self.exp.subs(mapping))
@@ -132,7 +141,7 @@ class Pow(Node):
             return -abs(v) ** e
         return v**e
 
-    def totex(self):
+    def totex(self) -> str:
         from .mul import _tex
 
         if not isinstance(self.exp, nodes.Const) or self.exp.denominator == 1:
