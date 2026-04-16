@@ -156,7 +156,7 @@ class Comparison:
             # Zero Product Property
             if self.right == 0:
                 return System(
-                    Comparison(lhs, self.right) for lhs in self.left
+                    tuple(Comparison(lhs, self.right) for lhs in self.left)
                 ).solve_for(value)
 
         res = self.handle_exponents(value)
@@ -205,13 +205,7 @@ class Comparison:
         lhs, rhs = self.left - value, self.right - value
         register(lhs)
         register(rhs)
-        # pad = len(str(self.left)) + 1
-        # if not value.canonical()[0].is_neg():
-        #     register()
-        #     ETSteps.register(ETOperatorNode(ETOperatorType.SUB, value, pad))
-        # else:
-        #     ETSteps.register(ETOperatorNode(ETOperatorType.ADD, -value, pad))
-        return Comparison((lhs), (rhs), self.rel)
+        return Comparison(lhs, rhs, self.rel)
 
     @__sub__.check_changed
     def _(*_):
@@ -222,15 +216,9 @@ class Comparison:
         lhs, rhs = self.left / value, self.right / value
         register(lhs)
         register(rhs)
-        # if type(lhs) is Mul and lhs.args[0] == 1:
-        #     lhs = Mul(*lhs.args[0:])
-        # pad = len(str(self.left)) + 1
-        # if value.as_ratio()[1] == 1:
-        #     ETSteps.register(ETOperatorNode(ETOperatorType.DIV, value, pad))
-        # else:
-        #     ETSteps.register(ETOperatorNode(ETOperatorType.TIMES, value**-1, pad))
-        # Used set expression to cancel Floating-Point factors
-        return Comparison((lhs), (rhs), self.reverse_sign(value))
+        if type(lhs) is Mul and lhs.args[0] == 1:
+            lhs = Mul(*lhs.args[0:])
+        return Comparison(lhs, rhs, self.reverse_sign(value))
 
     @__truediv__.check_changed
     def _(*_):
@@ -238,17 +226,12 @@ class Comparison:
 
     @tracked("POW", "Raise both sides")
     def __pow__(self, value: Const) -> Comparison:
-        # pad = len(str(self.left)) + 1
-        # if value.denominator != 1 and value.numerator == 1:
-        #     ETSteps.register(
-        #         ETOperatorNode(ETOperatorType.SQRT, value.denominator, pad)
-        #     )
-        # else:
-        #     ETSteps.register(ETOperatorNode(ETOperatorType.POW, value, pad))
         lhs = self.left**value
         if value.denominator > 1:
             rhs = nth_roots({self.right}, value.denominator)
             if len(rhs) > 1:
+                register(lhs)
+                register(rhs)
                 return System(Comparison(lhs, r) for r in rhs)
             rhs = rhs.pop()
         else:

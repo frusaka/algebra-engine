@@ -4,7 +4,7 @@ import math
 from itertools import product
 
 from datatypes.base import Node
-from step_tracking.eval_trace import tracked
+from step_tracking import *  # Step, register, tracked
 from .utils import domain_restriction, get_vars
 
 from .interval import Interval, INF
@@ -220,10 +220,11 @@ def validate_solution(
                 res = 0
     except:
         res = 0
-    if False:#verbose:
-        ETSteps.register(
-            ETVerifyNode(sol if sol.__class__ is Comparison else ETBranchNode(sol), res)
-        )
+    if verbose:
+        register(Step("Verify", ETOperator("VERIFY", (sol, res)), bool(res)))
+        # ETSteps.register(
+        #     ETVerifyNode(sol if sol.__class__ is Comparison else ETBranchNode(sol), res)
+        # )
     return res
 
 
@@ -260,10 +261,8 @@ def solve_ineq(var, ineq: Comparison):
     return Comparison(var, interpolate_roots(var, ineq, roots, domain), CompRel.IN)
 
 
-@tracked("solve")
+# @tracked("solve")
 def solve(src: Comparison | System, *var: Var) -> Comparison | System:
-    # Comparison.solve_for.cache_clear()
-    # ETSteps.clear()
     if not var:
         var = tuple(sorted(get_vars(src)))
     if not var:
@@ -316,4 +315,6 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     s = "s" * isinstance(res, System)
     # ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
 
-    return fin(var, res)
+    res = fin(var, res)
+    register(res)
+    return res

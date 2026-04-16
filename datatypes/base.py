@@ -39,7 +39,7 @@ class Node:
     def __sub__(self, other) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
-        return nodes.Add(self, nodes.Mul(other, nodes.Const(-1)))
+        return nodes.Add(self, nodes.Mul(other, nodes.Const(-1), distr_const=True))
 
     __sub__.check_changed(_add_changed)
 
@@ -50,10 +50,6 @@ class Node:
     def __mul__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
-        # if self.__class__ is nodes.Const and other.__class__ is not nodes.Const:
-        #     self, other = other, self
-        # if self.__class__ is nodes.Add and other.__class__ is nodes.Const:
-        #     return self.multiply(other)
         return nodes.Mul(self, other, distr_const=True)
 
     @__mul__.check_changed

@@ -5,6 +5,7 @@ from typing import Iterable, Sequence, TYPE_CHECKING
 
 
 from datatypes.base import Node
+from step_tracking.eval_trace import tracked
 
 
 from .eval_trace import *
@@ -109,6 +110,7 @@ def _foreach_solve(eqns, value):
 class System(frozenset):
     """A system of equations"""
 
+    @tracked("SOLVE")
     def solve_for(self, vals: Sequence[Var], groebner=True) -> System:
         if vals.__class__ is Var:
             return System(_foreach_solve(self, vals))

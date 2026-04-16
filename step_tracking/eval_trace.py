@@ -95,9 +95,20 @@ class OPArithmeticType(Enum):
             return color + ("\\div" + value.join("{}")).join("{}")
 
 
+class OPSpecials(Enum):
+    VERIFY = 0
+
+    def tostr(self, *args) -> str:
+        return str(args[0])
+        if self is OPSpecials.VERIFY:
+            return str(args[0]) + " " + "❌✅📉"[args[1]]
+
+
 class ETOperator(ETNode):
     def __init__(self, id: str, args: tuple[ETNode]) -> None:
         if t := OPArithmeticType.__members__.get(id, None):
+            self.type = t
+        elif t := OPSpecials.__members__.get(id, None):
             self.type = t
         else:
             self.type = id
@@ -105,7 +116,7 @@ class ETOperator(ETNode):
         self.args = list(args)
 
     def __repr__(self) -> str:
-        if type(self.type) is OPArithmeticType:
+        if type(self.type) is not str:
             return self.type.tostr(*self.args)
         if len(self.args) == 1:
             return self.type + str(self.args[0]).join("()")
@@ -253,9 +264,13 @@ def tracked(identifier: str, label: str = ""):
 
 def explain(expr, default=True) -> Step | Any:
     if not (res := _steps.get(id(expr), None)):
+        if expr.__class__.__name__ == "System":
+            print("Juice", expr)
+            res = Step("", ETNode(expr), [r for n in expr if (r := explain(n, False))])
+            _steps[id(expr)] = res
+            return res
+        print(expr)
         return expr if default else None
-    if res._finished:
-        return res
     op = copy_(res.operator)
     op.args = op.args.copy()
     n = len(res.children)
@@ -268,7 +283,6 @@ def explain(expr, default=True) -> Step | Any:
     if len(res.children) > n:
         res.children.append(Step(res.label, op, res.result))
 
-    res._finished = True
     return res
 
 
@@ -287,6 +301,8 @@ ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
 __all__ = [
+    "ETNode",
+    "ETOperator",
     "Step",
     "verbose",
     "set_verbosity",
