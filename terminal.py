@@ -1,9 +1,6 @@
 from rich import print
 
-from datatypes import *
-
-from step_tracking import explain, set_verbosity
-from step_tracking.eval_trace import _steps
+from utils.eval_trace import explain, set_verbosity
 from parsing import parser
 
 from parsing.lexer import Lexer
@@ -17,10 +14,9 @@ set_verbosity(True)
 while True:
     try:
         inp = parser.Parser(Lexer(input("Expression > ")).tokenize()).parse()
-        print(_steps)
         print(explain(inp))
     except Exception as e:
-        raise
+        # raise
         print(repr(e))
     except KeyboardInterrupt:
         print("\nExiting...")

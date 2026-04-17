@@ -5,6 +5,7 @@ from solving.solutions import *
 from solving.system import System
 from datatypes.nodes import *
 from solving.core import solve
+from utils.eval_trace import tracked
 from utils import lcm, gcd, factor
 
 
@@ -40,22 +41,27 @@ def neg(a: Node) -> Node:
     return -a
 
 
+@tracked("EQ")
 def eq(a: Node, b: Node) -> Comparison:
     return Comparison(a, b)
 
 
+@tracked("GT")
 def gt(a: Node, b: Node) -> Comparison:
     return Comparison(a, b, CompRel.GT)
 
 
+@tracked("LT")
 def lt(a: Node, b: Node) -> Comparison:
     return Comparison(a, b, CompRel.LT)
 
 
+@tracked("LE")
 def le(a: Node, b: Node) -> Comparison:
     return Comparison(a, b, CompRel.LE)
 
 
+@tracked("GE")
 def ge(a: Node, b: Node) -> Comparison:
     return Comparison(a, b, CompRel.GE)
 

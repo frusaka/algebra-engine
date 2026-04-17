@@ -1,14 +1,12 @@
 from __future__ import annotations
-import itertools
-import math
-from typing import Iterable, Sequence, TYPE_CHECKING
+
+from typing import Sequence
 
 
 from datatypes.base import Node
-from step_tracking.eval_trace import tracked
-
-
 from .eval_trace import *
+from utils.eval_trace import *
+
 
 from datatypes import *
 from .utils import arrange_eqns, compute_grobner, next_eqn
@@ -17,7 +15,10 @@ import utils
 
 
 def _solve(eqns: set, org, v, sols):
-    eqn = org.solve_for(v)
+    inner = []
+    with scoped(inner):
+        eqn = org.solve_for(v)
+    register(Step(f"Solve for {v}", "", eqn, inner))
     eqns.remove(org)
     if eqn.__class__ is System:
         ETSteps.register(ETSubNode(v, ETBranchNode(i.right for i in eqn)))
@@ -92,31 +93,29 @@ def _foreach_solve(eqns, value):
         return eqns
     # Branched during the solving process
     sols = []
-    with ETSteps.branching(len(eqns)) as branches:
-        for idx, eqn in zip(branches, eqns):
-            ETSteps.register(ETTextNode(f"Branch {idx+1}"))
-            try:
+    for idx, eqn in zip(range(1, len(eqns) + 1), eqns):
+        inner = []
+        try:
+            with scoped(inner):
                 res = eqn.solve_for(value)
-            except ArithmeticError as err:
-                ETSteps.register(ETTextNode(repr(err), "#d7170b"))
-                continue
-            if res.__class__ is System:
-                sols.extend(res)
-            else:
-                sols.append(res)
+        except ArithmeticError as err:
+            # ETSteps.register(ETTextNode(repr(err), "#d7170b"))
+            continue
+        register(Step(f"Branch {idx}", "", res, inner))
+        if res.__class__ is System:
+            sols.extend(res)
+        else:
+            sols.append(res)
     return sols
 
 
 class System(frozenset):
     """A system of equations"""
 
-    @tracked("SOLVE")
-    def solve_for(self, vals: Sequence[Var], groebner=True) -> System:
+    def solve_for(self, vals: Sequence[Var], groebner=False) -> System:
         if vals.__class__ is Var:
             return System(_foreach_solve(self, vals))
-
-        ETSteps.register(ETTextNode("Solving for " + str(vals)[1:-1]))
-        ETSteps.register(ETNode(self))
+        # ETSteps.register(ETTextNode("Solving for " + str(vals)[1:-1]))
         if groebner:
             eqns = set(compute_grobner(self, list(vals)))
             if not eqns:
@@ -128,21 +127,19 @@ class System(frozenset):
         vals = list(vals)
         sols = []
         # Solve for each variable separately
-        with ETSteps.branching(len(vals)) as branches:
-            for _ in branches:
-                # Branched solving: previous variable had multiple solutions
-                if sols and sols[0].__class__ is tuple:
-                    _branched_solve(vals, sols)
-                    continue
-                # Choose the easiest variable to isolate
-                eqn, v = next_eqn(eqns, vals)
-                ETSteps.register(ETTextNode(f"Solve for {v}"))
-                _solve(eqns, eqn, v, sols)
-                if sols[0].__class__ is tuple:
-                    ETSteps.register(ETBranchNode(System({*i[0], *i[1]}) for i in sols))
-                else:
-                    ETSteps.register(ETNode(System({*sols, *eqns})))
-                vals.remove(v)
+        for _ in range(len(vals)):
+            # Branched solving: previous variable had multiple solutions
+            if sols and sols[0].__class__ is tuple:
+                _branched_solve(vals, sols)
+                continue
+            # Choose the easiest variable to isolate
+            eqn, v = next_eqn(eqns, vals)
+            _solve(eqns, eqn, v, sols)
+            if sols[0].__class__ is tuple:
+                ETSteps.register(ETBranchNode(System({*i[0], *i[1]}) for i in sols))
+            else:
+                register(Step("", "", System({*sols, *eqns})))
+            vals.remove(v)
         if isinstance(sols[0], tuple):
             sols = [i.simplify() for i, _ in sols]
         else:

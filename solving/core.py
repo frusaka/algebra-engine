@@ -4,7 +4,7 @@ import math
 from itertools import product
 
 from datatypes.base import Node
-from step_tracking import *  # Step, register, tracked
+from utils.eval_trace import *  # Step, register, tracked
 from .utils import domain_restriction, get_vars
 
 from .interval import Interval, INF
@@ -261,7 +261,7 @@ def solve_ineq(var, ineq: Comparison):
     return Comparison(var, interpolate_roots(var, ineq, roots, domain), CompRel.IN)
 
 
-# @tracked("solve")
+@tracked("solve")
 def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     if not var:
         var = tuple(sorted(get_vars(src)))
@@ -300,6 +300,7 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
                 for _, v in zip(br, var):
                     # ETSteps.register(ETTextNode(f"Solve for {v}"))
                     res.append((v, src.solve_for(v)))
+            [register(i[1]) for i in res]
             # ETSteps.register(ETTextNode(f"Verifying solutions", "#0d80f2"))
             return System(fin(k, v) for k, v in res)
         else:
@@ -313,8 +314,11 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     else:
         res = src.solve_for(var)
     s = "s" * isinstance(res, System)
-    # ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
-
-    res = fin(var, res)
-    register(res)
+    inner = []
+    # register(res)
+    with scoped(inner):
+        res = fin(var, res)
+    register(Step(f"Verifying solution{s}", "", res, inner))
     return res
+    # ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
+    return fin(var, res)

@@ -1,5 +1,7 @@
 from contextlib import contextmanager
-from copy import copy as copy_
+from copy import copy
+from dataclasses import dataclass, field
+from itertools import chain
 import re
 from functools import lru_cache, wraps
 from enum import Enum
@@ -12,7 +14,8 @@ from rich.panel import Panel
 from rich.console import Group, Console
 from rich.padding import Padding
 
-from utils import superscript, SYMBOLS
+from .constants import SYMBOLS
+from .print_ import superscript
 
 
 def strip_ansi(text):
@@ -95,6 +98,17 @@ class OPArithmeticType(Enum):
             return color + ("\\div" + value.join("{}")).join("{}")
 
 
+class OPBinaryType(Enum):
+    EQ = 0
+    GT = 1
+    GE = 2
+    LT = 3
+    LE = 4
+
+    def tostr(self, left, right):
+        return SYMBOLS.get(self.name).join("  ").join((str(left), str(right)))
+
+
 class OPSpecials(Enum):
     VERIFY = 0
 
@@ -105,10 +119,16 @@ class OPSpecials(Enum):
 
 
 class ETOperator(ETNode):
+    _options = dict(
+        chain(
+            OPArithmeticType.__members__.items(),
+            OPBinaryType.__members__.items(),
+            OPSpecials.__members__.items(),
+        )
+    )
+
     def __init__(self, id: str, args: tuple[ETNode]) -> None:
-        if t := OPArithmeticType.__members__.get(id, None):
-            self.type = t
-        elif t := OPSpecials.__members__.get(id, None):
+        if t := self._options.get(id, None):
             self.type = t
         else:
             self.type = id
@@ -123,19 +143,12 @@ class ETOperator(ETNode):
         return self.type + str(tuple(self.args))
 
 
+@dataclass
 class Step:
-    def __init__(
-        self,
-        label: str,
-        operator: ETOperator,
-        result: Any,
-        children: list = None,
-    ):
-        self.label = label or ""
-        self.operator = operator
-        self.result = result
-        self.children = children or []
-        self._finished = False
+    label: str
+    operator: ETOperator
+    result: Any
+    children: list = field(default_factory=list)
 
     def __repr__(self) -> str:
         def _str(step, depth):
@@ -161,7 +174,7 @@ class Step:
                 res.truncate(width, overflow="ellipsis")
                 return res
             p = len(step.children) > 1
-            lpad *= not p
+            lpad *= not len(step.children)
             res = Group(
                 Text.from_ansi(f"{idx}{label}{step.operator}"),
                 Padding(
@@ -179,7 +192,7 @@ class Step:
             res.renderables[0].pad_left(lpad)
             res.renderables[-1].truncate(width, overflow="ellipsis")
             res.renderables[-1].pad_left(lpad + 2)
-            if depth == 0 or p:
+            if depth == 0 or step.children:
                 return Panel(res, expand=False)
             return res
 
@@ -206,7 +219,7 @@ def register(step: Step | Any) -> None:
 
 
 @contextmanager
-def _scoped(scope: list):
+def scoped(scope: list):
     global _curr_hist
     before = _curr_hist
     _curr_hist = scope
@@ -216,30 +229,24 @@ def _scoped(scope: list):
         _curr_hist = before
 
 
-def tracked(identifier: str, label: str = ""):
+def tracked(identifier: str, label: str = "", default_show: bool = True):
 
     def tracked_func(func):
         @wraps(func)
         @lru_cache
         def wrapper(*args, **kwargs):
             history = []
-            with _scoped(history):
+            with scoped(history):
                 result = func(*args, **kwargs)
 
             changed = wrapper._is_simplified(result, args)
             if not _verbose or (not changed and not any(history)):
                 return result
-            result = copy(result)  # , id(result))
+            result = copy(result)
             if any(history) and changed:
                 history.append(Step(label, ETOperator(identifier, args), result))
             step = Step(label, ETOperator(identifier, args), result, history)
-            # A recursive Function
-            if res := _steps.get(id(result), None):
-                print("Recursion?:", step.operator, "vs.", res.operator)
-            else:
-                # result = copy_(result)
-                # print("storing", result)
-                _steps[id(result)] = step
+            _steps[id(result)] = step
             return result
 
         def check_changed(fn):
@@ -254,7 +261,7 @@ def tracked(identifier: str, label: str = ""):
                 return
             wrapper.steps.append(step)
 
-        wrapper._is_simplified = lambda *_: True
+        wrapper._is_simplified = lambda *_: default_show
         wrapper.check_changed = check_changed
         wrapper.register = register
         return wrapper
@@ -264,34 +271,24 @@ def tracked(identifier: str, label: str = ""):
 
 def explain(expr, default=True) -> Step | Any:
     if not (res := _steps.get(id(expr), None)):
-        if expr.__class__.__name__ == "System":
-            print("Juice", expr)
-            res = Step("", ETNode(expr), [r for n in expr if (r := explain(n, False))])
-            _steps[id(expr)] = res
-            return res
-        print(expr)
         return expr if default else None
-    op = copy_(res.operator)
+
+    op = copy(res.operator)
     op.args = op.args.copy()
     n = len(res.children)
 
     for idx, i in enumerate(res.operator.args):
+        # print("Working on ", expr)
         if not (v := explain(i, False)):
             continue
+        # print(expr, idx, i, v, sep=", ", end="\n\n")
         res.operator.args[idx] = v.operator
         res.children.insert(idx, v)
-    if len(res.children) > n:
-        res.children.append(Step(res.label, op, res.result))
+    # if len(res.children) > n:
+    #     res.children.append(Step(res.label, op, res.result))
 
     return res
 
-
-@lru_cache(maxsize=1000)
-def copy(value):
-    return copy_(value)
-
-
-copy = lru_cache(maxsize=10000)(copy)
 
 _steps: dict[int, Step] = {}
 _verbose: bool = False
@@ -309,4 +306,5 @@ __all__ = [
     "tracked",
     "explain",
     "register",
+    "scoped",
 ]

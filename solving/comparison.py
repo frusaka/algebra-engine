@@ -13,7 +13,7 @@ from .eval_trace import *
 # from datatypes import nodes
 from datatypes.base import Collection, Node
 from datatypes.nodes import *
-from step_tracking import *
+from utils.eval_trace import *
 
 import utils
 from .utils import difficulty_weight, nth_roots, roots, compute_grobner
@@ -136,82 +136,90 @@ class Comparison:
             return bool(Comparison(v, 0, self.rel))
         return abs(v) <= threshold
 
-    @tracked("solve")
     def solve_for(self, value: Var) -> Comparison:
-        # Rewrite the comparison to put the target variable on the left
-        if value in self.right and not value in self.left:
-            return self.reverse().solve_for(value)
-        # Moving target terms to the left
-        self = self.collect(value)
-        if value not in self:
-            return self
-        # Isolation by division
-        if self.left.__class__ is Mul:
-            remove = []
-            for t in self.left:
-                if (not value in t) or utils.hasremainder(t):
-                    remove.append(t)
-            if remove:
-                return (self / Mul(*remove)).solve_for(value)
-            # Zero Product Property
-            if self.right == 0:
-                return System(
-                    tuple(Comparison(lhs, self.right) for lhs in self.left)
-                ).solve_for(value)
+        org = self
+        while True:
+            ## If input expression was simplified, double register
+            if self is not org:
+                register(self)
+            if self.__class__ is not Comparison:
+                return self.solve_for(value)
+            # Rewrite the comparison to put the target variable on the left
+            if value in self.right and not value in self.left:
+                self = self.reverse()  # .solve_for(value)
+                continue
+            # Moving target terms to the left
+            self = self.collect(value)
+            if value not in self:
+                return self
+            # Isolation by division
+            if self.left.__class__ is Mul:
+                remove = []
+                for t in self.left:
+                    if (not value in t) or utils.hasremainder(t):
+                        remove.append(t)
+                if remove:
+                    self = self / Mul(*remove, distr_const=True)  # .solve_for(value)
+                    continue
+                # Zero Product Property
+                if self.right == 0:
+                    res = self.zpp()
+                    register(res)
+                    return res.solve_for(value)
 
-        res = self.handle_exponents(value)
-        if res != self:
-            return res.solve_for(value)
-
-        if res.left == value and value not in res.right:
-            return res
-        self = res
-        # Move undesired terms to the rhs
-        if (
-            self.left.__class__ is Add
-            and len(
-                set(
-                    utils.degree(i, value) for i in Add.flatten(self.left) if value in i
+            res = self.handle_exponents(value)
+            if res != self:
+                self = res
+                continue
+            if res.left == value and value not in res.right:
+                return res
+            self = res
+            # Move undesired terms to the rhs
+            if (
+                self.left.__class__ is Add
+                and len(
+                    set(
+                        utils.degree(i, value)
+                        for i in Add.flatten(self.left)
+                        if value in i
+                    )
                 )
-            )
-            == 1
-        ):
-            if remove := [i for i in self.left if value not in i]:
-                return (self - Add.from_terms(remove)).solve_for(value)
-            # Try simplifying or expanding
-            for t in (self.left.simplify(), self.left.expand()):
-                if t != self.left:
-                    return Comparison(t, self.right, self.rel).solve_for(value)
-        # Normalize
-        if self.right:
-            self -= self.right
+                == 1
+            ):
+                if remove := [i for i in self.left if value not in i]:
+                    self = self - Add.from_terms(remove)  # .solve_for(value)
+                    continue
+                # Try simplifying or expanding
+                if (t := self.left.simplify()) != self.left or (
+                    t := self.left.expand()
+                ) != self.left:
+                    self = Comparison(t, self.right, self.rel)  # .solve_for(value)
+                    continue
 
-        if (eqn := self.expand()) != self:
-            return eqn.solve_for(value)
-        if (eqn := self.try_factor()) is not None:
-            return eqn.solve_for(value)
-
+            # Normalize
+            if self.right:
+                self -= self.right
+                register(self)
+            if (eqn := self.expand()) != self:
+                self = eqn
+                continue
+            if (eqn := self.try_factor()) is not None:
+                self = eqn
+                continue
+            break
         return self.get_roots(value)
-
-    @solve_for.check_changed
-    def _(result, args):
-        return result != args[0]
 
     def __contains__(self, value: Var) -> bool:
         return value in self.left or value in self.right
 
-    @tracked("SUB", "Subtract from both sides")
+    @tracked("SUB", "Subtract from both sides", False)
     def __sub__(self, value: Node) -> Comparison:
         lhs, rhs = self.left - value, self.right - value
         register(lhs)
         register(rhs)
         return Comparison(lhs, rhs, self.rel)
 
-    @__sub__.check_changed
-    def _(*_):
-        return False
-
-    @tracked("DIV", "Divide both sides")
+    @tracked("DIV", "Divide both sides", False)
     def __truediv__(self, value: Node) -> Comparison:
         lhs, rhs = self.left / value, self.right / value
         register(lhs)
@@ -220,18 +228,20 @@ class Comparison:
             lhs = Mul(*lhs.args[0:])
         return Comparison(lhs, rhs, self.reverse_sign(value))
 
-    @__truediv__.check_changed
-    def _(*_):
-        return False
-
-    @tracked("POW", "Raise both sides")
+    @tracked("POW", "Raise both sides", False)
     def __pow__(self, value: Const) -> Comparison:
         lhs = self.left**value
         if value.denominator > 1:
             rhs = nth_roots({self.right}, value.denominator)
             if len(rhs) > 1:
                 register(lhs)
-                register(rhs)
+                register(
+                    Step(
+                        "Root",
+                        ETOperator("SQRT", (self.right, ETNode(value.denominator))),
+                        rhs,
+                    )
+                )
                 return System(Comparison(lhs, r) for r in rhs)
             rhs = rhs.pop()
         else:
@@ -239,10 +249,6 @@ class Comparison:
         register(lhs)
         register(rhs)
         return Comparison(lhs, rhs, self.rel)
-
-    @__pow__.check_changed
-    def _(*_):
-        return False
 
     def __bool__(self) -> bool:
         return getattr(operator, self.rel.name.lower())(self.left, self.right)
@@ -297,6 +303,10 @@ class Comparison:
             # ETSteps.register(ETBranchNode(r))
         return r
 
+    @tracked("zpp", "Zero Product Property")
+    def zpp(self):
+        return System(Comparison(lhs, self.right) for lhs in self.left)
+
     @tracked("flip", "Flip")
     def reverse(self) -> Comparison:
         """Write the comparison in reverse"""
@@ -308,7 +318,7 @@ class Comparison:
 
     def reverse_sign(self, value: Node) -> CompRel:
         # Can safely flip sign based on coefficient:
-        # operators.solve() will gracefully handle any mishaps
+        # solving.core.solve() will gracefully handle any mishaps
         if self.rel in {CompRel.EQ, CompRel.NE}:
             return self.rel
         value = value.canonical()[0]

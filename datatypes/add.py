@@ -6,7 +6,7 @@ import itertools
 from collections import defaultdict
 from functools import lru_cache
 
-from step_tracking.eval_trace import tracked
+from utils.eval_trace import tracked
 
 from .base import Node, Collection
 from . import nodes
