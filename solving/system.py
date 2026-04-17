@@ -18,7 +18,7 @@ def _solve(eqns: set, org, v, sols):
     inner = []
     with scoped(inner):
         eqn = org.solve_for(v)
-    register(Step(f"Solve for {v}", "", eqn, inner))
+    register(Step(f"Solve for {v}", ETNode(eqn), inner))
     eqns.remove(org)
     if eqn.__class__ is System:
         ETSteps.register(ETSubNode(v, ETBranchNode(i.right for i in eqn)))
@@ -101,7 +101,7 @@ def _foreach_solve(eqns, value):
         except ArithmeticError as err:
             # ETSteps.register(ETTextNode(repr(err), "#d7170b"))
             continue
-        register(Step(f"Branch {idx}", "", res, inner))
+        register(Step(f"Branch {idx}", ETNode(res), inner))
         if res.__class__ is System:
             sols.extend(res)
         else:
@@ -136,9 +136,10 @@ class System(frozenset):
             eqn, v = next_eqn(eqns, vals)
             _solve(eqns, eqn, v, sols)
             if sols[0].__class__ is tuple:
-                ETSteps.register(ETBranchNode(System({*i[0], *i[1]}) for i in sols))
+                register(Step("Result", ETBranch(System({*i[0], *i[1]}) for i in sols)))
+                # ETSteps.register(ETBranchNode(System({*i[0], *i[1]}) for i in sols))
             else:
-                register(Step("", "", System({*sols, *eqns})))
+                register(Step("Result", ETNode(System({*sols, *eqns}))))
             vals.remove(v)
         if isinstance(sols[0], tuple):
             sols = [i.simplify() for i, _ in sols]

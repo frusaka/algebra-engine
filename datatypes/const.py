@@ -321,7 +321,7 @@ class Const(Number):
 class Float(Number):
     __slots__ = ("_val",)
 
-    @lru_cache
+    # @lru_cache
     def __new__(cls, value: float | complex) -> Float:
         if isinstance(value, Node):
             value = value.approx()
@@ -348,10 +348,7 @@ class Float(Number):
         return hash(self._val)
 
     def __copy__(self) -> Float:
-        cls = type(self)
-        obj = super(Float, cls).__new__(cls)
-        object.__setattr__(self, "_val", self._val)
-        return obj
+        return Float(self._val)
 
     def __abs__(self) -> Float:
         return Float(abs(self._val))

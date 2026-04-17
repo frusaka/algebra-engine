@@ -190,10 +190,8 @@ class Comparison:
                     self = self - Add.from_terms(remove)  # .solve_for(value)
                     continue
                 # Try simplifying or expanding
-                if (t := self.left.simplify()) != self.left or (
-                    t := self.left.expand()
-                ) != self.left:
-                    self = Comparison(t, self.right, self.rel)  # .solve_for(value)
+                if (eqn := self.simplify()) != self or (eqn := self.expand()) != self:
+                    self = eqn
                     continue
 
             # Normalize
@@ -203,7 +201,7 @@ class Comparison:
             if (eqn := self.expand()) != self:
                 self = eqn
                 continue
-            if (eqn := self.try_factor()) is not None:
+            if (eqn := self.expand()) != self:
                 self = eqn
                 continue
             break
@@ -238,8 +236,7 @@ class Comparison:
                 register(
                     Step(
                         "Root",
-                        ETOperator("SQRT", (self.right, ETNode(value.denominator))),
-                        rhs,
+                        ETOperator("SQRT", (self.right, value.denominator), rhs),
                     )
                 )
                 return System(Comparison(lhs, r) for r in rhs)
@@ -283,14 +280,6 @@ class Comparison:
             return self ** Const(1, exp)
         return self
 
-    def try_factor(self) -> Comparison | None:
-        if (
-            utils.is_polynomial(self.left)
-            and (f := (self.left).simplify()).__class__ is not Add
-        ):
-            # ETSteps.register(ETTextNode("Simplified Expression"))
-            return Comparison(f, Const(0), self.rel)
-
     def get_roots(self, value: Var) -> Comparison | System:
         f = utils.extract(self.left.expand(), value)
         Z = roots(f)
@@ -329,9 +318,11 @@ class Comparison:
     def subs(self, mapping: dict) -> Comparison:
         return Comparison(self.left.subs(mapping), self.right.subs(mapping), self.rel)
 
+    @tracked("factor")
     def simplify(self):
         return Comparison(self.left.simplify(), self.right.simplify(), self.rel)
 
+    @tracked("expand")
     def expand(self):
         return Comparison(self.left.expand(), self.right.expand(), self.rel)
 

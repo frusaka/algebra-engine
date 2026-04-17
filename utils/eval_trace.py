@@ -1,8 +1,7 @@
 from contextlib import contextmanager
 from copy import copy
 from dataclasses import dataclass, field
-from itertools import chain
-import re
+from itertools import chain, zip_longest
 from functools import lru_cache, wraps
 from enum import Enum
 from typing import Any, Iterator
@@ -15,22 +14,7 @@ from rich.console import Group, Console
 from rich.padding import Padding
 
 from .constants import SYMBOLS
-from .print_ import superscript
-
-
-def strip_ansi(text):
-    res = ANSI_ESCAPE_RE.sub("", text)
-    return res
-
-
-def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
-    hex_color = hex_color.lstrip("#")
-    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
-
-
-def colorize_ansi(text: str, hex_color: str) -> str:
-    r, g, b = hex_to_rgb(hex_color)
-    return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
+from .print_ import superscript, strip_ansi, colorize_ansi
 
 
 class ETNode:
@@ -41,8 +25,11 @@ class ETNode:
         self.is_align = self.result.__class__.__name__ == "Comparison"
         # self.is_align=True
 
-    def __repr__(self):
+    def header(self) -> str:
         return str(self.result)
+
+    def __repr__(self):
+        return ""  # str(self.result)
 
     def totex(self):
         return self.result.totex()
@@ -63,7 +50,8 @@ class OPArithmeticType(Enum):
     POW = "#a219e6"
     SQRT = 6
 
-    def tostr(self, a, b):
+    def tostr(self, args, _):
+        a, b = args
         color = self.value
         a = str(a).join("()") if a.__class__ is not ETNode else str(a)
         b = str(b).join("()") if b.__class__ is not ETNode else str(b)
@@ -105,17 +93,17 @@ class OPBinaryType(Enum):
     LT = 3
     LE = 4
 
-    def tostr(self, left, right):
+    def tostr(self, args, _):
+        left, right = args
         return SYMBOLS.get(self.name).join("  ").join((str(left), str(right)))
 
 
 class OPSpecials(Enum):
     VERIFY = 0
 
-    def tostr(self, *args) -> str:
-        return str(args[0])
+    def tostr(self, args, result) -> str:
         if self is OPSpecials.VERIFY:
-            return str(args[0]) + " " + "❌✅📉"[args[1]]
+            return str(args[0]) + " " + "❌✅📉"[result]
 
 
 class ETOperator(ETNode):
@@ -127,34 +115,56 @@ class ETOperator(ETNode):
         )
     )
 
-    def __init__(self, id: str, args: tuple[ETNode]) -> None:
+    def __init__(self, id: str, args: tuple[ETNode], result: Any) -> None:
         if t := self._options.get(id, None):
             self.type = t
         else:
             self.type = id
-
         self.args = list(args)
+        self.result = result
 
     def __repr__(self) -> str:
         if type(self.type) is not str:
-            return self.type.tostr(*self.args)
+            return self.type.tostr(self.args, self.result)
         if len(self.args) == 1:
             return self.type + str(self.args[0]).join("()")
         return self.type + str(tuple(self.args))
+
+    def header(self) -> str:
+        if isinstance(self.type, OPSpecials):
+            return str(self)
+        return str(self) + " --> " + str(self.result)
+
+
+class ETBranch(ETNode):
+    def __init__(self, result):
+        super().__init__(list(result))
+        if self.result[0].__class__.__name__ == "Comparison":
+            self.result.sort(key=str)
+
+    def __repr__(self):
+        if self.result[0].__class__.__name__ != "System":
+            return ",  ".join(map(str, self.result))
+        data = [str(i).split("\n") for i in self.result]
+        return "\n".join(
+            "    ".join(items) for items in zip_longest(*data, fillvalue="")
+        )
+
+    def totex(self):
+        return ",\\quad ".join(i.totex() for i in self.result)
 
 
 @dataclass
 class Step:
     label: str
-    operator: ETOperator
-    result: Any
+    transform: ETOperator | ETNode
     children: list = field(default_factory=list)
 
     def __repr__(self) -> str:
         def _str(step, depth):
             if not step.children:
-                return f"{step.label}: {step.operator} --> {step.result}"
-            res = f"{step.label}: {step.operator}"
+                return f"{step.label}: {step.transform}"
+            res = f"{step.label}: {step.transform}"
             for idx, i in enumerate(step.children, 1):
                 res += "\n" + "   " * depth + str(idx) + ". " + _str(i, depth + 1)
             res += "\n" + "   " * depth + str(idx + 1) + f". Final: {step.result}"
@@ -169,14 +179,14 @@ class Step:
             lpad = depth + 1
             label = step.label + ": " if step.label else ""
             if not step.children:
-                res = Text.from_ansi(f"{idx}{label}{step.operator} --> {step.result}")
+                res = Text.from_ansi(f"{idx}{label}{step.transform.header()}")
                 res.pad_left(lpad)
                 res.truncate(width, overflow="ellipsis")
                 return res
             p = len(step.children) > 1
             lpad *= not len(step.children)
             res = Group(
-                Text.from_ansi(f"{idx}{label}{step.operator}"),
+                Text.from_ansi(f"{idx}{label}{step.transform}"),
                 Padding(
                     Group(
                         *(
@@ -186,7 +196,7 @@ class Step:
                     ),
                     (0, 0, 0, lpad),
                 ),
-                Text(f"Final: {step.result}"),
+                Text(f"Final: {step.transform.result}"),
             )
             res.renderables[0].truncate(width, overflow="ellipsis")
             res.renderables[0].pad_left(lpad)
@@ -239,13 +249,12 @@ def tracked(identifier: str, label: str = "", default_show: bool = True):
             with scoped(history):
                 result = func(*args, **kwargs)
 
-            changed = wrapper._is_simplified(result, args)
-            if not _verbose or (not changed and not any(history)):
+            if not _verbose or (
+                not wrapper._is_simplified(result, args) and not any(history)
+            ):
                 return result
             result = copy(result)
-            if any(history) and changed:
-                history.append(Step(label, ETOperator(identifier, args), result))
-            step = Step(label, ETOperator(identifier, args), result, history)
+            step = Step(label, ETOperator(identifier, args, result), history)
             _steps[id(result)] = step
             return result
 
@@ -273,19 +282,17 @@ def explain(expr, default=True) -> Step | Any:
     if not (res := _steps.get(id(expr), None)):
         return expr if default else None
 
-    op = copy(res.operator)
+    op = copy(res.transform)
     op.args = op.args.copy()
     n = len(res.children)
 
-    for idx, i in enumerate(res.operator.args):
-        # print("Working on ", expr)
+    for idx, i in enumerate(res.transform.args):
         if not (v := explain(i, False)):
             continue
-        # print(expr, idx, i, v, sep=", ", end="\n\n")
-        res.operator.args[idx] = v.operator
+        res.transform.args[idx] = v.transform
         res.children.insert(idx, v)
-    # if len(res.children) > n:
-    #     res.children.append(Step(res.label, op, res.result))
+    if len(res.children) > n and not n:
+        res.children.append(Step(res.label, op))
 
     return res
 
@@ -294,11 +301,10 @@ _steps: dict[int, Step] = {}
 _verbose: bool = False
 _curr_hist: list = None
 
-ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
-
 
 __all__ = [
     "ETNode",
+    "ETBranch",
     "ETOperator",
     "Step",
     "verbose",
