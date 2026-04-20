@@ -137,7 +137,7 @@ class Mul(Collection):
         return ordered_terms(args)
 
     @classmethod
-    def merge(cls, args: Iterable[Node], distr_const=False) -> list[Node]:
+    def merge(cls, args: Iterable[Node], distr_const=True) -> list[Node]:
         res = defaultdict(nodes.Const)
         for k, v in (utils.mult_key(n, True) for n in args):
             if k is None:
@@ -163,7 +163,7 @@ class Mul(Collection):
         return res or [nodes.Const(1)]
 
     def _simplify(self) -> Node:
-        return Mul.from_terms(i.simplify() for i in self.args)
+        return Mul.from_terms(i.factor() for i in self.args)
 
     def _expand(self) -> Node:
         num, den = self.as_ratio()

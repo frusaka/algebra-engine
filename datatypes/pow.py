@@ -95,10 +95,10 @@ class Pow(Node):
             return (nodes.Const(1), Pow(self.base, -self.exp))
         return (self, nodes.Const(1))
 
-    def simplify(self) -> Node:
-        return Pow(self.base.simplify(), self.exp.simplify())
+    def _simplify(self) -> Node:
+        return Pow(self.base.factor(), self.exp.factor())
 
-    def expand(self) -> Node:
+    def _expand(self) -> Node:
         if self.exp.canonical()[0].is_neg():
             return Pow(Pow(self.base, -self.exp).expand(), nodes.Const(-1))
         base = self.base.expand()
@@ -123,14 +123,9 @@ class Pow(Node):
             exp = nodes.Const(1, exp.denominator)
         return Pow(base, exp)
 
-    def subs(self, mapping) -> Node:
-        if (res := mapping.get(self, None)) is not None:
-            return res
-        return Pow(self.base.subs(mapping), self.exp.subs(mapping))
-
-    def approx(self) -> float | complex:
-        v = self.base.approx()
-        e = self.exp.approx()
+    def _approx(self) -> float | complex:
+        v = self.base._approx()
+        e = self.exp._approx()
         if (
             self.exp.__class__ is nodes.Const
             and self.exp.denominator % 2

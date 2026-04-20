@@ -1,19 +1,19 @@
 from __future__ import annotations
 
+from copy import copy
 import math
 import operator
 from dataclasses import dataclass
-from functools import lru_cache
 from enum import Enum
 
 from .solutions import *
 from .system import System
-from .eval_trace import *
 
 # from datatypes import nodes
 from datatypes.base import Collection, Node
 from datatypes.nodes import *
-from utils.eval_trace import *
+from utils.steps import *
+from utils import steps
 
 import utils
 from .utils import difficulty_weight, nth_roots, roots, compute_grobner
@@ -84,15 +84,15 @@ def simple_isolate_radical(comp, value):
         if not rad:
             break
         if idx:
-            ETSteps.register(ETNode(comp))
+            steps.register(comp)
         t, k = rad
         if comp.left.__class__ is Add:
             comp -= Add(*set(comp.left.args) - {t})
-            ETSteps.register(ETNode(comp))
+            steps.register(comp)
         comp **= k
         rad = None
         idx = 1
-    return comp, idx
+    return comp
 
 
 class CompRel(Enum):
@@ -127,21 +127,36 @@ class Comparison:
     right: Node
     rel: CompRel = CompRel.EQ
 
+    def __post_init__(self):
+        steps.register(
+            Step(
+                "Simplify",
+                ETOperator(self.rel.name, (self.left, self.right), self),
+                changed=False,
+            ),
+            False,
+        )
+
     def __repr__(self) -> str:
         return "{0} {2} {1}".format(self.left, self.right, self.rel)
 
+    # @steps.tracked("approximate")
     def is_close(self, threshold: float = 1e-7) -> bool:
         v = (self.left - self.right).approx()
         if self.rel is not CompRel.EQ:
-            return bool(Comparison(v, 0, self.rel))
-        return abs(v) <= threshold
+            res = bool(Comparison(v, 0, self.rel))
+        else:
+            res = abs(v) <= threshold
+        steps.register(v)
+        steps.register(Step("", ETOperator(self.rel.name, (v, 0), res)))
+        return res
 
     def solve_for(self, value: Var) -> Comparison:
         org = self
         while True:
-            ## If input expression was simplified, double register
+            ## If input expression was simplified, double steps.register
             if self is not org:
-                register(self)
+                steps.register(self)
             if self.__class__ is not Comparison:
                 return self.solve_for(value)
             # Rewrite the comparison to put the target variable on the left
@@ -149,9 +164,12 @@ class Comparison:
                 self = self.reverse()  # .solve_for(value)
                 continue
             # Moving target terms to the left
-            self = self.collect(value)
-            if value not in self:
-                return self
+            res = self.collect(value)
+            if value not in res:
+                return res
+            if res != self:
+                self = res
+                continue
             # Isolation by division
             if self.left.__class__ is Mul:
                 remove = []
@@ -164,7 +182,7 @@ class Comparison:
                 # Zero Product Property
                 if self.right == 0:
                     res = self.zpp()
-                    register(res)
+                    steps.register(res)
                     return res.solve_for(value)
 
             res = self.handle_exponents(value)
@@ -190,61 +208,65 @@ class Comparison:
                     self = self - Add.from_terms(remove)  # .solve_for(value)
                     continue
                 # Try simplifying or expanding
-                if (eqn := self.simplify()) != self or (eqn := self.expand()) != self:
+                if (eqn := self.expand()) != self or (eqn := self.factor()) != self:
                     self = eqn
                     continue
 
             # Normalize
             if self.right:
                 self -= self.right
-                register(self)
+                steps.register(self)
             if (eqn := self.expand()) != self:
                 self = eqn
                 continue
-            if (eqn := self.expand()) != self:
+            if (eqn := self.factor()) != self:
+                self = eqn
+                continue
+            if (eqn := self.get_roots(value)) != self:
                 self = eqn
                 continue
             break
-        return self.get_roots(value)
 
     def __contains__(self, value: Var) -> bool:
         return value in self.left or value in self.right
 
-    @tracked("SUB", "Subtract from both sides", False)
+    @steps.tracked("SUB", "Subtract from both sides")
     def __sub__(self, value: Node) -> Comparison:
         lhs, rhs = self.left - value, self.right - value
-        register(lhs)
-        register(rhs)
+        steps.register(lhs)
+        steps.register(rhs)
         return Comparison(lhs, rhs, self.rel)
 
-    @tracked("DIV", "Divide both sides", False)
+    @steps.tracked("DIV", "Divide both sides")
     def __truediv__(self, value: Node) -> Comparison:
         lhs, rhs = self.left / value, self.right / value
-        register(lhs)
-        register(rhs)
+        steps.register(lhs)
+        steps.register(rhs)
         if type(lhs) is Mul and lhs.args[0] == 1:
             lhs = Mul(*lhs.args[0:])
         return Comparison(lhs, rhs, self.reverse_sign(value))
 
-    @tracked("POW", "Raise both sides", False)
+    @steps.tracked("POW", "Raise both sides")
     def __pow__(self, value: Const) -> Comparison:
         lhs = self.left**value
         if value.denominator > 1:
             rhs = nth_roots({self.right}, value.denominator)
             if len(rhs) > 1:
-                register(lhs)
-                register(
+                steps.register(lhs)
+                steps.register(
                     Step(
                         "Root",
-                        ETOperator("SQRT", (self.right, value.denominator), rhs),
+                        ETOperator(
+                            "SQRT", (self.right, value.denominator), ETBranch(rhs)
+                        ),
                     )
                 )
                 return System(Comparison(lhs, r) for r in rhs)
             rhs = rhs.pop()
         else:
             rhs = self.right**value
-        register(lhs)
-        register(rhs)
+        steps.register(lhs)
+        steps.register(rhs)
         return Comparison(lhs, rhs, self.rel)
 
     def __bool__(self) -> bool:
@@ -260,11 +282,9 @@ class Comparison:
         return self
 
     def handle_exponents(self, value: Var) -> Comparison:
-        self, changed = simple_isolate_radical(self, value)
+        self = simple_isolate_radical(self, value)
         rad = rewrite_radicals(self.left - self.right, value)
         if rad is not None:
-            # if changed:
-            #     ETSteps.register(ETNode(self))
             return rad
         if (
             exp := math.gcd(
@@ -275,35 +295,35 @@ class Comparison:
                 )
             )
         ) > 1 and value not in self.right:
-            # if changed:
-            #     ETSteps.register(ETNode(self))
             return self ** Const(1, exp)
         return self
 
+    @steps.tracked("roots", "Find roots")
     def get_roots(self, value: Var) -> Comparison | System:
         f = utils.extract(self.left.expand(), value)
         Z = roots(f)
 
         if len(Z) == 1:
             r = Comparison(value, Z.pop())
-            # ETSteps.register(ETNode(r))
         else:
             r = System(Comparison(value, root) for root in Z)
-            # ETSteps.register(ETBranchNode(r))
         return r
 
-    @tracked("zpp", "Zero Product Property")
+    @steps.tracked("zpp", "Zero Product Property")
     def zpp(self):
         return System(Comparison(lhs, self.right) for lhs in self.left)
 
-    @tracked("flip", "Flip")
+    @steps.tracked("flip", "Flip")
     def reverse(self) -> Comparison:
         """Write the comparison in reverse"""
         return Comparison(self.right, self.left, self.rel.reverse())
 
+    @steps.tracked("normalize", "Normalize")
     def normalize(self) -> Comparison:
         """Put all terms on the lhs"""
-        return Comparison(self.left - self.right, Const(), self.rel)
+        value = self.left - self.right
+        register(value)
+        return Comparison(value, Const(), self.rel)
 
     def reverse_sign(self, value: Node) -> CompRel:
         # Can safely flip sign based on coefficient:
@@ -315,16 +335,29 @@ class Comparison:
             return self.rel.reverse()
         return self.rel
 
-    def subs(self, mapping: dict) -> Comparison:
-        return Comparison(self.left.subs(mapping), self.right.subs(mapping), self.rel)
+    @steps.tracked()
+    def subs(self, mapping: dict[Node]) -> Comparison:
+        left, right = self.left.subs(mapping), self.right.subs(mapping)
+        register(left)
+        register(right)
+        return Comparison(left, right, self.rel)
 
-    @tracked("factor")
-    def simplify(self):
-        return Comparison(self.left.simplify(), self.right.simplify(), self.rel)
+    # @subs.check_changed
 
-    @tracked("expand")
+    @steps.tracked()
+    def factor(self):
+        left, right = self.left.factor(), self.right.factor()
+        register(left)
+        register(right)
+        return Comparison(left, right, self.rel)
+
+
+    @steps.tracked()
     def expand(self):
-        return Comparison(self.left.expand(), self.right.expand(), self.rel)
+        left, right = self.left.expand(), self.right.expand()
+        register(left)
+        register(right)
+        return Comparison(left, right, self.rel)
 
     def totex(self, align: bool = False) -> str:
         left, rel, right = self.left, self.rel, self.right

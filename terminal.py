@@ -1,6 +1,6 @@
 from rich import print
 
-from utils.eval_trace import explain, set_verbosity
+from utils import steps
 from parsing import parser
 
 from parsing.lexer import Lexer
@@ -9,12 +9,13 @@ from parsing.lexer import Lexer
 print("[bold magenta]Algebra Engine[/bold magenta]")
 print("Type an expression to evaluate it, or press Ctrl+C to exit.")
 
-set_verbosity(True)
+steps.set_verbosity(True)
+
 
 while True:
     try:
         inp = parser.Parser(Lexer(input("Expression > ")).tokenize()).parse()
-        print(explain(inp))
+        print(steps.explain(inp))
     except Exception as e:
         # raise
         print(repr(e))

@@ -4,9 +4,10 @@ import itertools
 import operator
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from functools import lru_cache, reduce
-
-from utils.eval_trace import tracked
+from functools import lru_cache, partial, reduce
+import utils
+from utils.steps import ETOperator, Step
+from utils import steps
 
 from . import nodes
 
@@ -14,12 +15,12 @@ from . import nodes
 from typing import TYPE_CHECKING, Generator, Iterable
 
 if TYPE_CHECKING:
-    from .var import Var
+    from solving.comparison import Comparison
     from .const import Const
 
 
 class Node:
-    @tracked("ADD", "Add")
+    @steps.tracked("ADD")
     def __add__(self, other) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
@@ -35,7 +36,7 @@ class Node:
     def __radd__(self, other) -> Node:
         return nodes.Const(other) + self
 
-    @tracked("SUB", "Subtract")
+    @steps.tracked("SUB")
     def __sub__(self, other) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
@@ -46,11 +47,11 @@ class Node:
     def __rsub__(self, other) -> Node:
         return nodes.Const(other) - self
 
-    @tracked("MUL", "Multiply")
+    @steps.tracked("MUL")
     def __mul__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
-        return nodes.Mul(self, other, distr_const=True)
+        return nodes.Mul(self, other)
 
     @__mul__.check_changed
     def _mul_changed(result, args):
@@ -61,18 +62,18 @@ class Node:
     def __rmul__(self, other) -> Node:
         return self * other
 
-    @tracked("DIV", "Divide")
+    @steps.tracked("DIV")
     def __truediv__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
-        return nodes.Mul(self, nodes.Pow(other, nodes.Const(-1)), distr_const=True)
+        return nodes.Mul(self, nodes.Pow(other, nodes.Const(-1)))
 
     __truediv__.check_changed(_mul_changed)
 
     def __rtruediv__(self, other):
         return nodes.Const(other) / self
 
-    @tracked("POW", "Exponentiate")
+    @steps.tracked("POW")
     def __pow__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
@@ -80,7 +81,11 @@ class Node:
 
     @__pow__.check_changed
     def _(result, args) -> bool:
-        return result.__class__ is not nodes.Pow or (result.base, result.exp) != args
+        return (
+            args[0] != 0
+            and args[1] != 0
+            and (result.__class__ is not nodes.Pow or (result.base, result.exp) != args)
+        )
 
     def __rpow__(self, other) -> Node:
         return nodes.Const(other) ** self
@@ -102,25 +107,16 @@ class Node:
     def divide(self, other: Node) -> Node:
         return self * other**-1
 
-    def _simplify(self):
-        return self
-
-    @tracked("factor")
-    def simplify(self) -> Node:
-        return self._simplify()
-
-    @simplify.check_changed
-    def _simp_changed(result, args):
-        return args[0] != result
+    @steps.tracked()
+    def factor(self) -> Node:
+        return utils.factor(self)
 
     def _expand(self):
         return self
 
-    @tracked("expand")
+    @steps.tracked()
     def expand(self) -> Node:
         return self._expand()
-
-    expand.check_changed(_simp_changed)
 
     def canonical(self) -> tuple[Const, Node]:
         return nodes.Const(1), self
@@ -128,8 +124,37 @@ class Node:
     def as_ratio(self) -> tuple[Node]:
         return (self, nodes.Const(1))
 
-    def subs(self, mapping: dict[Var, Node]) -> Node:
-        return mapping.get(self, self)
+    @steps.tracked()
+    def subs(self, mapping: dict[Node]) -> Node:
+        @lru_cache
+        def _subs(n):
+            if isinstance(n, nodes.Number):
+                return n
+            if (v := mapping.get(n, None)) is not None:
+                steps.register(Step("", ETOperator("", (n,), v)))
+                return v
+            if type(n) is nodes.Var:
+                return n
+            if type(n) is nodes.Pow:
+                res = _subs(n.base) ** _subs(n.exp)
+                steps.register(res)
+                return res
+
+            args = [_subs(i) for i in n]
+            op = Node.__add__ if type(n) is nodes.Add else Node.__mul__
+            res = reduce(op, args)
+            steps.register(res)
+            return res
+
+        return _subs(self)
+
+    @subs.check_changed
+    def _(result, args):
+        return result != args[0]
+
+    @steps.tracked("approximate")
+    def approx(self) -> float | complex:
+        return self._approx()
 
     def totex(self) -> str:
         return str(self)
@@ -164,7 +189,17 @@ class Collection(ABC, Node):
     def from_terms(cls, args: Iterable[Node], modify=True, **kwargs) -> Node:
         # args = itertools.chain(*map(cls.flatten, args))
         if modify:
-            args = cls.merge(itertools.chain(*map(cls.flatten, args)), **kwargs)
+            args = cls.merge(
+                itertools.chain(
+                    *map(
+                        partial(
+                            cls.flatten, factor=not kwargs.get("distr_const", False)
+                        ),
+                        args,
+                    )
+                ),
+                **kwargs,
+            )
         if len(args) == 1:
             return args.pop()
         obj = super(Collection, cls).__new__(cls)
@@ -194,17 +229,9 @@ class Collection(ABC, Node):
     def sort_terms(args: Iterable[Node]) -> list[Node]:
         pass
 
-    def subs(self, mapping: dict[Var, Node]) -> Node:
-        if (res := mapping.get(self, None)) is not None:
-            return res
-        args = (node.subs(mapping) for node in self)
-        if self.__class__ is nodes.Mul:
-            return nodes.Mul.from_terms(args, distr_const=True)
-        return nodes.Add.from_terms(args)
-
-    def approx(self) -> float | complex:
+    def _approx(self) -> float | complex:
         op = self.__class__.__name__.lower()
-        return reduce(getattr(operator, op), (i.approx() for i in self))
+        return reduce(getattr(operator, op), (i._approx() for i in self))
 
 
 __all__ = ["Node", "Collection"]

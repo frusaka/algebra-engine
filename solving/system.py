@@ -1,62 +1,79 @@
 from __future__ import annotations
 
+from copy import copy
+from itertools import chain
 from typing import Sequence
 
 
 from datatypes.base import Node
-from .eval_trace import *
-from utils.eval_trace import *
+from utils import steps
+from utils.steps import *
 
 
 from datatypes import *
 from .utils import arrange_eqns, compute_grobner, next_eqn
 from utils.print_ import print_system
-import utils
 
 
-def _solve(eqns: set, org, v, sols):
+def _solve(eqns: set, org, v, sols, title=None):
     inner = []
-    with scoped(inner):
+    with steps.scoped(inner):
         eqn = org.solve_for(v)
-    register(Step(f"Solve for {v}", ETNode(eqn), inner))
+    steps.register(Step(f"Solve for {v}", ETNode(eqn), inner))
     eqns.remove(org)
     if eqn.__class__ is System:
-        ETSteps.register(ETSubNode(v, ETBranchNode(i.right for i in eqn)))
         new_eqns = []
-        for i in eqn:
-            if i.left != v:
-                continue
-            new_eqns.append(
-                (
-                    System([j.subs({v: i.right}) for j in sols] + [i]),
-                    {j.subs({v: i.right}) for j in eqns},
+        inner = []
+        with steps.scoped(inner):
+            for i in eqn:
+                if i.left != v:
+                    continue
+                new_eqns.append(
+                    (
+                        System([j.subs({v: i.right}) for j in sols] + [copy(i)]),
+                        {j.subs({v: i.right}) for j in eqns},
+                    )
                 )
-            )
+                [steps.register(i) for i in chain(*new_eqns[-1])]
         if len(new_eqns) == 1:
             new_eqns = list(new_eqns[0])
         sols[:] = new_eqns
+        res = ETBranch(i.right for i in eqn).result
+        steps.register(
+            Step(
+                f"Substitue {v} with {res}",
+                ETBranch(System(chain(*i)) for i in sols),
+                inner,
+            )
+        )
         return
     # Need a check for infinite solutions
     if eqn.left != v:
         raise ArithmeticError(f"Could not solve for {v}")
     # Substitute in the rest of equations
-    ETSteps.register(ETSubNode(v, eqn.right))
-    for i in range(len(sols)):
-        sols[i] = sols[i].subs({v: eqn.right})
-    for j in eqns.copy():
-        eqns.remove(j)
-        eqns.add(j.subs({v: eqn.right}))
-
+    inner = []
+    mapping = {v: copy(eqn.right)}
+    with steps.scoped(inner):
+        for i in range(len(sols)):
+            sols[i] = sols[i].subs(mapping)
+            steps.register(sols[i])
+        for j in eqns.copy():
+            eqns.remove(j)
+            j = j.subs(mapping)
+            eqns.add(j)
+            steps.register(j)
     # # Put the newly solved equation at the end
     sols.append(eqn)
+    steps.register(
+        Step(f"Substitue {v} with {eqn.right}", ETNode(System([*eqns, *sols])), inner),
+    )
 
 
 def _branched_solve(vals, sols):
     _, v = next_eqn(sols[0][1], vals)
-    ETSteps.register(ETTextNode(f"Solve for {v}"))
 
-    with ETSteps.branching(len(sols)) as branches:
-        for idx in branches:
+    with steps.scoped(branches := []):
+        for idx in range(len(sols)):
             data, eqns = sols[idx]
             data = list(data)
             eqn, _ = next_eqn(eqns, [v])
@@ -65,16 +82,13 @@ def _branched_solve(vals, sols):
                 eqns.remove(eqn)
                 sols[idx] = System(data), eqns
                 continue
-            ETSteps.register(ETTextNode(f"Branch {idx+1}"))
-            # ETSteps.register(ETNode(System({*sols[idx][0], *sols[idx][1]})))
-            _solve(eqns, eqn, v, data)
+
+            _solve(eqns, eqn, v, data, f"Branch {idx+1}")
             if data[0].__class__ is tuple:
-                ETSteps.register(ETBranchNode(System({*i[0], *i[1]}) for i in data))
                 sols.extend(data)
                 sols[idx] = None
             else:
                 sols[idx] = System(data), eqns
-                ETSteps.register(ETNode(System({*data, *eqns})))
     # Flattening in case of double multiple solutions
     while True:
         for idx in range(len(sols)):
@@ -83,12 +97,14 @@ def _branched_solve(vals, sols):
                 break
         else:
             break
-    ETSteps.register(ETBranchNode(System({*i[0], *i[1]}) for i in sols))
+
     vals.remove(v)
+    steps.register(
+        Step(f"Solve for {v}", ETBranch(System({*i[0], *i[1]}) for i in sols), branches)
+    )
 
 
 def _foreach_solve(eqns, value):
-    ETSteps.register(ETBranchNode(eqns))
     if not any(eqn.left != value for eqn in eqns):
         return eqns
     # Branched during the solving process
@@ -96,12 +112,12 @@ def _foreach_solve(eqns, value):
     for idx, eqn in zip(range(1, len(eqns) + 1), eqns):
         inner = []
         try:
-            with scoped(inner):
+            with steps.scoped(inner):
                 res = eqn.solve_for(value)
         except ArithmeticError as err:
-            # ETSteps.register(ETTextNode(repr(err), "#d7170b"))
+            steps.register(Step(repr(err), "", ""))
             continue
-        register(Step(f"Branch {idx}", ETNode(res), inner))
+        steps.register(Step(f"Branch {idx}", ETNode(res), inner))
         if res.__class__ is System:
             sols.extend(res)
         else:
@@ -115,13 +131,10 @@ class System(frozenset):
     def solve_for(self, vals: Sequence[Var], groebner=False) -> System:
         if vals.__class__ is Var:
             return System(_foreach_solve(self, vals))
-        # ETSteps.register(ETTextNode("Solving for " + str(vals)[1:-1]))
         if groebner:
             eqns = set(compute_grobner(self, list(vals)))
             if not eqns:
                 return System(eqns)
-            if eqns != self:
-                ETSteps.register(ETNode(System(eqns)))
         else:
             eqns = set(self)
         vals = list(vals)
@@ -135,16 +148,11 @@ class System(frozenset):
             # Choose the easiest variable to isolate
             eqn, v = next_eqn(eqns, vals)
             _solve(eqns, eqn, v, sols)
-            if sols[0].__class__ is tuple:
-                register(Step("Result", ETBranch(System({*i[0], *i[1]}) for i in sols)))
-                # ETSteps.register(ETBranchNode(System({*i[0], *i[1]}) for i in sols))
-            else:
-                register(Step("Result", ETNode(System({*sols, *eqns}))))
             vals.remove(v)
         if isinstance(sols[0], tuple):
-            sols = [i.simplify() for i, _ in sols]
+            sols = [i.factor() for i, _ in sols]
         else:
-            sols = [i.simplify() for i in sols]
+            sols = [i.factor() for i in sols]
         return System(sols)
 
     def __bool__(self) -> bool:
@@ -165,20 +173,32 @@ class System(frozenset):
     def is_close(self, threshold: float = 1e-7):
         return all(eqn.is_close(threshold) for eqn in self)
 
+    @steps.tracked()
     def expand(self):
-        return System(i.expand() for i in self)
+        res = System(i.expand() for i in self)
+        [register(i) for i in res]
+        return res
 
-    def simplify(self):
-        return System(i.simplify() for i in self)
+    @steps.tracked()
+    def factor(self):
+        res = System(i.factor() for i in self)
+        [register(i) for i in res]
+        return res
 
-    def subs(self, mapping: dict[Var, Node]) -> System:
-        return System(i.subs(mapping) for i in self)
+    @steps.tracked()
+    def subs(self, mapping: dict[Node]):
+        res = [i.subs(mapping) for i in self]
+        [register(i) for i in res]
+        if len(res) == 1:
+            return res.pop()
+        return System(res)
 
     def totex(self) -> str:
         return "\\\\".join(map(lambda x: x.totex(1), self)).join(
             ("\\begin{cases}", "\\end{cases}")
         )
 
+    @steps.tracked()
     def normalize(self) -> System:
         return System(i.normalize() for i in self)
 

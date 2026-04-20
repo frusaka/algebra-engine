@@ -11,23 +11,23 @@ def test_divide_polynomial():
     assert (
         (Const(26, 5) * x**3 + 7 * x**2 - Const(156, 5) * x - 42)
         / (Const(7, 2) + Const(13, 5) * x)
-    ).simplify() == Mul(Const(2), x**2 - 6)
+    ).factor() == Mul(Const(2), x**2 - 6)
     # Numerator with lower degrees
     assert (x - 1) / (x - 1) ** 2 == Pow(x - 1, -1)
-    assert ((3 * (x - 4) - 7 * (x - 4)) / (x**2 - 8 * x + 16)).simplify() == Mul(
+    assert ((3 * (x - 4) - 7 * (x - 4)) / (x**2 - 8 * x + 16)).factor() == Mul(
         Const(-4), Pow(x - 4, -1)
     )
     assert ((3 * (x + 6) - (x + 6) / 2) / (x + 6) ** 2) == Mul(
         Const(5, 2), (x + 6) ** -1
     )
     assert (
-        parser.eval("(0.3x^2 + 2.4x + 4.5) / (0.2x^3 + 0.6x^2 - 5x - 15)").simplify()
+        parser.eval("(0.3x^2 + 2.4x + 4.5) / (0.2x^3 + 0.6x^2 - 5x - 15)").factor()
         == Const(3, 2) * (x - 5) ** -1
     )
 
     assert parser.eval(
         "(x^2 + 0.4x - 7.8) / (x^3 - 8.2x^2 + 22.36x - 20.28)"
-    ).simplify() == Mul(
+    ).factor() == Mul(
         Const(5),
         Add(x, Const(3)),
         Pow(
@@ -40,11 +40,11 @@ def test_divide_polynomial():
     # Coming back soon
     # assert parser.eval("(-6x^2 + 2x + 20)/(2-2x)")
     # assert parser.eval("(4x^2 - 17.64) / (2x - 4)")
-    assert (((x - 3) * (x + 5) + (x - 3)) / ((x - 3) * (x + 5))).simplify() == Mul(
+    assert (((x - 3) * (x + 5) + (x - 3)) / ((x - 3) * (x + 5))).factor() == Mul(
         x + 6, Pow(x + 5, Const(-1))
     )
 
-    assert ((x**2 - 4) / (x**2 + 8 * x - 20)).simplify() == Mul(x + 2, Pow(x + 10, -1))
+    assert ((x**2 - 4) / (x**2 + 8 * x - 20)).factor() == Mul(x + 2, Pow(x + 10, -1))
 
 
 def test_divide_multivariate():
@@ -53,13 +53,13 @@ def test_divide_multivariate():
     c = Var("c")
     d = Var("d")
     assert ((3 * a + 3 * b) / (a + b)) == 3
-    assert ((a**3 + b**3) / (a + b)).simplify() == Add(b**2, a**2, Mul(Const(-1), a, b))
+    assert ((a**3 + b**3) / (a + b)).factor() == Add(b**2, a**2, Mul(Const(-1), a, b))
 
-    assert parser.eval("(-3.75c^2 + 18ab + 4.5abc - 15c)/(3+0.75c)").simplify() == Add(
+    assert parser.eval("(-3.75c^2 + 18ab + 4.5abc - 15c)/(3+0.75c)").factor() == Add(
         6 * a * b, -5 * c
     )
 
-    assert ((a * b / (x + 5)) * ((x**2 + x - 20) / (c * d))).simplify() == Mul(
+    assert ((a * b / (x + 5)) * ((x**2 + x - 20) / (c * d))).factor() == Mul(
         a, b, (x - 4), Pow(c * d, Const(-1))
     )
 
@@ -99,24 +99,24 @@ def test_multiply_rationals():
         (x**4 - 25 * x**2)
         / (x**2 + 8 * x + 15)
         * ((x**2 + 2 * x - 3) / (6 * x**3 - 36 * x**2 + 30 * x))
-    ).simplify() == x / 6
+    ).factor() == x / 6
     assert (
         ((2 * x**4 - 8 * x**2) / (x**4 - 10 * x**3))
         * ((x + 7) / (4 * x**2 + 36 * x + 56))
-    ).simplify() == Mul(Const(1, 2), x - 2, x**-1, Pow(x - 10, Const(-1)))
+    ).factor() == Mul(Const(1, 2), x - 2, x**-1, Pow(x - 10, Const(-1)))
 
     assert (
         ((x**3 - 6 * x**2 - 7 * x) / (3 * x + 27))
         * ((x**2 - 81) / (x**5 - 8 * x**4 - 9 * x**3))
-    ).simplify() == Mul(Const(1, 3), x - 7, x**-2)
+    ).factor() == Mul(Const(1, 3), x - 7, x**-2)
 
     assert (
         (
             ((x**2 - 49) / (x**2 + x - 56))
             * ((6 * x**4 - 54 * x**3) / (2 * x**4 - 4 * x**3 - 126 * x**2))
         )
-    ).simplify() == Mul(Const(3), x, (x + 8) ** -1)
-    assert ((x**2 - 25) / ((x - 5) / (x + 10))).simplify() == Mul(x + 5, x + 10)
+    ).factor() == Mul(Const(3), x, (x + 8) ** -1)
+    assert ((x**2 - 25) / ((x - 5) / (x + 10))).factor() == Mul(x + 5, x + 10)
 
     assert (
         -9
@@ -125,25 +125,25 @@ def test_multiply_rationals():
         * (9 * x**3 + 36 * x**2 - 189 * x)
         / (x**2 - 10 * x + 21)
         / ((x + 7) / (x**2 - 15 * x + 56))
-    ).simplify() == -81 * x
+    ).factor() == -81 * x
     assert (
         (24 - 6 * x)
         / (x**2 - 10 * x + 24)
         * (x**2 - 8 * x + 12)
         / (10 - x)
         / ((x**2 + 8 * x - 20) / (100 * x - x**3))
-    ).simplify() == -6 * x
+    ).factor() == -6 * x
     assert (
         (-x - 6)
         / (x + 9)
         * (x + 10)
         / (-2 * x - 18)
         / ((x**2 + 16 * x + 60) / (x**2 + 18 * x + 81))
-    ).simplify() == Const(1, 2)
+    ).factor() == Const(1, 2)
 
     assert (
         ((x**2 - 4) / (x**2 + 4 * x + 4)) * ((x**3 + 8) / (x**3 - 2 * x**2 - 4 * x + 8))
-    ).simplify() == Mul(
+    ).factor() == Mul(
         Add(x**2, -2 * x, Const(4)), Pow(Mul(x + 2, x - 2), exp=Const(-1))
     )
 

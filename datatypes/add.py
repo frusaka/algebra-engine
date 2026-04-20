@@ -6,7 +6,7 @@ import itertools
 from collections import defaultdict
 from functools import lru_cache
 
-from utils.eval_trace import tracked
+from utils import steps
 
 from .base import Node, Collection
 from . import nodes
@@ -109,7 +109,7 @@ class Add(Collection):
             den = utils.lcm(den, k.as_ratio()[1])
         # Combine
         num = Add.from_terms(calculate(k, v) for k, v in groups.items())  # .expand()
-        # return list(Add.flatten(num.simplify() / den.simplify()))
+        # return list(Add.flatten(num.factor() / den.factor()))
         return list(Add.flatten(num / den))
 
     def as_ratio(self):
@@ -123,7 +123,7 @@ class Add(Collection):
     def _expand(self) -> Node:
         return Add.from_terms(node.expand() for node in self)
 
-    @tracked("canonicalize", "Canonicalize")
+    @steps.tracked("canonicalize", "Canonicalize")
     def cancel_gcd(self, normalize=True) -> tuple[Node, Add]:
         den = math.lcm(*(i.canonical()[0].denominator for i in self))
         if (

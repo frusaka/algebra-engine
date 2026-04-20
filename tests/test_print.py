@@ -2,7 +2,7 @@ import pytest
 from datatypes.nodes import Const, Var
 from parsing import parser
 from solving.comparison import CompRel, Comparison
-from solving.eval_trace import ETNode, ETOperatorNode, ETOperatorType, ETTextNode
+
 from solving.system import System
 from utils import print_frac
 
@@ -99,5 +99,5 @@ def test_print_system():
     assert str(System([eq1, eq2, eq3])) == "\n⎧ x + y = 5\n⎪ x - y = 1\n⎩    xy = z"
 
 
-def test_print_ETsteps():
+def test_print_steps():
     pass

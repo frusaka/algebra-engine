@@ -47,8 +47,9 @@ def degree(node: Node, var=None) -> int | None:
                 return res
             if (
                 node.exp.__class__ is not nodes.Const
-                or node.exp < 0
                 or node.exp.denominator != 1
+                or node.exp.numerator.imag
+                or node.exp < 0
             ):
                 return
             return res * node.exp.numerator
@@ -100,7 +101,7 @@ def long_division(a: Add, b: Node) -> tuple[Node, Node]:
                 q = []
                 a = org
             break
-        a += b.multiply(-fac)
+        a -= b.multiply(fac)
         q.append(fac)
     # if type(a) is nodes.Const and a != 0:
     #     q = [i / a for i in q]

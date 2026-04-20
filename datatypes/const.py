@@ -245,7 +245,7 @@ class Const(Number):
             return False
         return self.numerator < 0
 
-    def approx(self) -> float | complex:
+    def _approx(self) -> float | complex:
         return self.numerator / self.denominator
 
     def add(self, value: Const) -> Const:

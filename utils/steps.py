@@ -1,10 +1,15 @@
+from __future__ import annotations
+
 from contextlib import contextmanager
 from copy import copy
 from dataclasses import dataclass, field
+import inspect
 from itertools import chain, zip_longest
-from functools import lru_cache, wraps
+from functools import lru_cache, partial, update_wrapper, wraps
 from enum import Enum
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator, TypeVar, ParamSpec, Generic
+
+import types
 
 
 from rich.text import Text
@@ -18,18 +23,15 @@ from .print_ import superscript, strip_ansi, colorize_ansi
 
 
 class ETNode:
-    is_align = False
-
     def __init__(self, result):
+        self.args = (result,)
         self.result = result
-        self.is_align = self.result.__class__.__name__ == "Comparison"
-        # self.is_align=True
 
-    def header(self) -> str:
+    def header(self):
         return str(self.result)
 
     def __repr__(self):
-        return ""  # str(self.result)
+        return ""
 
     def totex(self):
         return self.result.totex()
@@ -50,11 +52,19 @@ class OPArithmeticType(Enum):
     POW = "#a219e6"
     SQRT = 6
 
-    def tostr(self, args, _):
-        a, b = args
+    def tostr(self, a, b):
         color = self.value
-        a = str(a).join("()") if a.__class__ is not ETNode else str(a)
-        b = str(b).join("()") if b.__class__ is not ETNode else str(b)
+        a = (
+            str(a).join("()")
+            if a.__class__.__name__ in {"ETOperator", "Add"}
+            else str(a)
+        )
+        b = (
+            str(b).join("()")
+            if b.__class__.__name__ in {"ETOperator", "Add"}
+            else str(b)
+        )
+
         if self.name != "SQRT":
             return colorize_ansi(SYMBOLS.get(self.name), color).join("  ").join((a, b))
         color = OPArithmeticType.POW.value
@@ -93,17 +103,20 @@ class OPBinaryType(Enum):
     LT = 3
     LE = 4
 
-    def tostr(self, args, _):
-        left, right = args
+    def tostr(self, left, right):
         return SYMBOLS.get(self.name).join("  ").join((str(left), str(right)))
 
 
 class OPSpecials(Enum):
     VERIFY = 0
+    SUBS = 1
 
-    def tostr(self, args, result) -> str:
+    def tostr(self, *args) -> str:
         if self is OPSpecials.VERIFY:
-            return str(args[0]) + " " + "❌✅📉"[result]
+            if len(args) == 1:
+                return str(args[0])
+            return "verify" + str(args)
+        return f"Substitue {args[0]} with {args[1]}"
 
 
 class ETOperator(ETNode):
@@ -118,6 +131,8 @@ class ETOperator(ETNode):
     def __init__(self, id: str, args: tuple[ETNode], result: Any) -> None:
         if t := self._options.get(id, None):
             self.type = t
+            if self.type is OPSpecials.VERIFY:
+                result = "❌✅📉"[result]
         else:
             self.type = id
         self.args = list(args)
@@ -125,30 +140,32 @@ class ETOperator(ETNode):
 
     def __repr__(self) -> str:
         if type(self.type) is not str:
-            return self.type.tostr(self.args, self.result)
+            return self.type.tostr(*self.args)
         if len(self.args) == 1:
             return self.type + str(self.args[0]).join("()")
         return self.type + str(tuple(self.args))
 
-    def header(self) -> str:
-        if isinstance(self.type, OPSpecials):
-            return str(self)
+    def header(self):
         return str(self) + " --> " + str(self.result)
 
 
 class ETBranch(ETNode):
     def __init__(self, result):
-        super().__init__(list(result))
-        if self.result[0].__class__.__name__ == "Comparison":
-            self.result.sort(key=str)
+        self.args = list(result)
+        if self.args[0].__class__.__name__ == "Comparison":
+            self.args.sort(key=str)
 
-    def __repr__(self):
-        if self.result[0].__class__.__name__ != "System":
-            return ",  ".join(map(str, self.result))
-        data = [str(i).split("\n") for i in self.result]
+    def header(self):
+        if self.args[0].__class__.__name__ != "System":
+            return ",  ".join(map(str, self.args))
+        data = [str(i).split("\n") for i in self.args]
         return "\n".join(
             "    ".join(items) for items in zip_longest(*data, fillvalue="")
         )
+
+    @property
+    def result(self):
+        return self.header()
 
     def totex(self):
         return ",\\quad ".join(i.totex() for i in self.result)
@@ -158,7 +175,8 @@ class ETBranch(ETNode):
 class Step:
     label: str
     transform: ETOperator | ETNode
-    children: list = field(default_factory=list)
+    children: list[Step] = field(default_factory=list)
+    changed: bool = True
 
     def __repr__(self) -> str:
         def _str(step, depth):
@@ -175,7 +193,7 @@ class Step:
     def __rich_console__(self, console: Console, *_) -> Iterator[Text | Panel | Group]:
         def rich(step, depth, index):
             width = console.width - 3 - depth * 4
-            idx = ""  # str(index) + ". " if index else ""
+            idx = str(index) + ". " if index else ""
             lpad = depth + 1
             label = step.label + ": " if step.label else ""
             if not step.children:
@@ -184,7 +202,7 @@ class Step:
                 res.truncate(width, overflow="ellipsis")
                 return res
             p = len(step.children) > 1
-            lpad *= not len(step.children)
+            lpad *= not len(step.children) or not bool(index) or not depth
             res = Group(
                 Text.from_ansi(f"{idx}{label}{step.transform}"),
                 Padding(
@@ -196,13 +214,20 @@ class Step:
                     ),
                     (0, 0, 0, lpad),
                 ),
-                Text(f"Final: {step.transform.result}"),
+                Text(
+                    f"Result: {step.transform.result}"
+                    if type(self.transform) is not ETNode
+                    else ""
+                ),
             )
-            res.renderables[0].truncate(width, overflow="ellipsis")
             res.renderables[0].pad_left(lpad)
-            res.renderables[-1].truncate(width, overflow="ellipsis")
-            res.renderables[-1].pad_left(lpad + 2)
-            if depth == 0 or step.children:
+            res.renderables[0].truncate(width, overflow="ellipsis")
+            if len(res.renderables[-1]):
+                res.renderables[-1].pad_left(lpad + 2)
+                res.renderables[-1].truncate(width, overflow="ellipsis")
+            else:
+                res.renderables.pop()
+            if depth == 0 or step.children and index:
                 return Panel(res, expand=False)
             return res
 
@@ -218,14 +243,19 @@ def verbose() -> bool:
     return _verbose
 
 
-def register(step: Step | Any) -> None:
-    if not _verbose or _curr_hist is None:
+def register(step: Step | Any, scoped=True) -> None:
+    if not _verbose or scoped and _curr_hist is None:
         return
     if step is not None and type(step) is not Step:
         step = _steps.get(id(step), None)
+        if step and not step.changed and not step.children:
+            return
     if step is None:
         return
-    _curr_hist.append(step)
+    if scoped:
+        _curr_hist.append(step)
+    else:
+        _steps[id(step.transform.result)] = step
 
 
 @contextmanager
@@ -239,43 +269,77 @@ def scoped(scope: list):
         _curr_hist = before
 
 
-def tracked(identifier: str, label: str = "", default_show: bool = True):
+P = ParamSpec("P")
+R = TypeVar("R")
 
-    def tracked_func(func):
-        @wraps(func)
-        @lru_cache
-        def wrapper(*args, **kwargs):
-            history = []
-            with scoped(history):
-                result = func(*args, **kwargs)
 
-            if not _verbose or (
-                not wrapper._is_simplified(result, args) and not any(history)
-            ):
-                return result
-            result = copy(result)
-            step = Step(label, ETOperator(identifier, args, result), history)
-            _steps[id(result)] = step
+class Tracked(Generic[P, R]):
+    def __init__(self, func: Callable[P, R], id: str = None, label: str = None):
+        id = id if id is not None else func.__name__
+        label = label if label is not None else ""
+        self.func = func  # lru_cache(maxsize=500)(func)
+        self.id = id
+        self.label = label
+        update_wrapper(self, func)
+        self.__signature__ = inspect.signature(func)
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        return types.MethodType(self, instance)
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
+        history = []
+        with scoped(history):
+            result = self.func(*args, **kwargs)
+        if not _verbose:
             return result
+        changed = self._is_simplified(result, args)
+        if not changed and len(args) == 1 and result == args[0]:
+            return args[0]
+        result = copy(result)
+        _steps[id(result)] = Step(
+            self.label,
+            ETOperator(self.id, args, result),
+            history,
+            changed,
+        )
+        return result
 
-        def check_changed(fn):
-            wrapper._is_simplified = fn
-            return fn
+    # __call__ = lru_cache(maxsize=1 << 40)(__call__)
 
-        def register(expr):
-            if not _verbose or _curr_hist is None:
-                return
-            step = _steps.get(id(expr))
-            if step is None:
-                return
-            wrapper.steps.append(step)
+    def check_changed(self, fn):
+        self._is_simplified = fn
+        return fn
 
-        wrapper._is_simplified = lambda *_: default_show
-        wrapper.check_changed = check_changed
-        wrapper.register = register
-        return wrapper
+    def register(self, expr):
+        if not _verbose or _curr_hist is None:
+            return
+        step = _steps.get(id(expr))
+        if step is None:
+            return
+        self.steps.append(step)
 
-    return tracked_func
+    @staticmethod
+    def _is_simplified(result, args):
+        if len(args) == 1:
+            return result != args[0]
+        return True
+
+    def fallback(self, fn):
+        self._fallbcak = fn
+        return fn
+
+    @staticmethod
+    def _fallback(result, args):
+        return result
+
+
+def tracked(id: str = None, label: str = ""):
+    def wrapper(func: Callable[P, R]) -> Tracked[P, R]:
+        return Tracked(func, id, label)
+
+    return wrapper
 
 
 def explain(expr, default=True) -> Step | Any:
@@ -293,7 +357,8 @@ def explain(expr, default=True) -> Step | Any:
         res.children.insert(idx, v)
     if len(res.children) > n and not n:
         res.children.append(Step(res.label, op))
-
+    if not res.changed and not res.children:
+        return expr if default else None
     return res
 
 

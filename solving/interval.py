@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from .eval_trace import *
 
 from datatypes.base import Node
 
