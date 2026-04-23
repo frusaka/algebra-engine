@@ -15,8 +15,7 @@ from . import nodes
 from typing import TYPE_CHECKING, Generator, Iterable
 
 if TYPE_CHECKING:
-    from solving.comparison import Comparison
-    from .const import Const
+    from .const import Const, Float
 
 
 class Node:
@@ -157,8 +156,8 @@ class Node:
         return result != args[0]
 
     @steps.tracked("approximate")
-    def approx(self) -> float | complex:
-        return self._approx()
+    def approx(self) -> Float:
+        return nodes.Float(self._approx())
 
     def totex(self) -> str:
         return str(self)

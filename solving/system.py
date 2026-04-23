@@ -42,7 +42,12 @@ def _solve(eqns: set, org, v, sols):
         steps.register(
             Step(
                 "",
-                ETOperator("SUBS", (v, res), ETBranch(System(chain(*i)) for i in sols)),
+                ETOperator(
+                    "SUBS",
+                    (v, res),
+                    ETBranch(System(chain(*i)) for i in sols),
+                    force_keep=True,
+                ),
                 inner,
             )
         )
@@ -67,7 +72,7 @@ def _solve(eqns: set, org, v, sols):
     steps.register(
         Step(
             "",
-            ETOperator("SUBS", (v, eqn.right), System([*eqns, *sols])),
+            ETOperator("SUBS", (v, eqn.right), System([*eqns, *sols]), force_keep=True),
             inner,
         )
     )

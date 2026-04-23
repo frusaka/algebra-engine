@@ -19,9 +19,9 @@ while True:
         inp = parser.Parser(Lexer(input("Expression > ")).tokenize()).parse()
         print(steps.explain(inp))
         gc.collect()
-        print(len(steps._steps.values()))
+        print(len(steps._steps))
     except Exception as e:
-        raise
+        # raise
         print(repr(e))
     except KeyboardInterrupt:
         print("\nExiting...")

@@ -33,7 +33,6 @@ def ref(value, force_keep=False):
     try:
         return weakref.ref(value)
     except TypeError:
-        print("Na", value)
         return lambda: value
 
 
@@ -181,13 +180,19 @@ class ETOperator(ETNode):
                 result = "❌✅📉"[result]
         else:
             self.type = id
-        self.args = list(args)  # copy(i) for i in args)
-        self._result = ref(result, False)  # (_keep or force_keep) and changed)
+        self.args = list(args)
+        self._result = ref(result, force_keep and changed)
         self.changed = changed
 
     @property
     def result(self):
         return self._result()
+
+    def force_keep(self):
+        if not self.changed:
+            return
+        res = self.result
+        self._result = lambda: res
 
     def __repr__(self) -> str:
         if type(self.type) is not str:
@@ -242,12 +247,12 @@ class Step:
 
     def __post_init__(self):
         if type(self.transform) is not ETOperator:
-            print("passing", self.transform)
             return
 
         def delete_unused(idx):
             if idx in _steps:
                 step = _steps.pop(idx)
+                # print("deleting", step.transform)
                 for i in step.children:
                     delete_unused(id(i.transform.result))
 
@@ -357,7 +362,7 @@ def verbose() -> bool:
     return _verbose
 
 
-def register(step: Step | Any, scoped=True, reason=None) -> None:
+def register(step: Step | Any, scoped=True, reason=None, deduplicate=True) -> None:
     if not _verbose or scoped and _curr_hist is None:
         return
     if step is not None and type(step) is not Step:
@@ -371,15 +376,24 @@ def register(step: Step | Any, scoped=True, reason=None) -> None:
                 return
     if step is None:
         return
+    if reason is not None:
+        step.label = reason
+    
     if scoped:
-        _curr_hist.append(step)
+        if step.transform.changed or step.children:
+            _curr_hist.append(step)
+        if type(step.transform) is ETOperator:
+            step.transform.force_keep()
+        # To be revised
+        if deduplicate and (idx := id(step.transform.result)) in _steps:
+            _steps.pop(idx)
     else:
         _steps[id(step.transform.result)] = step
 
 
 @contextmanager
 def scoped(scope: list):
-    global _curr_hist
+    global _curr_hist, _depth
     before = _curr_hist
     _curr_hist = scope
     try:
@@ -445,12 +459,7 @@ class Tracked(Generic[P, R]):
         result = copy(result)
         _steps[id(result)] = Step(
             self.label,
-            ETOperator(
-                self.id,
-                args,
-                result,
-                self._is_simplified(result, args),
-            ),
+            ETOperator(self.id, args, result, self._is_simplified(result, args)),
             history,
         )
         return result
@@ -488,18 +497,17 @@ def explain(expr, default=True) -> Step | Any:
         return expr if default else None
     op = copy(res.transform)
     op.args = op.args.copy()
-    n_args = op.args.copy()
     n = len(res.children)
 
     for idx, i in enumerate(res.transform.args):
         if not (v := explain(i, False)):
             continue
-        n_args[idx] = v.transform
+        res.transform.args[idx] = v.transform
         res.children.insert(idx, v)
-        _steps.pop(id(v.transform.result))
-    res.transform.args = n_args
-    if len(res.children) > n and not n:
-        res.children.append(Step(res.label, op))
+        # _steps.pop(id(v.transform.result))
+
+    # if len(res.children) > n and not n:
+    #     res.children.append(Step(res.label, op))
     if not res.transform.changed and not res.children:
         return expr if default else None
     return res

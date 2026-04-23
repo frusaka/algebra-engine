@@ -234,7 +234,7 @@ class Comparison:
         lhs, rhs = self.left - value, self.right - value
         steps.register(lhs)
         steps.register(rhs)
-        return Comparison(lhs, rhs, self.rel)
+        return Comparison(copy(lhs), copy(rhs), self.rel)
 
     @steps.tracked("DIV", "Divide both sides")
     def __truediv__(self, value: Node) -> Comparison:
@@ -243,7 +243,7 @@ class Comparison:
         steps.register(rhs)
         if type(lhs) is Mul and lhs.args[0] == 1:
             lhs = Mul(*lhs.args[0:])
-        return Comparison(lhs, rhs, self.reverse_sign(value))
+        return Comparison(copy(lhs), copy(rhs), self.reverse_sign(value))
 
     @steps.tracked("POW", "Raise both sides")
     def __pow__(self, value: Const) -> Comparison:
@@ -256,7 +256,10 @@ class Comparison:
                     Step(
                         "Root",
                         ETOperator(
-                            "SQRT", (self.right, value.denominator), ETBranch(rhs)
+                            "SQRT",
+                            (self.right, value.denominator),
+                            ETBranch(rhs),
+                            force_keep=True,
                         ),
                     )
                 )
@@ -266,7 +269,7 @@ class Comparison:
             rhs = self.right**value
         steps.register(lhs)
         steps.register(rhs)
-        return Comparison(lhs, rhs, self.rel)
+        return Comparison(copy(lhs), copy(rhs), self.rel)
 
     def __bool__(self) -> bool:
         return getattr(operator, self.rel.name.lower())(self.left, self.right)
@@ -337,11 +340,13 @@ class Comparison:
     @steps.tracked()
     def subs(self, mapping: dict[Node]) -> Comparison:
         left, right = self.left.subs(mapping), self.right.subs(mapping)
-        register(left)
-        register(right)
+        register(left, reason="Substitute lhs")
+        register(right, reason="Substitute rhs")
         return Comparison(left, right, self.rel)
 
-    # @subs.check_changed
+    @subs.check_changed
+    def _(result, args):
+        return result != args[0]
 
     @steps.tracked()
     def factor(self, left_only=False):
@@ -355,8 +360,8 @@ class Comparison:
     @steps.tracked()
     def expand(self):
         left, right = self.left.expand(), self.right.expand()
-        register(left)
-        register(right)
+        register(left, reason="Expand lhs")
+        register(right, reason="Expand rhs")
         return Comparison(left, right, self.rel)
 
     def totex(self, align: bool = False) -> str:
