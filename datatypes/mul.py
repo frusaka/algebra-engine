@@ -70,7 +70,7 @@ def _tex(n: Node):
     return res
 
 
-@lru_cache
+# @lru_cache
 def order_key(node: Node) -> tuple:
     # Format: (a, b, *c)
     # a = Type priority: Numbers, then Variables, then Power and so on
@@ -102,7 +102,7 @@ class Mul(Collection):
 
         def __init__(self, *args: Node, distr_const=False): ...
 
-    @lru_cache
+    # @lru_cache
     def __repr__(self) -> str:
         # return "*".join(map(str, utils.ordered_terms(self, True)))
         num, den = self.as_ratio()

@@ -121,7 +121,7 @@ class CompRel(Enum):
         return align + utils.SYMBOLS.get(self.name)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class Comparison:
     left: Node
     right: Node
@@ -130,9 +130,8 @@ class Comparison:
     def __post_init__(self):
         steps.register(
             Step(
-                "Simplify",
+                "",
                 ETOperator(self.rel.name, (self.left, self.right), self),
-                changed=False,
             ),
             False,
         )
@@ -208,7 +207,7 @@ class Comparison:
                     self = self - Add.from_terms(remove)  # .solve_for(value)
                     continue
                 # Try simplifying or expanding
-                if (eqn := self.expand()) != self or (eqn := self.factor()) != self:
+                if (eqn := self.factor(True)) != self:
                     self = eqn
                     continue
 
@@ -345,12 +344,13 @@ class Comparison:
     # @subs.check_changed
 
     @steps.tracked()
-    def factor(self):
-        left, right = self.left.factor(), self.right.factor()
-        register(left)
-        register(right)
+    def factor(self, left_only=False):
+        left, right = self.left.factor(), self.right
+        register(left, reason="Factor lhs")
+        if not left_only:
+            right = right.factor()
+            register(right, reason="Factor rhs")
         return Comparison(left, right, self.rel)
-
 
     @steps.tracked()
     def expand(self):

@@ -2,27 +2,29 @@ import webview
 
 from parsing.lexer import Lexer
 from parsing.parser import Parser
-from solving.comparison import Comparison
-from solving.eval_trace import ETSteps
+from utils.steps import explain, set_verbosity
 
 
 class API:
     def evaluate(self, expr):
-        Comparison.solve_for.cache_clear()
-        ETSteps.clear()
-        res, success = "", True
+        res, steps, success = "", [], True
         try:
             res = Parser(Lexer(expr).tokenize()).parse()
+            steps = explain(res, False)
+            if steps:
+                steps = steps.toJSON()
+            else:
+                steps = []
             res = res.totex().join(("$$", "$$")) if hasattr(res, "totex") else str(res)
         except Exception as e:
             # raise
             success = False
             res = repr(e)
-        steps = ETSteps.toJSON()
         return {"output": res, "success": success, "steps": steps}
 
 
 if __name__ == "__main__":
+    set_verbosity(True)
     webview.create_window(
         "Algebra Engine",
         "web/dist/index.html",

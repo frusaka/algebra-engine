@@ -9,6 +9,7 @@ from functools import lru_cache, reduce
 from operator import itemgetter
 
 from datatypes import nodes
+from . import steps
 
 from .numeric import primes
 from .analysis import mult_key, get_vars
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
     from datatypes.base import Node
 
 
-@lru_cache
+# @lru_cache
 def flatten_factors(expr: Node) -> tuple[tuple[Node]]:
     if expr.__class__ is nodes.Mul:
         return tuple(i for arg in expr for i in flatten_factors(arg))
@@ -37,7 +38,7 @@ def flatten_factors(expr: Node) -> tuple[tuple[Node]]:
     return ((expr, nodes.Const(1)),)
 
 
-@lru_cache
+# @lru_cache
 def divisors(node: Node) -> tuple[Node]:
     primes = list(flatten_factors(node))
     exponents = [range(e.numerator + 1) for _, e in primes]
@@ -71,6 +72,7 @@ def _gcd_pow(exps, rational):
     raise ValueError(f"unknown value for min{exps}")
 
 
+# @steps.tracked()
 def gcd(*args: Node, light=False, rational=True) -> Node:
     """Greatest Common Divisor"""
     args = set(args)
@@ -134,6 +136,7 @@ def gcd(*args: Node, light=False, rational=True) -> Node:
     return a.cancel_gcd()[1].multiply(c)
 
 
+# @steps.tracked()
 def lcm(*args: Node, light=False, rational=True) -> Node:
     """Lowest Common Multiple"""
     args = set(args)  # remove duplicates
@@ -147,7 +150,7 @@ def lcm(*args: Node, light=False, rational=True) -> Node:
             b = args.pop()
             res = res * b / gcd(res, b)
         return res
-    res = res = args.pop()
+    res = args.pop()
     while args:
         b = args.pop()
         res = cancel_factors(res.multiply(b), gcd(res, b))
@@ -162,10 +165,10 @@ def cancel_factors(a: Add, b: Node) -> Node:
     if fac == 1:
         return a * b**-1
 
-    return long_division(a, fac)[0] * long_division(b, fac)[0] ** -1
+    return long_division(a, fac)[0] / long_division(b, fac)[0]
 
 
-@lru_cache
+# @lru_cache
 def extract(poly: Add, var: Var) -> tuple[Node]:
     coeffs = defaultdict(nodes.Const)
     amount = 0
@@ -188,7 +191,7 @@ def rebuild(base: Var, coeffs: tuple[Node]) -> Add | Node:
     return nodes.Add.from_terms(c * base**n for n, c in enumerate(reversed(coeffs)))
 
 
-@lru_cache
+# @lru_cache
 def rational_roots(coeffs: tuple[Node]) -> tuple[tuple[Node]]:
     if len(coeffs) <= 2:
         return (coeffs,)
@@ -281,6 +284,7 @@ def factor(node: Node) -> Node:
         if coeffs in seen:
             return seen[coeffs]
         temp = coeffs
+        changed = False
         if vars:
             temp = list(coeffs)
             # recursively factor groups
@@ -293,6 +297,7 @@ def factor(node: Node) -> Node:
                         return seen[coeffs]
                     c, b = res.canonical()
                     temp[idx] = c * next_var(b)
+                    changed = True
         c = gcd(*(i for i in temp if i))
         temp = tuple(i / c for i in temp)
         n = 0
@@ -307,7 +312,12 @@ def factor(node: Node) -> Node:
                 c *= i[0]
         res = list(root for k, v in sqf.items() for root in rational_roots(k) * v)
         # Hacky: What constitutes af "factored" vs "infactorable"?
-        if not (n > 1 or len(res) > 1 or len(res[0]) <= 2):
+        if not (
+            n > 1
+            or len(res) > 1
+            or len(res[0]) <= 2
+            or len(list(i for i in res[0] if i)) < len(res[0])
+        ):
             res = None
         elif c != 1:
             res.append((c,))

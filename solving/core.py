@@ -327,5 +327,5 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
 
     with steps.scoped(inner := []):
         res = fin(var, res)
-    register(Step(f"Verifying solution{s}", ETNode(res), inner))
+    register(Step(f"Verifying solution{s}", ETNode(""), inner))
     return res

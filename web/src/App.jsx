@@ -6,18 +6,18 @@ import 'katex/dist/contrib/copy-tex'
 
 let customMacros = ['solve', 'subs', 'factor', 'expand', 'approx', 'lcm', 'gcd']
 
-function Steps({ data }) {
+function Steps({ data, p }) {
   if (!data) return
   if (!Array.isArray(data) || data.length == 0) return data
+  const border = data.length > 1 && p ? 'border shadow ' : ''
 
   return (
     <div
-      class='border rounded p-2 mb-2 overflow-auto width-fit shadow'
+      class={border + 'rounded p-2 mb-2 overflow-auto width-fit'}
       style={{ background: '#1e293b' }}
     >
-      <strong>{data[0]}:</strong>
-      {data.slice(1).map((s, i) => (
-        <Steps key={i} data={s} />
+      {data.map((s, i) => (
+        <Steps key={i} data={s} p={data.length > 2} />
       ))}
     </div>
   )
@@ -99,7 +99,7 @@ function App() {
               >
                 {item.output}
               </div>
-              <Steps data={item.steps} />
+              <Steps data={item.steps} p={true} />
             </div>
           </div>
         ))}

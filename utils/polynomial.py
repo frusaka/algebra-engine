@@ -32,7 +32,7 @@ def is_polynomial(node: Node) -> bool:
     return False
 
 
-@lru_cache
+# @lru_cache
 def degree(node: Node, var=None) -> int | None:
     match node.__class__.__name__:
         case "Const" | "Float":
@@ -115,7 +115,7 @@ def synthetic_divide(coeffs: Sequence[Node], r: Node) -> tuple[list[Node], Node]
     return q[:-1], q[-1]  # last is remainder
 
 
-@lru_cache
+# @lru_cache
 def poly_divide(dividend, divisor):
     """Divide dividend by divisor: both are lists of coefficients (high to low degree)."""
     deg_dividend = len(dividend) - 1
@@ -148,13 +148,13 @@ def poly_divide(dividend, divisor):
     return tuple(quotient), tuple(remainder)
 
 
-@lru_cache
+# @lru_cache
 def derivative(poly: tuple[Node]) -> tuple[Node]:
     m = len(poly) - 1
     return tuple((m - n) * poly[n] for n in range(m))
 
 
-@lru_cache
+# @lru_cache
 def square_free(poly: tuple[Const]) -> tuple:
     if len(poly) <= 2:
         return normalize(poly)
@@ -186,7 +186,7 @@ def normalize(a):
     return (a,)
 
 
-@lru_cache
+# @lru_cache
 def poly_gcd(a, b):
     if len(b) > len(a):
         a, b = b, a

@@ -15,11 +15,11 @@ from .utils import arrange_eqns, compute_grobner, next_eqn
 from utils.print_ import print_system
 
 
-def _solve(eqns: set, org, v, sols, title=None):
+def _solve(eqns: set, org, v, sols):
     inner = []
     with steps.scoped(inner):
         eqn = org.solve_for(v)
-    steps.register(Step(f"Solve for {v}", ETNode(eqn), inner))
+    steps.register(Step("", ETOperator("SOLVE", (org, v), eqn), inner))
     eqns.remove(org)
     if eqn.__class__ is System:
         new_eqns = []
@@ -38,11 +38,11 @@ def _solve(eqns: set, org, v, sols, title=None):
         if len(new_eqns) == 1:
             new_eqns = list(new_eqns[0])
         sols[:] = new_eqns
-        res = ETBranch(i.right for i in eqn).result
+        res = ETBranch(i.right for i in eqn)
         steps.register(
             Step(
-                f"Substitue {v} with {res}",
-                ETBranch(System(chain(*i)) for i in sols),
+                "",
+                ETOperator("SUBS", (v, res), ETBranch(System(chain(*i)) for i in sols)),
                 inner,
             )
         )
@@ -65,7 +65,11 @@ def _solve(eqns: set, org, v, sols, title=None):
     # # Put the newly solved equation at the end
     sols.append(eqn)
     steps.register(
-        Step(f"Substitue {v} with {eqn.right}", ETNode(System([*eqns, *sols])), inner),
+        Step(
+            "",
+            ETOperator("SUBS", (v, eqn.right), System([*eqns, *sols])),
+            inner,
+        )
     )
 
 
@@ -83,7 +87,7 @@ def _branched_solve(vals, sols):
                 sols[idx] = System(data), eqns
                 continue
 
-            _solve(eqns, eqn, v, data, f"Branch {idx+1}")
+            _solve(eqns, eqn, v, data)
             if data[0].__class__ is tuple:
                 sols.extend(data)
                 sols[idx] = None
@@ -100,7 +104,11 @@ def _branched_solve(vals, sols):
 
     vals.remove(v)
     steps.register(
-        Step(f"Solve for {v}", ETBranch(System({*i[0], *i[1]}) for i in sols), branches)
+        Step(
+            f"Branch out",
+            ETBranch(System({*i[0], *i[1]}) for i in sols),
+            branches,
+        )
     )
 
 

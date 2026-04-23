@@ -105,7 +105,7 @@ def compute_grobner(
     return [Comparison(t, Const(0)) for t in G]
 
 
-@lru_cache
+# @lru_cache
 def difficulty_weight(term: Node, var: Var) -> float:
     if isinstance(term, Number):
         return (0, 0, 0.01 + term.is_neg() * 0.01)

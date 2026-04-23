@@ -29,8 +29,10 @@ class Node:
     @__add__.check_changed
     def _add_changed(result, args):
         # print(result, args, tuple(itertools.chain(*map(nodes.Add.flatten, args))))
-        return not isinstance(result, nodes.Add) or len(result.args) < len(
-            tuple(itertools.chain(*map(nodes.Add.flatten, args)))
+        return not any(n == 0 for n in args) and (
+            not isinstance(result, nodes.Add)
+            or len(result.args)
+            < len(tuple(itertools.chain(*map(nodes.Add.flatten, args))))
         )
 
     def __radd__(self, other) -> Node:
@@ -55,8 +57,10 @@ class Node:
 
     @__mul__.check_changed
     def _mul_changed(result, args):
-        return not isinstance(result, nodes.Mul) or len(result.args) < len(
-            list(itertools.chain(*map(nodes.Mul.flatten, args)))
+        return not any(n == 1 for n in args) and (
+            not isinstance(result, nodes.Mul)
+            or len(result.args)
+            < len(list(itertools.chain(*map(nodes.Mul.flatten, args))))
         )
 
     def __rmul__(self, other) -> Node:
@@ -82,7 +86,7 @@ class Node:
     @__pow__.check_changed
     def _(result, args) -> bool:
         return (
-            args[0] != 0
+            args[0] not in (0, 1)
             and args[1] != 0
             and (result.__class__ is not nodes.Pow or (result.base, result.exp) != args)
         )
@@ -124,9 +128,9 @@ class Node:
     def as_ratio(self) -> tuple[Node]:
         return (self, nodes.Const(1))
 
-    @steps.tracked()
+    @steps.tracked(force_keep=True)
     def subs(self, mapping: dict[Node]) -> Node:
-        @lru_cache
+        # #@lru_cache
         def _subs(n):
             if isinstance(n, nodes.Number):
                 return n
@@ -164,7 +168,7 @@ class Node:
 class Collection(ABC, Node):
     args: tuple[Node]
 
-    @lru_cache
+    # ##@lru_cache
     def __new__(cls, *args: Node, **kwargs) -> Node:
         return cls.from_terms(args, **kwargs)
 

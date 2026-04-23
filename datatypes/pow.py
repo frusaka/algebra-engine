@@ -16,7 +16,7 @@ class Pow(Node):
     base: Node
     exp: Node
 
-    @lru_cache
+    # @lru_cache
     def __new__(cls, base: Node, exp: Node) -> Node:
         if base == 1:
             return base

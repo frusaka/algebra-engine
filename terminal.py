@@ -1,3 +1,5 @@
+import gc
+
 from rich import print
 
 from utils import steps
@@ -16,8 +18,10 @@ while True:
     try:
         inp = parser.Parser(Lexer(input("Expression > ")).tokenize()).parse()
         print(steps.explain(inp))
+        gc.collect()
+        print(len(steps._steps.values()))
     except Exception as e:
-        # raise
+        raise
         print(repr(e))
     except KeyboardInterrupt:
         print("\nExiting...")

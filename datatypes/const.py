@@ -14,7 +14,7 @@ _PyHASH_INF = sys.hash_info.inf
 _HASH_IMAG = 1000003
 
 
-@lru_cache(maxsize=1 << 14)
+# @lru_cache(maxsize=1 << 14)
 def _hash_algorithm(numerator, denominator):
     if numerator.imag:
         # Python's hash(c) = hash(real) + HASH_IMAG * hash(imag)
@@ -51,7 +51,7 @@ class Number(Node):
 class Complex:
     __slots__ = ("real", "imag")
 
-    @lru_cache(maxsize=500)
+    # @lru_cache(maxsize=500)
     def __new__(cls, real: int = 0, imag: int = 0) -> Complex | complex | float | int:
         if int(real) != real or int(imag) != imag:
             if not imag:
@@ -163,7 +163,7 @@ class Const(Number):
 
     __slots__ = ("numerator", "denominator")
 
-    @lru_cache(maxsize=500)
+    # @lru_cache(maxsize=500)
     def __new__(cls, numerator: int | Complex = 0, denominator: int = 1) -> Const:
         if denominator == 0:
             raise ZeroDivisionError(f"{numerator}/{denominator}")
