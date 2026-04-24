@@ -104,7 +104,7 @@ def test_intervals(
             if res := try_subs_interval(org, interval, {var: Float((a + b) / 2)}):
                 valid.append(interval)
             if verbose:
-                register(res)
+                steps.register(res)
     valid = merge_intervals(valid)
     if not valid:
         res = SolutionSet()
@@ -145,7 +145,7 @@ def interpolate_roots(
 def try_subs_interval(org: Comparison, interval, mapping: dict[Var, Node]) -> bool:
     try:
         v = org.subs(mapping)
-        register(v)
+        steps.register(v)
         return v.is_close()
     except:
         return False
@@ -174,13 +174,13 @@ def evaluate_domain(var: Var, org: Comparison) -> Interval | IntervalUnion:
     res = []
 
     for idx, eqn in enumerate(restr, 1):
-        with scoped(inner := []):
+        with steps.scoped(inner := []):
             ans = eqn.solve_for(var)
         if steps.verbose():
             if len(restr) > 1:
-                steps.register(Step(f"Branch {idx}", ETNode(ans), inner))
+                steps.steps.register(Step(f"Branch {idx}", ETNode(ans), inner))
             else:
-                [register(i) for i in inner]
+                [steps.register(i) for i in inner]
         if ans.__class__ is not System:
             ans = [ans]
         res.append((eqn, ans))
@@ -214,17 +214,17 @@ def validate_solution(
     try:
         with steps.scoped(inner):
             v = org.subs(mapping).expand() if mapping else sol
-            register(v)
+            steps.register(v)
             if not (v):
                 if v := v.is_close():
                     res = 2
                 else:
                     res = 0
-                register(v)
+                steps.register(v)
     except:
         res = 0
     if verbose:
-        register(
+        steps.register(
             Step(
                 "Verify",
                 ETOperator(
@@ -252,12 +252,12 @@ def verify_systems(
 def solve_ineq(var, ineq: Comparison):
     # First evaluate Domain
     domain = evaluate_domain(var, ineq)
-    register(domain)
+    steps.register(domain)
 
     # Second find roots
     with steps.scoped(inner := []):
         res = Comparison(ineq.left, ineq.right).solve_for(var)
-    register(Step("Finding Roots", ETNode(res), inner))
+    steps.register(Step("Finding Roots", ETNode(res), inner))
     if isinstance(res, Comparison):
         if res.left != var:
             roots = []
@@ -312,7 +312,7 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
             with steps.scoped(inner := []):
                 for k, v in res:
                     out.append(fin(k, v))
-            register(Step(f"Verifying solutions", ETNode(""), inner))
+            steps.register(Step(f"Verifying solutions", ETNode(""), inner))
             return System(out)
         else:
             var = var[0]
@@ -327,5 +327,5 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
 
     with steps.scoped(inner := []):
         res = fin(var, res)
-    register(Step(f"Verifying solution{s}", ETNode(""), inner))
+    steps.register(Step(f"Verifying solution{s}", ETNode(""), inner))
     return res

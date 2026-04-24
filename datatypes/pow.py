@@ -109,15 +109,7 @@ class Pow(Node):
             and not exp.numerator.imag
             and exp.numerator > 1
         ):
-            base = reduce(
-                lambda a, b: nodes.Add.from_terms(
-                    itertools.starmap(
-                        nodes.Mul,
-                        itertools.product(nodes.Add.flatten(a), nodes.Add.flatten(b)),
-                    )
-                ),
-                itertools.repeat(base, exp.numerator),
-            )
+            base = reduce(Node.multiply, itertools.repeat(base, exp.numerator))
             if exp.denominator == 1:
                 return base
             exp = nodes.Const(1, exp.denominator)

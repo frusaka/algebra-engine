@@ -130,8 +130,8 @@ class Comparison:
     def __post_init__(self):
         steps.register(
             Step(
-                "",
-                ETOperator(self.rel.name, (self.left, self.right), self),
+                "Simplify",
+                ETOperator(self.rel.name, (self.left, self.right), self, False),
             ),
             False,
         )
@@ -153,7 +153,7 @@ class Comparison:
     def solve_for(self, value: Var) -> Comparison:
         org = self
         while True:
-            ## If input expression was simplified, double steps.register
+            # If input expression was simplified, double steps.register
             if self is not org:
                 steps.register(self)
             if self.__class__ is not Comparison:
@@ -229,47 +229,90 @@ class Comparison:
     def __contains__(self, value: Var) -> bool:
         return value in self.left or value in self.right
 
-    @steps.tracked("SUB", "Subtract from both sides")
     def __sub__(self, value: Node) -> Comparison:
-        lhs, rhs = self.left - value, self.right - value
-        steps.register(lhs)
-        steps.register(rhs)
-        return Comparison(copy(lhs), copy(rhs), self.rel)
+        if not steps.verbose():
+            return Comparison(self.left - value, self.right - value, self.rel)
+        if not value.canonical()[0].is_neg():
+            title = "Subtract from both sides"
+            lhs, rhs = self.left - value, self.right - value
+        else:
+            title = "Add to both sides"
+            value = -value
+            lhs, rhs = self.left + value, self.right + value
+        res = Comparison(copy(lhs), copy(rhs), self.rel)
+        step = Step(title, ETOperator("HIDDEN", (self, value), res, res != self))
+        with steps.scoped(step.children):
+            steps.register(lhs)
+            steps.register(rhs)
+        steps.register(step, False)
+        return res
 
-    @steps.tracked("DIV", "Divide both sides")
     def __truediv__(self, value: Node) -> Comparison:
-        lhs, rhs = self.left / value, self.right / value
-        steps.register(lhs)
-        steps.register(rhs)
-        if type(lhs) is Mul and lhs.args[0] == 1:
-            lhs = Mul(*lhs.args[0:])
-        return Comparison(copy(lhs), copy(rhs), self.reverse_sign(value))
+        if not steps.verbose():
+            return Comparison(self.left / value, self.right / value, self.rel)
+        if value.as_ratio()[1] == 1:
+            title = "Divide both sides"
+            lhs, rhs = self.left / value, self.right / value
+        else:
+            title = "Multiply both sides"
+            value = Pow(value, Const(-1))
+            lhs, rhs = self.left * value, self.right * value
+        # if type(lhs) is Mul and lhs.args[0] == 1:
+        #     lhs = Mul(*lhs.args[0:])
+        res = Comparison(copy(lhs), copy(rhs), self.rel)
+        step = Step(title, ETOperator("HIDDEN", (self, value), res, res != self))
+        with steps.scoped(step.children):
+            steps.register(lhs)
+            steps.register(rhs)
+        steps.register(step, False)
+        return res
 
-    @steps.tracked("POW", "Raise both sides")
     def __pow__(self, value: Const) -> Comparison:
         lhs = self.left**value
         if value.denominator > 1:
             rhs = nth_roots({self.right}, value.denominator)
-            if len(rhs) > 1:
-                steps.register(lhs)
+            res = [Comparison(copy(lhs), r) for r in rhs]
+            if len(res) > 1:
+                res = System(res)
+            res = System(res) if len(res) > 1 else res[0]
+            if not steps.verbose():
+                return res
+            step = Step(
+                "Find roots", ETOperator("HIDDEN", (self, value.denominator), res)
+            )
+            with steps.scoped(step.children):
                 steps.register(
                     Step(
-                        "Root",
+                        "",
+                        ETOperator(
+                            "SQRT", (self.left, value.denominator), lhs, force_keep=True
+                        ),
+                    )
+                )
+                steps.register(
+                    Step(
+                        "",
                         ETOperator(
                             "SQRT",
                             (self.right, value.denominator),
-                            ETBranch(rhs),
+                            ETBranch(rhs) if len(rhs) > 1 else rhs,
                             force_keep=True,
                         ),
                     )
                 )
-                return System(Comparison(lhs, r) for r in rhs)
-            rhs = rhs.pop()
-        else:
-            rhs = self.right**value
-        steps.register(lhs)
-        steps.register(rhs)
-        return Comparison(copy(lhs), copy(rhs), self.rel)
+            steps.register(step, False)
+            return res
+
+        rhs = self.right**value
+        res = Comparison(copy(lhs), copy(rhs), self.rel)
+        step = Step(
+            "Raise both sides", ETOperator("POW", (self, value), res, res != self)
+        )
+        with steps.scoped(step.children):
+            steps.register(lhs)
+            steps.register(rhs)
+        steps.register(step, False)
+        return res
 
     def __bool__(self) -> bool:
         return getattr(operator, self.rel.name.lower())(self.left, self.right)
@@ -324,7 +367,7 @@ class Comparison:
     def normalize(self) -> Comparison:
         """Put all terms on the lhs"""
         value = self.left - self.right
-        register(value)
+        steps.register(value)
         return Comparison(value, Const(), self.rel)
 
     def reverse_sign(self, value: Node) -> CompRel:
@@ -340,8 +383,8 @@ class Comparison:
     @steps.tracked()
     def subs(self, mapping: dict[Node]) -> Comparison:
         left, right = self.left.subs(mapping), self.right.subs(mapping)
-        register(left, reason="Substitute lhs")
-        register(right, reason="Substitute rhs")
+        steps.register(left, reason="Substitute lhs")
+        steps.register(right, reason="Substitute rhs")
         return Comparison(left, right, self.rel)
 
     @subs.check_changed
@@ -351,17 +394,17 @@ class Comparison:
     @steps.tracked()
     def factor(self, left_only=False):
         left, right = self.left.factor(), self.right
-        register(left, reason="Factor lhs")
+        steps.register(left, reason="Factor lhs")
         if not left_only:
             right = right.factor()
-            register(right, reason="Factor rhs")
+            steps.register(right, reason="Factor rhs")
         return Comparison(left, right, self.rel)
 
     @steps.tracked()
     def expand(self):
         left, right = self.left.expand(), self.right.expand()
-        register(left, reason="Expand lhs")
-        register(right, reason="Expand rhs")
+        steps.register(left, reason="Expand lhs")
+        steps.register(right, reason="Expand rhs")
         return Comparison(left, right, self.rel)
 
     def totex(self, align: bool = False) -> str:

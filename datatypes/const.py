@@ -324,7 +324,7 @@ class Float(Number):
     # @lru_cache
     def __new__(cls, value: float | complex) -> Float:
         if isinstance(value, Node):
-            value = value.approx()
+            value = value._approx()
         if abs(value.imag) <= 1e-10:
             value = value.real
         # c = Const(value)
@@ -362,29 +362,29 @@ class Float(Number):
     def __eq__(a, b: Any) -> bool:
         if not isinstance(b, (Const, int, Float)):
             return False
-        if not isinstance(b, Float):
-            b = Float(b)
-        return a._val == b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val == b
 
     def __gt__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val > b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val > b
 
     def __ge__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val >= b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val >= b
 
     def __lt__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val < b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val < b
 
     def __le__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val <= b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val <= b
 
     def add(self, value: Number) -> Float:
         if not isinstance(value, Float):

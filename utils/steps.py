@@ -38,7 +38,7 @@ def ref(value, force_keep=False):
 
 class ETNode:
     def __init__(self, result):
-        result = copy(result)
+        # result = copy(result)
         self.args = (result,)
         self.result = result
         self.changed = True
@@ -136,8 +136,11 @@ class OPSpecials(Enum):
     VERIFY = 0
     SUBS = 1
     SOLVE = 2
+    HIDDEN = 3
 
     def tostr(self, *args) -> str:
+        if self is OPSpecials.HIDDEN:
+            return ""
         if self is OPSpecials.VERIFY:
             if len(args) == 1:
                 return str(args[0])
@@ -217,7 +220,7 @@ class ETOperator(ETNode):
 
 class ETBranch(ETNode):
     def __init__(self, result):
-        args = list(copy(i) for i in result)
+        args = list(result)
         if args[0].__class__.__name__ == "Comparison":
             args.sort(key=str)
         self.args = args
@@ -284,12 +287,13 @@ class Step:
         def rich(step, depth, index):
             width = console.width - 3 - depth * 4
             idx = str(index) + ". " if index else ""
-            lpad = depth + 1
+            lpad = bool(depth) + 1
             label = step.label + ": " if step.label else ""
             if not step.children:
                 res = Text.from_ansi(f"{idx}{label}{step.transform.header()}")
                 res.pad_left(lpad)
-                res.truncate(width, overflow="ellipsis")
+                if depth:
+                    res.truncate(width, overflow="ellipsis")
                 return res
             p = len(step.children) > 1
             lpad *= not len(step.children) or not bool(index) or not depth
@@ -301,7 +305,7 @@ class Step:
                 Padding(
                     Group(
                         *(
-                            rich(i, 1, idx if p else 0)
+                            rich(i, depth + 1, idx if p else 0)
                             for idx, i in enumerate(step.children, 1)
                         )
                     ),
@@ -315,11 +319,12 @@ class Step:
             )
             res.renderables[0].pad_left(lpad)
             res.renderables[0].truncate(width, overflow="ellipsis")
-            if len(res.renderables[-1]):
-                res.renderables[-1].pad_left(lpad + 2)
-                res.renderables[-1].truncate(width, overflow="ellipsis")
-            else:
+            if not res.renderables[-1]:
                 res.renderables.pop()
+            else:
+                res.renderables[-1].pad_left(lpad + 2)
+                if depth:
+                    res.renderables[-1].truncate(width, overflow="ellipsis")
             if depth == 0 or step.children and index:
                 return Panel(res, expand=False)
             return res
@@ -365,7 +370,7 @@ def verbose() -> bool:
 def register(step: Step | Any, scoped=True, reason=None, deduplicate=True) -> None:
     if not _verbose or scoped and _curr_hist is None:
         return
-    if step is not None and type(step) is not Step:
+    if type(step) is not Step:
         step = _steps.get(id(step), None)
         if step:
             if reason is not None:
@@ -378,15 +383,15 @@ def register(step: Step | Any, scoped=True, reason=None, deduplicate=True) -> No
         return
     if reason is not None:
         step.label = reason
-    
+
     if scoped:
         if step.transform.changed or step.children:
             _curr_hist.append(step)
-        if type(step.transform) is ETOperator:
-            step.transform.force_keep()
-        # To be revised
-        if deduplicate and (idx := id(step.transform.result)) in _steps:
-            _steps.pop(idx)
+        # if type(step.transform) is ETOperator:
+        #     step.transform.force_keep()
+        # # To be revised
+        # if deduplicate and (idx := id(step.transform.result)) in _steps:
+        #     _steps.pop(idx)
     else:
         _steps[id(step.transform.result)] = step
 
@@ -418,8 +423,6 @@ R = TypeVar("R")
 
 
 class Tracked(Generic[P, R]):
-    depth = 0
-
     def __init__(
         self,
         func: Callable[P, R],
@@ -443,15 +446,8 @@ class Tracked(Generic[P, R]):
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         history = []
-        Tracked.depth += 1
         with scoped(history):
-            # if self.force_keep:
-            #     with force_keep():
-            #         result = self.func(*args, **kwargs)
-            # else:
             result = self.func(*args, **kwargs)
-
-        Tracked.depth -= 1
         if not _verbose:  # or not (changed := self._is_simplified(result, args)):
             return result
         if len(args) == 1 and result == args[0]:
@@ -504,10 +500,10 @@ def explain(expr, default=True) -> Step | Any:
             continue
         res.transform.args[idx] = v.transform
         res.children.insert(idx, v)
-        # _steps.pop(id(v.transform.result))
+        _steps.pop(id(v.transform.result))
 
-    # if len(res.children) > n and not n:
-    #     res.children.append(Step(res.label, op))
+    if len(res.children) > n and not n:
+        res.children.append(Step(res.label, op))
     if not res.transform.changed and not res.children:
         return expr if default else None
     return res
@@ -524,11 +520,4 @@ __all__ = [
     "ETBranch",
     "ETOperator",
     "Step",
-    "verbose",
-    "set_verbosity",
-    "tracked",
-    "explain",
-    "register",
-    "scoped",
-    "force_keep",
 ]

@@ -119,7 +119,7 @@ class Node:
 
     @steps.tracked()
     def expand(self) -> Node:
-        return self._expand()
+        return self._expand()._expand()
 
     def canonical(self) -> tuple[Const, Node]:
         return nodes.Const(1), self
@@ -157,7 +157,7 @@ class Node:
 
     @steps.tracked("approximate")
     def approx(self) -> Float:
-        return nodes.Float(self._approx())
+        return self._approx()
 
     def totex(self) -> str:
         return str(self)

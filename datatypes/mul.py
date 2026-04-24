@@ -100,7 +100,7 @@ def ordered_terms(args: Iterable[Node]) -> list[Node]:
 class Mul(Collection):
     if TYPE_CHECKING:
 
-        def __init__(self, *args: Node, distr_const=False): ...
+        def __init__(self, *args: Node, distr_const=True): ...
 
     # @lru_cache
     def __repr__(self) -> str:
@@ -157,7 +157,7 @@ class Mul(Collection):
             and len(res) == 2
             and set(map(type, res)) == {nodes.Add, nodes.Const}
         ):
-            return [res.pop().multiply(res.pop())]
+            return [Node.multiply(*res)]
         # if len(res) == 2:
         #     print("mul", res)
         return res or [nodes.Const(1)]
@@ -167,13 +167,12 @@ class Mul(Collection):
 
     def _expand(self) -> Node:
         num, den = self.as_ratio()
-        mul = lambda a, b: a.multiply(b)
-        num = reduce(mul, (num.expand() for num in Mul.flatten(num)))
-        den = reduce(mul, (den.expand() for den in Mul.flatten(den)))
-        if den.__class__ is nodes.Add:
-            return num.divide(den)
+        num = reduce(Node.multiply, (num.expand() for num in Mul.flatten(num)))
+        den = reduce(Node.multiply, (den.expand() for den in Mul.flatten(den)))
         if den == 1:
             return num
+        if den.__class__ is nodes.Add:
+            return num.divide(den)
         return num.multiply(den**-1)
 
     def canonical(self) -> tuple[Node, Node]:

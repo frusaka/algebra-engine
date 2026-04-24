@@ -189,19 +189,19 @@ class System(frozenset):
     @steps.tracked()
     def expand(self):
         res = System(i.expand() for i in self)
-        [register(i) for i in res]
+        [steps.register(i) for i in res]
         return res
 
     @steps.tracked()
     def factor(self):
         res = System(i.factor() for i in self)
-        [register(i) for i in res]
+        [steps.register(i) for i in res]
         return res
 
     @steps.tracked()
     def subs(self, mapping: dict[Node]):
         res = [i.subs(mapping) for i in self]
-        [register(i) for i in res]
+        [steps.register(i) for i in res]
         if len(res) == 1:
             return res.pop()
         return System(res)
