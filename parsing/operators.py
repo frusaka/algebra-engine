@@ -6,7 +6,7 @@ from solving.system import System
 from datatypes.nodes import *
 from solving.core import solve
 
-from utils import lcm, gcd
+from utils import lcm, gcd, factor
 
 
 def add(a: Node, b: Node) -> Node:
@@ -78,7 +78,3 @@ def sqrt(n: Node | None, a: Node) -> Node:
 
 def expand(a: Node) -> Node:
     return a.expand()
-
-
-def factor(a: Node) -> Node:
-    return a.factor()

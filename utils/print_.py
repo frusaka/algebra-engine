@@ -63,12 +63,12 @@ def superscript(n: int):
 
 
 def print_system(equations: list[str]):
-    res = ["⎧ " + equations[0]]
+    res = "\n⎧ " + equations[0]
     for eq in equations[1:-1]:
-        res.append("⎪ " + eq)
+        res += "\n⎪ " + eq
     if len(equations) > 1:
-        res.append("⎩ " + equations[-1])
-    return "\n" + "\n".join(res)
+        res += "\n⎩ " + equations[-1]
+    return res
 
 
 def truncate(text, max_length=80):

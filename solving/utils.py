@@ -1,7 +1,9 @@
 from __future__ import annotations
-import math
 from typing import Iterable, Sequence, TYPE_CHECKING
-from functools import lru_cache, reduce
+import math
+import functools
+
+import utils
 
 from .groebner import buchberger
 
@@ -88,7 +90,7 @@ def get_vars(expr):
     if expr.__class__.__name__ == "Comparison":
         return get_vars(expr.left).union(get_vars(expr.right))
     if hasattr(expr, "__iter__"):
-        return reduce(lambda a, b: a.union(b), map(get_vars, expr))
+        return functools.reduce(set.union, map(get_vars, expr))
     return set()
 
 
@@ -105,7 +107,7 @@ def compute_grobner(
     return [Comparison(t, Const(0)) for t in G]
 
 
-# @lru_cache
+@utils.lru_cache
 def difficulty_weight(term: Node, var: Var) -> float:
     if isinstance(term, Number):
         return (0, 0, 0.01 + term.is_neg() * 0.01)

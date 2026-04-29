@@ -130,8 +130,11 @@ class Comparison:
     def __post_init__(self):
         steps.register(
             Step(
-                "Simplify",
-                ETOperator(self.rel.name, (self.left, self.right), self, False),
+                self.rel.name,
+                (self.left, self.right),
+                self,
+                reason="Simplify",
+                changed=False,
             ),
             False,
         )
@@ -146,8 +149,9 @@ class Comparison:
             res = bool(Comparison(v, 0, self.rel))
         else:
             res = abs(v) <= threshold
-        steps.register(v)
-        steps.register(Step("", ETOperator(self.rel.name, (v, 0), res)))
+        if not isinstance(self.left - self.right, Number):
+            steps.register(v)
+        steps.register(Step(self.rel.name, (v, 0), res))
         return res
 
     def solve_for(self, value: Var) -> Comparison:
@@ -240,7 +244,7 @@ class Comparison:
             value = -value
             lhs, rhs = self.left + value, self.right + value
         res = Comparison(copy(lhs), copy(rhs), self.rel)
-        step = Step(title, ETOperator("HIDDEN", (self, value), res, res != self))
+        step = Step("HIDDEN", None, res, reason=title, changed=res != self)
         with steps.scoped(step.children):
             steps.register(lhs)
             steps.register(rhs)
@@ -260,7 +264,7 @@ class Comparison:
         # if type(lhs) is Mul and lhs.args[0] == 1:
         #     lhs = Mul(*lhs.args[0:])
         res = Comparison(copy(lhs), copy(rhs), self.rel)
-        step = Step(title, ETOperator("HIDDEN", (self, value), res, res != self))
+        step = Step("HIDDEN", None, res, reason=title, changed=res != self)
         with steps.scoped(step.children):
             steps.register(lhs)
             steps.register(rhs)
@@ -272,42 +276,20 @@ class Comparison:
         if value.denominator > 1:
             rhs = nth_roots({self.right}, value.denominator)
             res = [Comparison(copy(lhs), r) for r in rhs]
-            if len(res) > 1:
-                res = System(res)
+            rhs = SolutionSet(rhs) if len(rhs) > 1 else rhs.pop()
             res = System(res) if len(res) > 1 else res[0]
             if not steps.verbose():
                 return res
-            step = Step(
-                "Find roots", ETOperator("HIDDEN", (self, value.denominator), res)
-            )
+            step = Step("HIDDEN", None, res, reason="Take the root of both sides")
             with steps.scoped(step.children):
-                steps.register(
-                    Step(
-                        "",
-                        ETOperator(
-                            "SQRT", (self.left, value.denominator), lhs, force_keep=True
-                        ),
-                    )
-                )
-                steps.register(
-                    Step(
-                        "",
-                        ETOperator(
-                            "SQRT",
-                            (self.right, value.denominator),
-                            ETBranch(rhs) if len(rhs) > 1 else rhs,
-                            force_keep=True,
-                        ),
-                    )
-                )
+                steps.register(Step("SQRT", (self.left, value.denominator), lhs))
+                steps.register(Step("SQRT", (self.right, value.denominator), rhs))
             steps.register(step, False)
             return res
 
         rhs = self.right**value
         res = Comparison(copy(lhs), copy(rhs), self.rel)
-        step = Step(
-            "Raise both sides", ETOperator("POW", (self, value), res, res != self)
-        )
+        step = Step("HIDDEN", None, res, reason="Raise both sides", changed=res != self)
         with steps.scoped(step.children):
             steps.register(lhs)
             steps.register(rhs)

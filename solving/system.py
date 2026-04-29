@@ -12,6 +12,7 @@ from utils.steps import *
 
 from datatypes import *
 from .utils import arrange_eqns, compute_grobner, next_eqn
+from .solutions import SolutionSet
 from utils.print_ import print_system
 
 
@@ -19,7 +20,7 @@ def _solve(eqns: set, org, v, sols):
     inner = []
     with steps.scoped(inner):
         eqn = org.solve_for(v)
-    steps.register(Step("", ETOperator("SOLVE", (org, v), eqn), inner))
+    steps.register(Step("SOLVE", (org, v), eqn, children=inner))
     eqns.remove(org)
     if eqn.__class__ is System:
         new_eqns = []
@@ -38,17 +39,13 @@ def _solve(eqns: set, org, v, sols):
         if len(new_eqns) == 1:
             new_eqns = list(new_eqns[0])
         sols[:] = new_eqns
-        res = ETBranch(i.right for i in eqn)
         steps.register(
             Step(
-                "",
-                ETOperator(
-                    "SUBS",
-                    (v, res),
-                    ETBranch(System(chain(*i)) for i in sols),
-                    force_keep=True,
-                ),
-                inner,
+                "SUBS",
+                (v, SolutionSet(i.right for i in eqn)),
+                SolutionSet(System(chain(*i)) for i in sols),
+                children=inner,
+                force_keep=True,
             )
         )
         return
@@ -71,9 +68,11 @@ def _solve(eqns: set, org, v, sols):
     sols.append(eqn)
     steps.register(
         Step(
-            "",
-            ETOperator("SUBS", (v, eqn.right), System([*eqns, *sols]), force_keep=True),
-            inner,
+            "SUBS",
+            (v, eqn.right),
+            System([*eqns, *sols]),
+            children=inner,
+            force_keep=True,
         )
     )
 
@@ -110,9 +109,10 @@ def _branched_solve(vals, sols):
     vals.remove(v)
     steps.register(
         Step(
-            f"Branch out",
-            ETBranch(System({*i[0], *i[1]}) for i in sols),
-            branches,
+            "STATE",
+            SolutionSet(System({*i[0], *i[1]}) for i in sols),
+            children=branches,
+            reason=f"Branch out",
         )
     )
 
@@ -130,7 +130,9 @@ def _foreach_solve(eqns, value):
         except ArithmeticError as err:
             steps.register(Step(repr(err), "", ""))
             continue
-        steps.register(Step(f"Branch {idx}", ETNode(res), inner))
+        steps.register(
+            Step("SOLVE", (eqn, value), res, reason=f"Branch {idx}", children=inner)
+        )
         if res.__class__ is System:
             sols.extend(res)
         else:

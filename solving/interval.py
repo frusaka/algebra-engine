@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datatypes.base import Node
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class Interval:
     """A prettifier for inequality solutions"""
 

@@ -14,9 +14,6 @@ y = Var("y")
 z = Var("z")
 
 
-def test_records_steps():
-    pass
-
 
 def test_solve_linear():
     # Basic system of two equations

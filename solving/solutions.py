@@ -1,3 +1,4 @@
+from itertools import zip_longest
 from datatypes.base import Node
 from .interval import Interval
 
@@ -6,7 +7,12 @@ class SolutionSet(frozenset):
     def __repr__(self):
         if not self:
             return "∅"
-        return ", ".join(str(i) for i in self).join("{}")
+        data = [str(i).split("\n") for i in self]
+        n = len(max(data, key=len))
+        return "\n".join(
+            (", " if idx == n else "  ").join(items)
+            for idx, items in enumerate(zip_longest(*data, fillvalue=""), 1)
+        ).join("{}")
 
     def totex(self) -> str:
         if not self:

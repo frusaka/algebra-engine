@@ -16,10 +16,6 @@ y = Var("y")
 z = Var("z")
 
 
-def test_records_steps():
-    pass
-
-
 def test_solve_basic():
     assert solve(Comparison(5 * x + 3, Const(13)), x) == Comparison(x, 2)
     assert solve(Comparison(2 * x - 3, Const(3)), x) == Comparison(x, 3)

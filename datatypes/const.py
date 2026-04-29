@@ -1,7 +1,9 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING, Any
+import functools
+import utils
 import sys
 import math
-from typing import TYPE_CHECKING, Any
 
 
 from .base import Node
@@ -14,7 +16,7 @@ _PyHASH_INF = sys.hash_info.inf
 _HASH_IMAG = 1000003
 
 
-# @lru_cache(maxsize=1 << 14)
+@functools.lru_cache(maxsize=1 << 14)
 def _hash_algorithm(numerator, denominator):
     if numerator.imag:
         # Python's hash(c) = hash(real) + HASH_IMAG * hash(imag)
@@ -51,7 +53,7 @@ class Number(Node):
 class Complex:
     __slots__ = ("real", "imag")
 
-    # @lru_cache(maxsize=500)
+    @utils.lru_cache
     def __new__(cls, real: int = 0, imag: int = 0) -> Complex | complex | float | int:
         if int(real) != real or int(imag) != imag:
             if not imag:
@@ -161,9 +163,12 @@ class Const(Number):
     The `denominator` attribute is always a positive integer.
     """
 
-    __slots__ = ("numerator", "denominator")
+    __slots__ = (
+        "numerator",
+        "denominator",
+    )
 
-    # @lru_cache(maxsize=500)
+    @utils.lru_cache
     def __new__(cls, numerator: int | Complex = 0, denominator: int = 1) -> Const:
         if denominator == 0:
             raise ZeroDivisionError(f"{numerator}/{denominator}")
@@ -321,7 +326,7 @@ class Const(Number):
 class Float(Number):
     __slots__ = ("_val",)
 
-    # @lru_cache
+    @utils.lru_cache
     def __new__(cls, value: float | complex) -> Float:
         if isinstance(value, Node):
             value = value._approx()
@@ -335,6 +340,17 @@ class Float(Number):
     if TYPE_CHECKING:
 
         def __init__(self, value: float | complex): ...
+
+    @property
+    def real(self):
+        return self._val.real
+
+    @property
+    def imag(self):
+        return self._val.imag
+
+    def __round__(self, ndigits=None):
+        return Float(round(self._val, ndigits))
 
     def __repr__(self) -> str:
         # return repr(self._val)

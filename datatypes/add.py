@@ -13,7 +13,7 @@ from . import nodes
 import utils
 
 
-# @lru_cache
+@utils.lru_cache
 def order_key(node: Node) -> tuple:
     # Format: (Exponent, Type, *Value)
     if isinstance(node, nodes.Number):
@@ -50,7 +50,7 @@ class Add(Collection):
 
         def __init__(self, *args: Node, rationalize=True): ...
 
-    # @lru_cache
+    @utils.lru_cache
     def __repr__(self) -> str:
         res = ""
         for i in self.args:

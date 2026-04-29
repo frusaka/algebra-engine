@@ -5,14 +5,14 @@ import math
 from typing import TYPE_CHECKING
 
 from itertools import chain, product
-from functools import lru_cache, reduce
+from functools import reduce
 from operator import itemgetter
 
 from datatypes import nodes
 from . import steps
 
 from .numeric import primes
-from .analysis import mult_key, get_vars
+from .analysis import mult_key, get_vars, lru_cache
 from .polynomial import (
     is_polynomial,
     degree,
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from datatypes.base import Node
 
 
-# @lru_cache
+@lru_cache
 def flatten_factors(expr: Node) -> tuple[tuple[Node]]:
     if expr.__class__ is nodes.Mul:
         return tuple(i for arg in expr for i in flatten_factors(arg))
@@ -38,7 +38,7 @@ def flatten_factors(expr: Node) -> tuple[tuple[Node]]:
     return ((expr, nodes.Const(1)),)
 
 
-# @lru_cache
+@lru_cache
 def divisors(node: Node) -> tuple[Node]:
     primes = list(flatten_factors(node))
     exponents = [range(e.numerator + 1) for _, e in primes]
@@ -72,12 +72,15 @@ def _gcd_pow(exps, rational):
     raise ValueError(f"unknown value for min{exps}")
 
 
-# @steps.tracked()
+@steps.tracked()
 def gcd(*args: Node, light=False, rational=True) -> Node:
     """Greatest Common Divisor"""
     args = set(args)
     if len(args) == 0:
         raise ValueError("gcd() requires at least one argument")
+    if not light:
+        args = {i.expand() for i in args}
+        [steps.register(arg) for arg in args]
     if len(args) == 1:
         return args.pop()
     # Find factor by traversing the node tree
@@ -136,12 +139,15 @@ def gcd(*args: Node, light=False, rational=True) -> Node:
     return a.cancel_gcd()[1].multiply(c)
 
 
-# @steps.tracked()
+@steps.tracked()
 def lcm(*args: Node, light=False, rational=True) -> Node:
     """Lowest Common Multiple"""
     args = set(args)  # remove duplicates
     if len(args) == 0:
         raise ValueError("lcm() requires at least one argument")
+    if not light:
+        args = {i.expand() for i in args}
+        [steps.register(arg) for arg in args]
     if len(args) == 1:
         return args.pop()
     if light or not all(is_polynomial(i) and i.__class__ is nodes.Add for i in args):
@@ -168,7 +174,7 @@ def cancel_factors(a: Add, b: Node) -> Node:
     return long_division(a, fac)[0] / long_division(b, fac)[0]
 
 
-# @lru_cache
+@lru_cache
 def extract(poly: Add, var: Var) -> tuple[Node]:
     coeffs = defaultdict(nodes.Const)
     amount = 0
@@ -191,7 +197,7 @@ def rebuild(base: Var, coeffs: tuple[Node]) -> Add | Node:
     return nodes.Add.from_terms(c * base**n for n, c in enumerate(reversed(coeffs)))
 
 
-# @lru_cache
+@lru_cache
 def rational_roots(coeffs: tuple[Node]) -> tuple[tuple[Node]]:
     if len(coeffs) <= 2:
         return (coeffs,)
@@ -220,11 +226,18 @@ def rational_roots(coeffs: tuple[Node]) -> tuple[tuple[Node]]:
     return (*roots, tuple(coeffs))
 
 
+@steps.tracked()
 def factor(node: Node) -> Node:
     if node.__class__ is nodes.Mul:
-        return nodes.Mul.from_terms(map(factor, node))
+        args = [factor(i) for i in node]
+        [steps.register(arg) for arg in args]
+        return nodes.Mul(*args)
     if node.__class__ is nodes.Pow:
-        return nodes.Pow(factor(node.base), node.exp)
+        res = factor(node.base)
+        steps.register(res)
+        res **= node.exp
+        steps.register(res)
+        return res
     if node.__class__ is not nodes.Add:
         return node
 

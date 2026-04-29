@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import itertools
-from functools import lru_cache, reduce
+import functools
 from typing import TYPE_CHECKING
 
 import utils
@@ -16,7 +16,7 @@ class Pow(Node):
     base: Node
     exp: Node
 
-    # @lru_cache
+    @utils.lru_cache
     def __new__(cls, base: Node, exp: Node) -> Node:
         if base == 1:
             return base
@@ -109,7 +109,9 @@ class Pow(Node):
             and not exp.numerator.imag
             and exp.numerator > 1
         ):
-            base = reduce(Node.multiply, itertools.repeat(base, exp.numerator))
+            base = functools.reduce(
+                Node.multiply, itertools.repeat(base, exp.numerator)
+            )
             if exp.denominator == 1:
                 return base
             exp = nodes.Const(1, exp.denominator)

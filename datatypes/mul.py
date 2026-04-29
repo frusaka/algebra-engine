@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Iterable
 from . import nodes
 from .base import Node, Collection
 from .add import order_key as standard_key
-from functools import lru_cache, reduce
+from functools import  reduce
 from collections import defaultdict
 
 import utils
@@ -70,7 +70,7 @@ def _tex(n: Node):
     return res
 
 
-# @lru_cache
+@utils.lru_cache
 def order_key(node: Node) -> tuple:
     # Format: (a, b, *c)
     # a = Type priority: Numbers, then Variables, then Power and so on
@@ -102,7 +102,7 @@ class Mul(Collection):
 
         def __init__(self, *args: Node, distr_const=True): ...
 
-    # @lru_cache
+    @utils.lru_cache
     def __repr__(self) -> str:
         # return "*".join(map(str, utils.ordered_terms(self, True)))
         num, den = self.as_ratio()

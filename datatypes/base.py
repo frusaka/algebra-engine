@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import itertools
-import operator
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from functools import lru_cache, partial, reduce
+from functools import partial, reduce
 import utils
-from utils.steps import ETOperator, Step
+from utils.steps import Step
 from utils import steps
 
 from . import nodes
@@ -27,7 +26,6 @@ class Node:
 
     @__add__.check_changed
     def _add_changed(result, args):
-        # print(result, args, tuple(itertools.chain(*map(nodes.Add.flatten, args))))
         return not any(n == 0 for n in args) and (
             not isinstance(result, nodes.Add)
             or len(result.args)
@@ -69,6 +67,8 @@ class Node:
     def __truediv__(self, other: Node) -> Node:
         if not isinstance(other, Node):
             other = nodes.Const(other)
+        if other == 0:
+            raise ZeroDivisionError(f"{self} / {other}")
         return nodes.Mul(self, nodes.Pow(other, nodes.Const(-1)))
 
     __truediv__.check_changed(_mul_changed)
@@ -110,7 +110,6 @@ class Node:
     def divide(self, other: Node) -> Node:
         return self * other**-1
 
-    @steps.tracked()
     def factor(self) -> Node:
         return utils.factor(self)
 
@@ -127,14 +126,14 @@ class Node:
     def as_ratio(self) -> tuple[Node]:
         return (self, nodes.Const(1))
 
-    @steps.tracked(force_keep=True)
+    @steps.tracked()
     def subs(self, mapping: dict[Node]) -> Node:
-        # #@lru_cache
+        # @lru_cache
         def _subs(n):
             if isinstance(n, nodes.Number):
                 return n
             if (v := mapping.get(n, None)) is not None:
-                steps.register(Step("", ETOperator("", (n,), v)))
+                steps.register(Step("", n, v))
                 return v
             if type(n) is nodes.Var:
                 return n
@@ -157,7 +156,7 @@ class Node:
 
     @steps.tracked("approximate")
     def approx(self) -> Float:
-        return self._approx()
+        return nodes.Float(self._approx())
 
     def totex(self) -> str:
         return str(self)
@@ -167,7 +166,7 @@ class Node:
 class Collection(ABC, Node):
     args: tuple[Node]
 
-    # ##@lru_cache
+    @utils.lru_cache
     def __new__(cls, *args: Node, **kwargs) -> Node:
         return cls.from_terms(args, **kwargs)
 
@@ -233,8 +232,8 @@ class Collection(ABC, Node):
         pass
 
     def _approx(self) -> float | complex:
-        op = self.__class__.__name__.lower()
-        return reduce(getattr(operator, op), (i._approx() for i in self))
+        op = self.__class__.__name__.lower().join(("__", "__"))
+        return reduce(lambda a, b: getattr(a, op)(b), (i._approx() for i in self))
 
 
 __all__ = ["Node", "Collection"]

@@ -113,8 +113,12 @@ def test_intervals(
     else:
         res = IntervalUnion(valid)
     if verbose:
-        s = "s" * (bool(len(intervals) - 1))
-        steps.register(Step(f"Testing interval{s}", ETNode(res), inner))
+        if len(inner)==1:
+            steps.register(inner.pop(), reason="Testing interval")
+        else:
+            steps.register(
+                Step("STATE", None, reason="Testing intervals", children=inner)
+            )
     return res
 
 
@@ -178,7 +182,9 @@ def evaluate_domain(var: Var, org: Comparison) -> Interval | IntervalUnion:
             ans = eqn.solve_for(var)
         if steps.verbose():
             if len(restr) > 1:
-                steps.steps.register(Step(f"Branch {idx}", ETNode(ans), inner))
+                steps.register(
+                    Step("STATE", ans, reason=f"Branch {idx}", children=inner)
+                )
             else:
                 [steps.register(i) for i in inner]
         if ans.__class__ is not System:
@@ -226,13 +232,10 @@ def validate_solution(
     if verbose:
         steps.register(
             Step(
-                "Verify",
-                ETOperator(
-                    "VERIFY",
-                    (sol,) if sol.__class__ is Comparison else (ETBranch(sol),),
-                    res,
-                ),
-                inner,
+                "VERIFY",
+                sol,
+                res,
+                children=inner,
             )
         )
     return res
@@ -256,8 +259,18 @@ def solve_ineq(var, ineq: Comparison):
 
     # Second find roots
     with steps.scoped(inner := []):
-        res = Comparison(ineq.left, ineq.right).solve_for(var)
-    steps.register(Step("Finding Roots", ETNode(res), inner))
+        org = Comparison(ineq.left, ineq.right)
+        res = org.solve_for(var)
+    steps.register(
+        Step(
+            "SOLVE",
+            (org, var),
+            res if type(res) is Comparison else SolutionSet(res),
+            reason="Find Roots",
+            children=inner,
+            force_keep=True,
+        )
+    )
     if isinstance(res, Comparison):
         if res.left != var:
             roots = []
@@ -306,14 +319,22 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
             for v in var:
                 with steps.scoped(inner := []):
                     res.append((v, src.solve_for(v)))
-                steps.register(Step(f"Solve for {v}", ETNode(res[-1][-1]), inner))
+                steps.register(Step("SOLVE", (src, v), res[-1][-1], children=inner))
             # [register(i[1]) for i in res]
             out = []
             with steps.scoped(inner := []):
                 for k, v in res:
                     out.append(fin(k, v))
-            steps.register(Step(f"Verifying solutions", ETNode(""), inner))
-            return System(out)
+            steps.register(
+                Step(
+                    "STATE",
+                    (i[1] for i in res),
+                    "",
+                    reason=f"Verifying solutions",
+                    children=inner,
+                )
+            )
+            return System(out) if len(out) > 1 else out[0]
         else:
             var = var[0]
             if src.rel is not CompRel.EQ:
@@ -327,5 +348,5 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
 
     with steps.scoped(inner := []):
         res = fin(var, res)
-    steps.register(Step(f"Verifying solution{s}", ETNode(""), inner))
+    steps.register(Step("STATE", None, reason=f"Verifying solution{s}", children=inner))
     return res
