@@ -1,18 +1,12 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
+from typing import Any, Iterator
+
 from copy import copy
 from dataclasses import dataclass
-import inspect
 from itertools import chain
-from functools import update_wrapper
 from enum import Enum
-from typing import Any, Callable, Iterator, TypeVar, ParamSpec, Generic
-
-import types
 import weakref
-
 
 from rich.text import Text
 from rich.console import Group
@@ -20,8 +14,8 @@ from rich.panel import Panel
 from rich.console import Group, Console
 from rich.padding import Padding
 
-from .constants import SYMBOLS
-from .print_ import superscript, strip_ansi, colorize_ansi
+from ..constants import SYMBOLS
+from ..print_ import superscript, colorize_ansi
 
 
 def tex(value):
@@ -37,7 +31,7 @@ def delete_unused(idx):
         step = idx
         if (idx := id(step.result)) in _steps:
             _steps.pop(idx)
-    # # print("deleting", step)
+    # print("deleting", step)
     for i in step.children:
         delete_unused(i)
         # delete_unused(i)
@@ -314,128 +308,59 @@ def verbose() -> bool:
     return _verbose
 
 
-def register(step: Step | Any, scoped=True, reason=None, deduplicate=True) -> None:
-    if not _verbose or scoped and _curr_hist.get() is None:
-        return
-    if type(step) is not Step:
-        step = _steps.get(id(step), None)
-        if step:
-            if not step.changed and not step.children:
-                return
-    if step is None:
-        return
-    if reason is not None:
-        step.reason = reason
-
-    if scoped:
-        if (ctx := _curr_hist.get()) is None:
-            return
-        if step.changed or step.children:
-            ctx.append(step)
-        if step.result is not None:
-            step.force_keep()
-        # To be revised
-        if deduplicate and (idx := id(step.result)) in _steps:
-            _steps.pop(idx)
-    else:
-        _steps[id(step.result)] = step
+def is_eq_priority(a, b) -> bool:
+    return a == b or {a, b} in (
+        {OPArithmeticType.ADD, OPArithmeticType.SUB},
+        {OPArithmeticType.MUL, OPArithmeticType.DIV},
+    )
 
 
-@contextmanager
-def scoped(scope: list):
-    ctx = _curr_hist.set(scope)
-    try:
-        yield
-    finally:
-        _curr_hist.reset(ctx)
-
-
-P = ParamSpec("P")
-R = TypeVar("R")
-
-
-class Tracked(Generic[P, R]):
-    def __init__(
-        self,
-        func: Callable[P, R],
-        id: str = None,
-        label: str = None,
-    ):
-        id = id if id is not None else func.__name__
-        label = label if label is not None else ""
-        self.func = func  # lru_cache(maxsize=500)(func)
-        self.id = id
-        self.label = label
-        update_wrapper(self, func)
-        self.__signature__ = inspect.signature(func)
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        return types.MethodType(self, instance)
-
-    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
-        history = []
-        with scoped(history):
-            result = self.func(*args, **kwargs)
-        if not _verbose:  # or not (changed := self._is_simplified(result, args)):
-            return result
-        if len(args) == 1 and result == args[0]:
-            return args[0]
-        result = copy(result)
-        _steps[id(result)] = Step(
-            self.id,
-            args,
-            result,
-            self.label,
-            history,
-            changed=self._is_simplified(result, args),
-        )
-        return result
-
-    # __call__ = lru_cache(maxsize=1 << 40)(__call__)
-
-    def check_changed(self, fn):
-        self._is_simplified = fn
-        return fn
-
-    @staticmethod
-    def _is_simplified(result, args):
-        if len(args) == 1:
-            return result != args[0]
-        return True
-
-
-def tracked(id: str = None, label: str = None):
-    def wrapper(func: Callable[P, R]) -> Tracked[P, R]:
-        return Tracked(func, id, label)
-
-    return wrapper
-
-
-def explain(expr, default=True) -> Step | Any:
+def _explain(expr) -> Step | Any:
     if not (res := _steps.get(id(expr), None)):
-        return expr if default else None
+        return
     op = copy(res)
-    n = len(res.children)
-
+    res.children = []
     for idx, i in enumerate(res.args):
-        if not (v := explain(i, False)):
+        if type(i) is Step or not (v := _explain(i)):
             continue
         res.args[idx] = v
-        res.children.insert(idx, v)
+        if is_eq_priority(v.type, res.type) and v.children:
+            res.children.extend(v.children)
+        else:
+            res.children.append(v)
         _steps.pop(id(v.result))
 
-    if len(res.children) > n and not n:
+    res.children.extend(op.children)
+    if len(res.children) > len(op.children) and not op.children:
         res.children.append(op)
     if not res.changed and not res.children:
-        return expr if default else None
+        return
     return res
+
+
+def explain(
+    expr, default=True, maxdepth: int = None, adaptive=True
+) -> Step | None | Any:
+    if not (res := _explain(expr)):
+        return expr if default else None
+    if maxdepth is None:
+        return res
+
+    def dfs(step: Step, depth):
+        # if not step.children:
+        #     return step
+        if depth == 0:
+            res = copy(step)
+            res.children = []
+            return res
+        res = copy(step)
+        res.children = [dfs(i, depth - 1) for i in step.children]
+        return res
+
+    return dfs(res, maxdepth)
 
 
 _steps: dict[int, Step] = {}
 _verbose: bool = False
-_curr_hist = ContextVar("_curr_hist", default=None)
 
-
-__all__ = ["Step"]
+__all__ = ["Step", "verbose", "set_verbosity", "explain"]

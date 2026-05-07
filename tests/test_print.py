@@ -53,32 +53,32 @@ def test_print_radical():
     assert str(Const(2, 3) * Var("x") ** Const(-1, 3)) == "2/(3(³√x))"
     assert str((Const(7, 2) * Var("q") ** Const(1, 3))) == "7(³√q)/2"
     assert str(Const(1, 5) * Var("r") ** Const(2, 3)) == "(³√r²)/5"
-    assert str(parser.eval("(x + c)^0.5")) == "√(c + x)"
-    assert str(parser.eval("-1(x + c)^0.5")) == "-√(c + x)"
-    assert str(parser.eval("2(x + c)^0.5")) == "2√(c + x)"
-    assert str(parser.eval("-2(x + c)^0.5")) == "-2√(c + x)"
-    assert str(parser.eval("5^(1/3) / 2")) == "(³√5)/2"
-    assert str(parser.eval("2 * 5^0.5 / 3")) == "2√5/3"
+    assert str(parser.parse("(x + c)^0.5")) == "√(c + x)"
+    assert str(parser.parse("-1(x + c)^0.5")) == "-√(c + x)"
+    assert str(parser.parse("2(x + c)^0.5")) == "2√(c + x)"
+    assert str(parser.parse("-2(x + c)^0.5")) == "-2√(c + x)"
+    assert str(parser.parse("5^(1/3) / 2")) == "(³√5)/2"
+    assert str(parser.parse("2 * 5^0.5 / 3")) == "2√5/3"
 
 
 def test_print_add():
-    assert str(parser.eval("x+1")) == "x + 1"
-    assert str(parser.eval("47-600x")) == "-600x + 47"
-    assert str(parser.eval("1600+3x^3+y-12y^2")) == "3x³ - 12y² + y + 1600"
-    assert str(parser.eval("x^2+3x+1")) == "x² + 3x + 1"
-    # assert str(parser.eval("3x+(3/(c+b))-1")) == "(3x - 1 + 3/(c + b))"
+    assert str(parser.parse("x+1")) == "x + 1"
+    assert str(parser.parse("47-600x")) == "-600x + 47"
+    assert str(parser.parse("1600+3x^3+y-12y^2")) == "3x³ - 12y² + y + 1600"
+    assert str(parser.parse("x^2+3x+1")) == "x² + 3x + 1"
+    # assert str(parser.parse("3x+(3/(c+b))-1")) == "(3x - 1 + 3/(c + b))"
 
 
 def test_print_mul():
-    assert str(parser.eval("-2xb")) == "-2bx"
-    assert str(parser.eval("x^3*y^-5")) == "x³/y⁵"
-    assert str(parser.eval("-10(m^-1*n^-1)")) == "-10/(mn)"
-    assert str(parser.eval("(-2/3)(y^2n^-1)")) == "-2y²/(3n)"
-    assert str(parser.eval("n/a - 5/4a")) == "(4n - 5)/(4a)"
-    assert str(parser.eval("s^3*d^-5*z^2/3")) == "z²s³/(3d⁵)"
+    assert str(parser.parse("-2xb")) == "-2bx"
+    assert str(parser.parse("x^3*y^-5")) == "x³/y⁵"
+    assert str(parser.parse("-10(m^-1*n^-1)")) == "-10/(mn)"
+    assert str(parser.parse("(-2/3)(y^2n^-1)")) == "-2y²/(3n)"
+    assert str(parser.parse("n/a - 5/4a")) == "(4n - 5)/(4a)"
+    assert str(parser.parse("s^3*d^-5*z^2/3")) == "z²s³/(3d⁵)"
 
-    assert str(parser.eval("x^2*(x+2)yb^2")) == "yb²x²(x + 2)"
-    assert str(parser.eval("x(y+5)(x+2)^2")) == "x(y + 5)(x + 2)²"
+    assert str(parser.parse("x^2*(x+2)yb^2")) == "yb²x²(x + 2)"
+    assert str(parser.parse("x(y+5)(x+2)^2")) == "x(y + 5)(x + 2)²"
 
 
 def test_print_comparison():

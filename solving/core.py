@@ -4,8 +4,8 @@ import math
 from itertools import product
 
 from datatypes.base import Node
-from utils import steps
-from utils.steps import *
+import utils.steps as steps
+from utils.steps import Step
 from .utils import domain_restriction, get_vars
 
 from .interval import Interval, INF
@@ -113,7 +113,7 @@ def test_intervals(
     else:
         res = IntervalUnion(valid)
     if verbose:
-        if len(inner)==1:
+        if len(inner) == 1:
             steps.register(inner.pop(), reason="Testing interval")
         else:
             steps.register(

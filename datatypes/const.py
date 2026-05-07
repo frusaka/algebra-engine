@@ -376,7 +376,7 @@ class Float(Number):
         return complex(self._val)
 
     def __eq__(a, b: Any) -> bool:
-        if not isinstance(b, (Const, int, Float)):
+        if not isinstance(b, (Const, int, Float, float)):
             return False
         if isinstance(b, Float):
             b = b._val

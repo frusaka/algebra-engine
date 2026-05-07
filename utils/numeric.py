@@ -4,9 +4,7 @@ from typing import TYPE_CHECKING
 
 from math import gcd
 from collections import defaultdict
-
-import datatypes.nodes as nodes
-
+from . import nodes
 
 if TYPE_CHECKING:
     from datatypes.nodes import *

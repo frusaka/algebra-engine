@@ -12,55 +12,11 @@ from .system import System
 # from datatypes import nodes
 from datatypes.base import Collection, Node
 from datatypes.nodes import *
-from utils.steps import *
-from utils import steps
+from utils.steps import Step
+import utils.steps as steps
 
 import utils
-from .utils import difficulty_weight, nth_roots, roots, compute_grobner
-
-
-def rewrite_radicals(expr, value):
-
-    system = []
-    counter = []
-    cache = {}
-
-    def vars():
-        i = 0
-        while True:
-            yield Var(f"r{i}")
-            i += 1
-
-    def visit(node):
-        if node in cache:
-            return cache[node]
-
-        if node.__class__ is Pow and value in node:
-            sub = visit(node.base) ** node.exp.numerator
-            if node.exp.denominator != 1:
-                var = next(vars)
-                cache[node] = var
-                counter.append(var)
-                system.append(Comparison(var**node.exp.denominator, sub))
-                return var
-            cache[node] = sub
-            return sub
-
-        elif isinstance(node, Collection):
-            return node.from_terms(map(visit, node.args))
-        return node
-
-    vars = vars()
-    final_expr = visit(expr)
-    if not system:
-        return
-
-    def key(t):
-        v = difficulty_weight(t.left, value)
-        return (bool(v[1]), *v)
-
-    system.append(Comparison(final_expr, Const(0)))
-    return min(compute_grobner(system, counter + [value], False), key=key)
+from .utils import nth_roots, roots, eliminate_radicals
 
 
 def simple_isolate_radical(comp, value):
@@ -158,8 +114,8 @@ class Comparison:
         org = self
         while True:
             # If input expression was simplified, double steps.register
-            if self is not org:
-                steps.register(self)
+            # if self is not org:
+            steps.register(self)
             if self.__class__ is not Comparison:
                 return self.solve_for(value)
             # Rewrite the comparison to put the target variable on the left
@@ -252,8 +208,9 @@ class Comparison:
         return res
 
     def __truediv__(self, value: Node) -> Comparison:
+        lhs = Mul(*set(Mul.flatten(self.left)) ^ set(Mul.flatten(value)))
         if not steps.verbose():
-            return Comparison(self.left / value, self.right / value, self.rel)
+            return Comparison(lhs, self.right / value, self.rel)
         if value.as_ratio()[1] == 1:
             title = "Divide both sides"
             lhs, rhs = self.left / value, self.right / value
@@ -261,9 +218,13 @@ class Comparison:
             title = "Multiply both sides"
             value = Pow(value, Const(-1))
             lhs, rhs = self.left * value, self.right * value
-        # if type(lhs) is Mul and lhs.args[0] == 1:
-        #     lhs = Mul(*lhs.args[0:])
-        res = Comparison(copy(lhs), copy(rhs), self.rel)
+        if type(lhs) is Mul and lhs.args[0] == 1:
+            lhs = Mul(*lhs.args[1:])
+        res = Comparison(
+            Mul(*set(Mul.flatten(self.left)) ^ set(Mul.flatten(value))),
+            copy(rhs),
+            self.rel,
+        )
         step = Step("HIDDEN", None, res, reason=title, changed=res != self)
         with steps.scoped(step.children):
             steps.register(lhs)
@@ -306,13 +267,15 @@ class Comparison:
                 remove.append(t)
         if remove:
             self -= Add.from_terms(remove, 0)
+            steps.register(self, False, f"Move {value}'s to lhs")
         return self
 
     def handle_exponents(self, value: Var) -> Comparison:
         self = simple_isolate_radical(self, value)
-        rad = rewrite_radicals(self.left - self.right, value)
+        rad = eliminate_radicals(self.left - self.right, value)
         if rad is not None:
-            return rad
+            # steps.register(rad, False, "Eliminate radicals")
+            return Comparison(rad, Const(0), self.rel)
         if (
             exp := math.gcd(
                 *(

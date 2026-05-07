@@ -4,8 +4,7 @@ from itertools import accumulate
 import math
 from typing import TYPE_CHECKING, Sequence
 from .analysis import lru_cache
-
-from datatypes import nodes
+from . import nodes
 
 if TYPE_CHECKING:
     from datatypes.base import Node

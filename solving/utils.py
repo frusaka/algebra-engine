@@ -4,11 +4,12 @@ import math
 import functools
 
 import utils
+import utils.steps as steps
 
 from .groebner import buchberger
 
 
-from datatypes.base import Node
+from datatypes.base import Node, Collection
 from datatypes.nodes import *
 
 if TYPE_CHECKING:
@@ -94,6 +95,7 @@ def get_vars(expr):
     return set()
 
 
+@steps.tracked("groebner")
 def compute_grobner(
     eqns: Iterable[Comparison], vars: list[Var], sort_vars=True
 ) -> set[Comparison]:
@@ -103,8 +105,54 @@ def compute_grobner(
         eqns = arrange_eqns(eqns, vars)
         eqns = sorted(eqns, key=eqns.get)
         vars.reverse()
-    G = buchberger([eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns], vars)
-    return [Comparison(t, Const(0)) for t in G]
+    exprs = [eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns]
+    G = buchberger([eliminate_radicals(expr, *vars) or expr for expr in exprs], vars)
+    return {Comparison(t, Const(0)) for t in G}
+
+
+def eliminate_radicals(expr, *value):
+
+    system = []
+    counter = []
+    cache = {}
+
+    def vars():
+        i = 0
+        while True:
+            yield Var(f"r{i}")
+            i += 1
+
+    def visit(node):
+        if node in cache:
+            return cache[node]
+
+        if node.__class__ is Pow and any(v in node for v in value):
+            sub = visit(node.base) ** node.exp.numerator
+            if node.exp.denominator != 1:
+                var = next(vars)
+                cache[node] = var
+                counter.append(var)
+                system.append(var**node.exp.denominator - sub)
+                return var
+            cache[node] = sub
+            return sub
+
+        elif isinstance(node, Collection):
+            return node.from_terms(map(visit, node.args))
+        return node
+
+    vars = vars()
+    final_expr = visit(expr)
+    if not system:
+        return
+    system.append(final_expr)
+    return next(
+        (
+            expr
+            for expr in buchberger(system, counter + [value])
+            if not any(v in expr for v in counter)
+        )
+    )
 
 
 @utils.lru_cache
@@ -219,5 +267,6 @@ __all__ = [
     "arrange_eqn",
     "domain_restriction",
     "difficulty_weight",
+    "eliminate_radicals",
     "roots",
 ]

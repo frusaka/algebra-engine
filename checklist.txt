@@ -9,3 +9,4 @@
 8. Make solver expand before doing the `rewrite_radicals` trick
 9. Create a toggle for groebner basis, implement solving by elimination
 10. Add support for exponential equations
+[sqrt(x+y)+sqrt(x-y)=6, x^2-y^2=80]

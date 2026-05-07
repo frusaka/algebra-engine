@@ -4,9 +4,6 @@ from typing import Iterable, TYPE_CHECKING
 import math
 import itertools
 from collections import defaultdict
-from functools import lru_cache, reduce
-
-from utils import steps
 
 from .base import Node, Collection
 from . import nodes
@@ -120,10 +117,14 @@ class Add(Collection):
         return (a.multiply(n), d)
 
     def _expand(self) -> Node:
-        return Add.from_terms(node.expand() for node in self)
+        return Add.from_terms(node._expand() for node in self)
 
     def cancel_gcd(self, normalize=True) -> tuple[Node, Add]:
-        den = math.lcm(*(i.canonical()[0].denominator for i in self))
+        n = [i.canonical()[0] for i in self]
+        if any(i.__class__ is nodes.Float for i in n):
+            den = 1
+        else:
+            den = math.lcm(*(i.denominator for i in n))
         if (
             # normalize and
             utils.is_polynomial(self)

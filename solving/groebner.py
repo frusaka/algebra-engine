@@ -23,7 +23,7 @@ def leading(f: Add, vars):
 def spolynomial(f: Add, g: Add, vars):
     lt_f = leading(f, vars)
     lt_g = leading(g, vars)
-    lcm = utils.lcm(lt_f.canonical()[1] or 1, lt_g.canonical()[1] or 1)
+    lcm = utils.lcm(lt_f, lt_g)
     return g.multiply(lcm / lt_g) - f.multiply(lcm / lt_f)
 
 
@@ -36,7 +36,7 @@ def reduce(f, G, vars):
                 break
             a += b.multiply(-fac)
             q.append(fac)
-        return nodes.Add(*q), a
+        return q, a
 
     r = f
     while r:
@@ -50,37 +50,40 @@ def reduce(f, G, vars):
                 break  # Restart with updated r
         if not divided:
             break
-    return r
+    return r.as_ratio()[0]
 
 
 def buchberger(G: list[Add], vars: list[Var]) -> list[Add | Node]:
+    # print(G)
     G = G.copy()
-    pairs = list(itertools.combinations(range(len(G)), 2))
-
+    pairs = list(itertools.combinations(G, 2))
+    # idx = 1
     while pairs:
-        i, j = pairs.pop(0)
-        S = spolynomial(G[i], G[j], vars)
-        R = reduce(S, G, vars)
-        if R:
-            # Inconsistent?
-            if R.__class__ is Const:
-                return []
-            G.append(R)
-            new_idx = len(G) - 1
-            for k in range(new_idx):
-                pairs.append((k, new_idx))
-
-    reduced = []
-    for f in G:
-        r = reduce(f, reduced, vars)
-        if not r:
+        f, g = pairs.pop(0)
+        # idx += 1
+        if utils.get_vars(f).isdisjoint(utils.get_vars(g)):
             continue
-        r = r.as_ratio()[0]
-        if r.__class__ is nodes.Add and (g := utils.gcd(*r).canonical()[0]) > 1:
-            reduced.append(r / g)
-        else:
-            reduced.append(r)
-    return reduced
+        # print(f"index {idx}: ({f}, {g}), remaining: {len(pairs)}, G: {len(G)}")
+        # print("Reducing: ")
+        h = reduce(spolynomial(f, g, vars), G, vars)
+        # print(f"Done! {h}")
+        if not h:
+            continue
+        # Inconsistent?
+        if h.__class__ is Const:
+            return []
+        pairs.extend((h, g) for g in G)
+        G.append(h)
+    # print(G)
+    minimal = []
+    for g in G:
+        if r := reduce(g, minimal, vars):
+            minimal.append(r)
+    return [
+        r for f in minimal if (r := reduce(f, [g for g in minimal if g is not f], vars))
+    ]
+    print("Groebner:", res)
+    return res
 
 
 __all__ = ["buchberger"]

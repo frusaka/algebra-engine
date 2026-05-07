@@ -100,9 +100,9 @@ class Pow(Node):
 
     def _expand(self) -> Node:
         if self.exp.canonical()[0].is_neg():
-            return Pow(Pow(self.base, -self.exp).expand(), nodes.Const(-1))
-        base = self.base.expand()
-        exp = self.exp.expand()
+            return Pow(Pow(self.base, -self.exp)._expand(), nodes.Const(-1))
+        base = self.base._expand()
+        exp = self.exp._expand()
         if (
             base.__class__ is nodes.Add
             and exp.__class__ is nodes.Const

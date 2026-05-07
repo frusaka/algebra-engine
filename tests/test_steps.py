@@ -2,7 +2,7 @@ import pytest
 import gc
 from parsing import parser
 from datatypes import *
-from utils import steps
+from utils.steps import step as steps
 from utils import clear_all_caches
 
 
@@ -28,32 +28,32 @@ def set_up_and_teardown():
 
 def test_verborsity_toggle():
     steps.set_verbosity(False)
-    expr = parser.eval("3+2-5")
+    expr = parser.parse("3+2-5")
     assert not steps._steps
     steps.set_verbosity(True)
-    expr = parser.eval("3+2-5")
+    expr = parser.parse("3+2-5")
     assert steps._steps
 
 
 def test_autodelete():
-    parser.eval("3+2-5")
+    parser.parse("3+2-5")
     clear()
     assert not steps._steps
 
-    expr1 = parser.eval("3+x/(x+2)+1")
+    expr1 = parser.parse("3+x/(x+2)+1")
     clear()
     assert steps._steps
     del expr1
     assert not steps._steps
 
-    eqn1 = parser.eval("3x^2-5=11")
+    eqn1 = parser.parse("3x^2-5=11")
     assert steps.explain(eqn1, False) is not None
     clear()
     assert steps.explain(eqn1, False) is not None
     del eqn1
     assert not steps._steps
 
-    expr = parser.eval("factor(expand((a^4-b^4)(3x-4b+1)))")
+    expr = parser.parse("factor(expand((a^4-b^4)(3x-4b)))")
     assert steps._steps
     assert steps.explain(expr, False) is not None
     clear()
@@ -62,8 +62,8 @@ def test_autodelete():
     assert not steps._steps
 
     # Multiple expressions stored
-    expr1 = parser.eval("factor(x^2-5+1)-3x+5")
-    expr2 = parser.eval("1+1+1+1-5")
+    expr1 = parser.parse("factor(x^2-5+1)-3x+5")
+    expr2 = parser.parse("1+1+1+1-5")
     n = len(steps._steps)
     assert n
     clear()
@@ -82,12 +82,12 @@ def test_autodelete():
         "1+1+1+1-5",
         "factor(expand((a^4-b^4)(x^3-5-3)^2))",
         "-3x^2 + 12x - 9 = 0",
-        # "x-sqrt(x)/2>=0",
+        "x-sqrt(x)/2>=0",
         "[x^2 + y^2 = 25, x^2 - 9 = y^2 - 2]",
     ],
 )
 def test_keeps_substeps(expr):
-    expr = parser.eval(expr)
+    expr = parser.parse(expr)
     clear()
     assert steps._steps
     hist = steps.explain(expr, False)

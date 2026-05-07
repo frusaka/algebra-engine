@@ -10,8 +10,6 @@ from .tokens import FUNCTIONS, Token, TokenType
 from .lexer import Lexer
 from utils.constants import SYMBOLS
 
-_eval = eval
-
 
 def validate(func, *args, call=True):
     def check_type(value, expected):
@@ -19,7 +17,7 @@ def validate(func, *args, call=True):
         # Plain type
         if origin is None:
             if isinstance(expected, str):
-                return isinstance(value, _eval(expected))
+                return isinstance(value, eval(expected))
             return isinstance(value, expected)
 
         # Union (typing.Union or | syntax)
@@ -271,7 +269,7 @@ class Parser:
         return res
 
 
-def eval(expr: str, autosolve: bool = True) -> Node:
+def parse(expr: str, autosolve: bool = True) -> Node:
     return Parser(Lexer(expr).tokenize()).parse(autosolve)
 
 

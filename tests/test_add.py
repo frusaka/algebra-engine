@@ -21,11 +21,11 @@ def test_divide_polynomial():
         Const(5, 2), (x + 6) ** -1
     )
     assert (
-        parser.eval("(0.3x^2 + 2.4x + 4.5) / (0.2x^3 + 0.6x^2 - 5x - 15)").factor()
+        parser.parse("(0.3x^2 + 2.4x + 4.5) / (0.2x^3 + 0.6x^2 - 5x - 15)").factor()
         == Const(3, 2) * (x - 5) ** -1
     )
 
-    assert parser.eval(
+    assert parser.parse(
         "(x^2 + 0.4x - 7.8) / (x^3 - 8.2x^2 + 22.36x - 20.28)"
     ).factor() == Mul(
         Const(5),
@@ -38,8 +38,8 @@ def test_divide_polynomial():
 
     # Division with Remainder : Engine no longer outputs mixed Adds
     # Coming back soon
-    # assert parser.eval("(-6x^2 + 2x + 20)/(2-2x)")
-    # assert parser.eval("(4x^2 - 17.64) / (2x - 4)")
+    # assert parser.parse("(-6x^2 + 2x + 20)/(2-2x)")
+    # assert parser.parse("(4x^2 - 17.64) / (2x - 4)")
     assert (((x - 3) * (x + 5) + (x - 3)) / ((x - 3) * (x + 5))).factor() == Mul(
         x + 6, Pow(x + 5, Const(-1))
     )
@@ -55,7 +55,7 @@ def test_divide_multivariate():
     assert ((3 * a + 3 * b) / (a + b)) == 3
     assert ((a**3 + b**3) / (a + b)).factor() == Add(b**2, a**2, Mul(Const(-1), a, b))
 
-    assert parser.eval("(-3.75c^2 + 18ab + 4.5abc - 15c)/(3+0.75c)").factor() == Add(
+    assert parser.parse("(-3.75c^2 + 18ab + 4.5abc - 15c)/(3+0.75c)").factor() == Add(
         6 * a * b, -5 * c
     )
 
@@ -88,9 +88,9 @@ def test_multiply_polynomial():
 
     # Consinstency regardless of the order
     expected = Add(3 * x * y, -4 * y)
-    assert parser.eval("(x+2)^-1(3x-4)(xy+2y)").expand() == expected
-    assert parser.eval("(3x-4)(x+2)^-1(xy+2y)").expand() == expected
-    assert parser.eval("(xy+2y)(3x-4)(x+2)^-1").expand() == expected
+    assert parser.parse("(x+2)^-1(3x-4)(xy+2y)").expand() == expected
+    assert parser.parse("(3x-4)(x+2)^-1(xy+2y)").expand() == expected
+    assert parser.parse("(xy+2y)(3x-4)(x+2)^-1").expand() == expected
 
 
 def test_multiply_rationals():

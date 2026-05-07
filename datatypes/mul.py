@@ -162,13 +162,11 @@ class Mul(Collection):
         #     print("mul", res)
         return res or [nodes.Const(1)]
 
-    def _simplify(self) -> Node:
-        return Mul.from_terms(i.factor() for i in self.args)
 
     def _expand(self) -> Node:
         num, den = self.as_ratio()
-        num = reduce(Node.multiply, (num.expand() for num in Mul.flatten(num)))
-        den = reduce(Node.multiply, (den.expand() for den in Mul.flatten(den)))
+        num = reduce(Node.multiply, (num._expand() for num in Mul.flatten(num)))
+        den = reduce(Node.multiply, (den._expand() for den in Mul.flatten(den)))
         if den == 1:
             return num
         if den.__class__ is nodes.Add:

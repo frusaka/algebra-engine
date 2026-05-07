@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from copy import copy
 import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from functools import partial, reduce
+import operator
 import utils
 from utils.steps import Step
 from utils import steps
@@ -128,27 +130,20 @@ class Node:
 
     @steps.tracked()
     def subs(self, mapping: dict[Node]) -> Node:
-        # @lru_cache
-        def _subs(n):
-            if isinstance(n, nodes.Number):
-                return n
-            if (v := mapping.get(n, None)) is not None:
-                steps.register(Step("", n, v))
-                return v
-            if type(n) is nodes.Var:
-                return n
-            if type(n) is nodes.Pow:
-                res = _subs(n.base) ** _subs(n.exp)
-                steps.register(res)
-                return res
+        if isinstance(self, nodes.Number):
+            return self
+        if (v := mapping.get(self, None)) is not None:
+            return copy(v)
+        if type(self) is nodes.Var:
+            return self
+        if type(self) is nodes.Pow:
+            return self.base.subs(mapping) ** self.exp.subs(mapping)
 
-            args = [_subs(i) for i in n]
-            op = Node.__add__ if type(n) is nodes.Add else Node.__mul__
-            res = reduce(op, args)
-            steps.register(res)
-            return res
-
-        return _subs(self)
+        args = [i.subs(mapping) for i in self]
+        op = Node.__add__ if type(self) is nodes.Add else Node.__mul__
+        return reduce(op, args)
+        steps.register(res)
+        return res
 
     @subs.check_changed
     def _(result, args):
@@ -232,8 +227,10 @@ class Collection(ABC, Node):
         pass
 
     def _approx(self) -> float | complex:
-        op = self.__class__.__name__.lower().join(("__", "__"))
-        return reduce(lambda a, b: getattr(a, op)(b), (i._approx() for i in self))
+        return reduce(
+            getattr(operator, self.__class__.__name__.lower()),
+            (i._approx() for i in self),
+        )
 
 
 __all__ = ["Node", "Collection"]

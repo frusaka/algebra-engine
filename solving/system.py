@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from copy import copy
 from itertools import chain
-from typing import Sequence
+from typing import Iterable
 
 
 from datatypes.base import Node
-from utils import steps
-from utils.steps import *
+import utils.steps as steps
+from utils.steps import Step
 
 
 from datatypes import *
@@ -143,13 +143,19 @@ def _foreach_solve(eqns, value):
 class System(frozenset):
     """A system of equations"""
 
-    def solve_for(self, vals: Sequence[Var], groebner=False) -> System:
+    def solve_for(self, vals: Iterable[Var], groebner=True) -> System:
         if vals.__class__ is Var:
             return System(_foreach_solve(self, vals))
         if groebner:
-            eqns = set(compute_grobner(self, list(vals)))
+            vals = list(vals)
+            eqns = compute_grobner(self, vals)
             if not eqns:
                 return System(eqns)
+            assert len(eqns) <= len(
+                self
+            ), "Groebner basis should not be larger than original system"
+            steps.register(eqns, reason="Compute Groebner")
+            eqns = set(eqns)
         else:
             eqns = set(self)
         vals = list(vals)

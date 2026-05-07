@@ -7,7 +7,7 @@ def test_invalid():
     # Uses for-loop to avoid inflating test count
     for expr in ["9+", "-4+", "3()", "(()", ")", "()^2", "()()", "j6"]:
         with pytest.raises(SyntaxError):
-            parser.eval(expr)
+            parser.parse(expr)
 
 
 def test_spaced_numbers():
@@ -249,10 +249,10 @@ def test_system():
     )
 
     with pytest.raises(ValueError):
-        parser.eval("[x=3, x=3]")
+        parser.parse("[x=3, x=3]")
 
     with pytest.raises(ValueError):
-        parser.eval("[x>3, y=5]")
+        parser.parse("[x>3, y=5]")
 
     with pytest.raises(SyntaxError):
-        parser.eval("[x=3,]")
+        parser.parse("[x=3,]")

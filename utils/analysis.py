@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, ParamSpec, TypeVar
 
 from functools import lru_cache as cache
-
+from . import nodes
 
 if TYPE_CHECKING:
     from datatypes.base import Node
@@ -11,8 +11,6 @@ if TYPE_CHECKING:
 
 
 def mult_key(v: Node, exp=False):
-    from datatypes import nodes
-
     match v.__class__.__name__:
         case "Const" | "Float":
             if exp:
@@ -37,7 +35,6 @@ def get_vars(node: Node) -> set[Var]:
     Only goes up to depth 1:
         meaning if some variables are deeply nested, they are skipped
     """
-    from datatypes import nodes
 
     return set(
         mult_key(v)
@@ -48,9 +45,12 @@ def get_vars(node: Node) -> set[Var]:
 
 
 CACHED_FUNCS = []
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
-def lru_cache(func):
+def lru_cache(func: Callable[P, R]) -> Callable[P, R]:
+    # For testing purposes
     func = cache(func)
     CACHED_FUNCS.append(func)
     return func

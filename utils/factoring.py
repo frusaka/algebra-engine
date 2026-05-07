@@ -8,7 +8,7 @@ from itertools import chain, product
 from functools import reduce
 from operator import itemgetter
 
-from datatypes import nodes
+from . import nodes
 from . import steps
 
 from .numeric import primes
@@ -78,9 +78,9 @@ def gcd(*args: Node, light=False, rational=True) -> Node:
     args = set(args)
     if len(args) == 0:
         raise ValueError("gcd() requires at least one argument")
-    if not light:
-        args = {i.expand() for i in args}
-        [steps.register(arg) for arg in args]
+    # if not light:
+    #     args = {i.expand() for i in args}
+    #     [steps.register(arg) for arg in args]
     if len(args) == 1:
         return args.pop()
     # Find factor by traversing the node tree
@@ -145,9 +145,9 @@ def lcm(*args: Node, light=False, rational=True) -> Node:
     args = set(args)  # remove duplicates
     if len(args) == 0:
         raise ValueError("lcm() requires at least one argument")
-    if not light:
-        args = {i.expand() for i in args}
-        [steps.register(arg) for arg in args]
+    # if not light:
+    #     args = {i.expand() for i in args}
+    #     [steps.register(arg) for arg in args]
     if len(args) == 1:
         return args.pop()
     if light or not all(is_polynomial(i) and i.__class__ is nodes.Add for i in args):
@@ -287,6 +287,8 @@ def factor(node: Node) -> Node:
                 continue
             res = nodes.Mul.from_terms(rebuild(v, i) for i in res)
             if finalize and vars_dict:
+                if type(res) is nodes.Add:
+                    return
                 return res.subs({k: v.subs(vars_dict) for k, v in vars_dict.items()})
             return res
 
