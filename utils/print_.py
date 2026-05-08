@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 import re
 
@@ -62,7 +62,20 @@ def superscript(n: int):
     return str(n).translate(str.maketrans("0123456789+-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"))
 
 
-def print_system(equations: list[str]):
+def subscript(n: int):
+    return str(n).translate(str.maketrans("0123456789+-", "₀₁₂₃₄₅₆₇₈₉₊₋"))
+
+
+def print_system(equations: Iterable[Comparison]) -> str:
+    equations = list(equations)
+    lpad = max(len(str(eqn.left)) for eqn in equations)
+    rpad = max(len(str(eqn.right)) for eqn in equations)
+    equations = [
+        " " * (lpad - len(str(eqn.left)))
+        + str(eqn)
+        + " " * (rpad - len(str(eqn.right)))
+        for eqn in sorted(equations, key=lambda eqn: str(eqn.left))
+    ]
     res = "\n⎧ " + equations[0]
     for eq in equations[1:-1]:
         res += "\n⎪ " + eq

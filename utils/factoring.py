@@ -21,6 +21,8 @@ from .polynomial import (
     synthetic_divide,
 )
 
+from .print_ import subscript
+
 if TYPE_CHECKING:
     from datatypes.nodes import *
     from datatypes.base import Node
@@ -139,6 +141,9 @@ def gcd(*args: Node, light=False, rational=True) -> Node:
     return a.cancel_gcd()[1].multiply(c)
 
 
+# gcd.check_changed(lambda res, args: res != 1 and res not in args)
+
+
 @steps.tracked()
 def lcm(*args: Node, light=False, rational=True) -> Node:
     """Lowest Common Multiple"""
@@ -155,11 +160,15 @@ def lcm(*args: Node, light=False, rational=True) -> Node:
         while args:
             b = args.pop()
             res = res * b / gcd(res, b)
+            if args:
+                steps.register(res)
         return res
     res = args.pop()
     while args:
         b = args.pop()
-        res = cancel_factors(res.multiply(b), gcd(res, b))
+        res = res.multiply(b).divide(gcd(res, b))
+        if args:
+            steps.register(res)
     return res
 
 
@@ -267,7 +276,7 @@ def factor(node: Node) -> Node:
                 if v.__class__ is nodes.Var:
                     res = v
                 else:
-                    res = nodes.Var(f"r{prev}")
+                    res = nodes.Var(f"r" + subscript(prev))
                     vars_dict[res] = v
                     prev += 1
             out *= res**e

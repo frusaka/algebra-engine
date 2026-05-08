@@ -196,7 +196,7 @@ def test_solve_edge():
     # Extraneous solutions
     assert parser.parse("2x - x^0.5 = 6").right == 4
     # Requiring numeric approximation verification
-    assert parser.parse("(2x+3)^0.5+(x-1)^0.5=4").right == 44 - 24 * Const(3) ** 0.5
+    assert parser.parse("sqrt(2x + 3) + sqrt(x-1) = 4").right == 44 - 24 * Const(3) ** 0.5
 
     # Infinite Solutions
     assert parser.parse("solve(0x = 0, x)").right == INF

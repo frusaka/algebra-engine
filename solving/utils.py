@@ -107,6 +107,7 @@ def compute_grobner(
         vars.reverse()
     exprs = [eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns]
     G = buchberger([eliminate_radicals(expr, *vars) or expr for expr in exprs], vars)
+    [steps.register(g) for g in G]
     return {Comparison(t, Const(0)) for t in G}
 
 
@@ -119,7 +120,7 @@ def eliminate_radicals(expr, *value):
     def vars():
         i = 0
         while True:
-            yield Var(f"r{i}")
+            yield Var(f"r" + utils.subscript(i))
             i += 1
 
     def visit(node):

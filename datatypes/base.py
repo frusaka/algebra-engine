@@ -149,6 +149,11 @@ class Node:
     def _(result, args):
         return result != args[0]
 
+    def _approx(self) -> float | complex:
+        raise NotImplementedError(
+            f"Approximation not implemented for {type(self).__name__}"
+        )
+
     @steps.tracked("approximate")
     def approx(self) -> Float:
         return nodes.Float(self._approx())

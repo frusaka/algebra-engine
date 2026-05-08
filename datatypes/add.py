@@ -5,6 +5,8 @@ import math
 import itertools
 from collections import defaultdict
 
+from utils import steps
+
 from .base import Node, Collection
 from . import nodes
 import utils
@@ -139,10 +141,12 @@ class Add(Collection):
             return gcd, self
         return gcd / den, self.multiply(gcd**-1)
 
-    # @steps.tracked("DIV")
+    @steps.tracked("DIV")
     def divide(self, b: Add) -> Node:
         if self == b:
             return nodes.Const(1)
+        # if b == 1:
+        #     return self
         if not (
             utils.is_polynomial(self) and utils.is_polynomial(b) and b.__class__ is Add
         ):
@@ -150,11 +154,19 @@ class Add(Collection):
             return nodes.Mul(self, nodes.Pow(b, nodes.Const(-1)))
         return utils.cancel_factors(self, b)
 
-    # @steps.tracked("distribute")
+    divide.check_changed(Node.__mul__._is_simplified)
+
+    @steps.tracked("MUL", label="Distribute")
     def multiply(self, b: Node) -> Add:
+        # if b == 1:
+        #     return self
+        # if b == 0:
+        #     return b
         if b.__class__ is nodes.Add:
             return Add.from_terms(i * j for i in self for j in b)
         return Add.from_terms(i * b for i in self)
+
+    multiply.check_changed(Node.__mul__._is_simplified)
 
     def totex(self):
         res = ""

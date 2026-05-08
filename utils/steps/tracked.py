@@ -8,7 +8,7 @@ from functools import update_wrapper
 from typing import Any, Callable, TypeVar, ParamSpec, Generic
 
 import types
-from . import step
+from . import step as steps
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -24,33 +24,32 @@ def scoped(scope: list):
 
 
 def register(
-    value: step.Step | Any, scoped=True, reason=None, deduplicate=True
+    step: steps.Step | Any, scoped=True, reason=None, deduplicate=True, scope=None
 ) -> None:
-    if not step._verbose or scoped and _curr_hist.get() is None:
+    if not steps._verbose or scoped and _curr_hist.get() is None:
         return
-    if type(value) is not step.Step:
-        value = step._explain(value)
-        # value = step._steps.get(id(value), None)
-        if value:
-            if not value.changed and not value.children:
+    if type(step) is not steps.Step:
+        step = steps._explain(step)
+        # step = steps._steps.get(id(step), None)
+        if step:
+            if not step.changed and not step.children:
                 return
-    if value is None:
+    if step is None:
         return
     if reason is not None:
-        value.reason = reason
+        step.reason = reason
 
-    if scoped:
-        if (ctx := _curr_hist.get()) is None:
-            return
-        if value.changed or value.children:
-            ctx.append(value)
-        if value.result is not None:
-            value.force_keep()
+    ctx = scope if scope is not None else _curr_hist.get()
+    if scoped and ctx is not None:
+        if step.changed or step.children:
+            ctx.append(step)
+            if step.result is not None:
+                step.force_keep()
         # To be revised
-        if deduplicate and (idx := id(value.result)) in step._steps:
-            step._steps.pop(idx)
+        if deduplicate and (idx := id(step.result)) in steps._steps:
+            steps._steps.pop(idx)
     else:
-        step._steps[id(value.result)] = value
+        steps._steps[id(step.result)] = step
 
 
 class Tracked(Generic[P, R]):
@@ -74,16 +73,24 @@ class Tracked(Generic[P, R]):
         return types.MethodType(self, instance)
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
-        if not step._verbose:
+        if not steps._verbose:
             return self.func(*args, **kwargs)
+        scope = _curr_hist.get()
         with scoped(history := []):
-            result = self.func(*args, **kwargs)
-            if (v := step._steps.get(id(result))) and v.changed:
-                register(result)
+            try:
+                result = self.func(*args, **kwargs)
+                if steps._steps.get(id(result)):
+                    register(result)
+            except Exception as e:
+                step = steps.Step(self.id, args, e, self.label, history)
+                steps._steps[id(e)] = step
+                if scope is not None:
+                    register(e, scope=scope)
+                raise
         if len(args) == 1 and result == args[0]:
             return args[0]
         result = copy(result)
-        step._steps[id(result)] = step.Step(
+        steps._steps[id(result)] = steps.Step(
             self.id,
             args,
             result,

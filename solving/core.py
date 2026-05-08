@@ -206,38 +206,27 @@ def evaluate_domain(var: Var, org: Comparison) -> Interval | IntervalUnion:
 
 
 def validate_roots(roots: Iterable[Node]) -> set[Node]:
-    try:
-        return set(i for i in roots if not i.approx().imag)
-    except AttributeError:
-        raise ValueError("roots contain variables")
+    return set(i for i in roots if not i.approx().imag)
 
 
 def validate_solution(
     org: System | Comparison, sol: System | Comparison, mapping: dict, verbose=True
 ) -> bool:
-    res = 1
+    res = True
     inner = []
-    try:
-        with steps.scoped(inner):
+    with steps.scoped(inner):
+        try:
             v = org.subs(mapping).expand() if mapping else sol
             steps.register(v)
-            if not (v):
-                if v := v.is_close():
-                    res = 2
-                else:
-                    res = 0
+            if not v:
+                if not (v := v.is_close()):
+                    # raise AssertionError("Solution does not satisfy the equation")
+                    res = False
                 steps.register(v)
-    except:
-        res = 0
+        except:
+            res = False
     if verbose:
-        steps.register(
-            Step(
-                "VERIFY",
-                sol,
-                res,
-                children=inner,
-            )
-        )
+        steps.register(Step("VERIFY", sol, res, children=inner))
     return res
 
 

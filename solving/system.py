@@ -151,13 +151,14 @@ class System(frozenset):
             eqns = compute_grobner(self, vals)
             if not eqns:
                 return System(eqns)
-            assert len(eqns) <= len(
-                self
-            ), "Groebner basis should not be larger than original system"
-            steps.register(eqns, reason="Compute Groebner")
+            steps.register(eqns, reason="Eliminate variables using Groebner basis")
             eqns = set(eqns)
         else:
             eqns = set(self)
+        if len(eqns) < len(vals):
+            raise ArithmeticError(
+                "Underdetermined system: Not enough equations to solve for all variables"
+            )
         vals = list(vals)
         sols = []
         # Solve for each variable separately
@@ -180,16 +181,7 @@ class System(frozenset):
         return all(self)
 
     def __repr__(self) -> str:
-        lpad = max(len(str(eqn.left)) for eqn in self)
-        rpad = max(len(str(eqn.right)) for eqn in self)
-        return print_system(
-            [
-                " " * (lpad - len(str(eqn.left)))
-                + str(eqn)
-                + " " * (rpad - len(str(eqn.right)))
-                for eqn in sorted(self, key=lambda eqn: str(eqn.left))
-            ]
-        )
+        return print_system(self)
 
     def is_close(self, threshold: float = 1e-7):
         return all(eqn.is_close(threshold) for eqn in self)
