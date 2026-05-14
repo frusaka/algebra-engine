@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import reduce
 from typing import Iterable, TYPE_CHECKING
 
 import math
@@ -77,6 +78,7 @@ class Add(Collection):
             return nodes.Mul(k, v)
 
         def calculate(den, n, d):
+            return den.divide(d).multiply(n)
             if den.__class__ is nodes.Add and all(
                 map(utils.is_polynomial, (den, n, d))
             ):
@@ -110,7 +112,9 @@ class Add(Collection):
         )
 
         den = utils.lcm(*dens, light=False)
-        num = Add.from_terms(calculate(den, n, dens[idx]) for idx, n in enumerate(nums))
+        num = reduce(
+            Node.__add__, (calculate(den, n, dens[idx]) for idx, n in enumerate(nums))
+        )
         return list(Add.flatten(num / den))
 
     def as_ratio(self):
@@ -145,23 +149,18 @@ class Add(Collection):
     def divide(self, b: Add) -> Node:
         if self == b:
             return nodes.Const(1)
-        # if b == 1:
-        #     return self
-        if not (
-            utils.is_polynomial(self) and utils.is_polynomial(b) and b.__class__ is Add
-        ):
-            # return self.multiply(b**-1)
-            return nodes.Mul(self, nodes.Pow(b, nodes.Const(-1)))
+        if b == 1:
+            return self
         return utils.cancel_factors(self, b)
 
     divide.check_changed(Node.__mul__._is_simplified)
 
     @steps.tracked("MUL", label="Distribute")
     def multiply(self, b: Node) -> Add:
-        # if b == 1:
-        #     return self
-        # if b == 0:
-        #     return b
+        if b == 1:
+            return self
+        if b == 0:
+            return b
         if b.__class__ is nodes.Add:
             return Add.from_terms(i * j for i in self for j in b)
         return Add.from_terms(i * b for i in self)

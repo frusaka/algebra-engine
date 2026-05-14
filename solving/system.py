@@ -79,7 +79,7 @@ def _solve(eqns: set, org, v, sols):
 
 def _branched_solve(vals, sols):
     _, v = next_eqn(sols[0][1], vals)
-
+    sols_ = sols[:]
     with steps.scoped(branches := []):
         for idx in range(len(sols)):
             data, eqns = sols[idx]
@@ -109,10 +109,12 @@ def _branched_solve(vals, sols):
     vals.remove(v)
     steps.register(
         Step(
-            "STATE",
+            "HIDDEN",
+            sols_,
             SolutionSet(System({*i[0], *i[1]}) for i in sols),
             children=branches,
             reason=f"Branch out",
+            force_keep=True,
         )
     )
 

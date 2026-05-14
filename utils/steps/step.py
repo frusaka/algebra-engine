@@ -23,6 +23,9 @@ def tex(value):
     return getattr(value, "totex", lambda: str(value))()
 
 
+_del_seen = set()
+
+
 def delete_unused(idx):
     if type(idx) is int:
         if idx not in _steps:
@@ -32,12 +35,17 @@ def delete_unused(idx):
         step = idx
         if (idx := id(step.result)) in _steps:
             _steps.pop(idx)
+    if id(step) in _del_seen:
+        return
+    _del_seen.add(id(step))
     # print("deleting", step)
     for i in step.children:
         delete_unused(i)
         # delete_unused(i)
+    _del_seen.remove(id(step))
+    if id(step) in _exp_seen:
+        _exp_seen.remove(id(step))
     # step = _steps.pop(id(step.result))
-    del step
 
 
 def ref(value, force_keep=False, deletter_arg=None):
@@ -103,6 +111,7 @@ class OPBinaryType(Enum):
     GE = 2
     LT = 3
     LE = 4
+    NE = 5
 
     def tostr(self, left, right) -> str:
         return SYMBOLS.get(self.name).join("  ").join((str(left), str(right)))
@@ -191,6 +200,7 @@ class Step:
         self.children = children or []
         self.reason = reason
         self.changed = changed
+        self._args = tuple(self.args)
 
     def __copy__(self):
         return Step(
@@ -207,8 +217,8 @@ class Step:
         return self._result()
 
     def force_keep(self):
-        # if not self.changed:
-        #     return
+        if not self.changed and not self.children:
+            return
         res = self.result
         self._result = lambda: res
 
@@ -257,13 +267,14 @@ class Step:
                 title += str(step)
             final = ""
             border = PANEL_COLORS[depth % len(PANEL_COLORS)]
-            if type(step.result) is bool:
+            if isinstance(step.result, bool):
                 border = "bold " + ["red", "green"][step.result]
             if step.result is not None:
                 if isinstance(step.result, Exception):
-                    final = colorize_ansi(f"Error: {repr(step.result)}", "#d7170b")
+                    if not step.children:
+                        final = colorize_ansi(f"Error: {repr(step.result)}", "#d7170b")
                     border = "bold red"
-                else:
+                elif step.result is not step.children[-1].result:
                     final = f"Result: {step.result}"
             title, final = Text.from_ansi(title), Text.from_ansi(final)
             if depth:
@@ -333,9 +344,16 @@ def is_eq_priority(a, b) -> bool:
     )
 
 
+_exp_seen = set()
+
+
 def _explain(expr) -> Step | Any:
     if not (res := _steps.get(id(expr), None)):
         return
+    if id(res) in _exp_seen:
+        if not res.changed and not res.children:
+            return
+        return res
     op = copy(res)
     res.children = []
     for idx, i in enumerate(res.args):
@@ -350,6 +368,7 @@ def _explain(expr) -> Step | Any:
 
     res.children.extend(op.children)
     if len(res.children) > len(op.children) and not op.children:
+        op.children = []
         res.children.append(op)
     if not res.changed and not res.children:
         return
@@ -364,16 +383,31 @@ def explain(
     if maxdepth is None:
         return res
 
+    from datatypes.nodes import Node
+    from solving.core import Comparison, Interval, IntervalUnion, System
+
+    def priority(val):
+        if isinstance(val, Node):
+            return 1
+        if isinstance(val, (System, Comparison, Interval, IntervalUnion)):
+            return 2
+        # if isinstance(val, System):
+        #     return 3
+        if hasattr(val, "__iter__"):
+            return 1 + next(iter(val))
+        return 5
+
     def dfs(step: Step, depth):
-        # if not step.children:
-        #     return step
-        if depth == 0:
-            res = copy(step)
-            res.children = []
-            return res
-        res = copy(step)
-        res.children = [dfs(i, depth - 1) for i in step.children]
-        return res
+        step = copy(step)
+        if not step.children:
+            return step
+        if depth == 0 and (
+            not adaptive or priority(step.children[0]._args[0]) < priority(res._args[0])
+        ):
+            step.children = []
+            return step
+        step.children = [dfs(i, max(0, depth - 1)) for i in step.children]
+        return step
 
     return dfs(res, maxdepth)
 

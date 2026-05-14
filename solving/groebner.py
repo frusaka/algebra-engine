@@ -55,7 +55,7 @@ def reduce(f, G, vars):
 
 def buchberger(G: list[Add], vars: list[Var]) -> list[Add | Node]:
     # print(G)
-    G = G.copy()
+    G = [g.expand().as_ratio()[0] for g in G]  # G.copy()
     pairs = list(itertools.combinations(G, 2))
     # idx = 1
     while pairs:

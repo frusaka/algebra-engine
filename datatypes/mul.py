@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Iterable
 from . import nodes
 from .base import Node, Collection
 from .add import order_key as standard_key
-from functools import  reduce
+from functools import reduce
 from collections import defaultdict
 
 import utils
@@ -157,11 +157,8 @@ class Mul(Collection):
             and len(res) == 2
             and set(map(type, res)) == {nodes.Add, nodes.Const}
         ):
-            return [Node.multiply(*res)]
-        # if len(res) == 2:
-        #     print("mul", res)
+            return [res.pop().multiply(res.pop())]
         return res or [nodes.Const(1)]
-
 
     def _expand(self) -> Node:
         num, den = self.as_ratio()

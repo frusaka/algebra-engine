@@ -208,13 +208,6 @@ class Const(Number):
     def __hash__(self) -> int:
         return _hash_algorithm(self.numerator, self.denominator)
 
-    def __copy__(self) -> Const:
-        cls = type(self)
-        obj = super(Const, cls).__new__(cls)
-        object.__setattr__(obj, "numerator", self.numerator)
-        object.__setattr__(obj, "denominator", self.denominator)
-        return obj
-
     def __float__(self) -> float:
         return self.numerator / self.denominator
 
@@ -326,7 +319,7 @@ class Const(Number):
 class Float(Number):
     __slots__ = ("_val",)
 
-    @utils.lru_cache
+    # @utils.lru_cache
     def __new__(cls, value: float | complex) -> Float:
         if isinstance(value, Node):
             value = value._approx()
@@ -362,9 +355,6 @@ class Float(Number):
 
     def __hash__(self) -> int:
         return hash(self._val)
-
-    def __copy__(self) -> Float:
-        return Float(self._val)
 
     def __abs__(self) -> Float:
         return Float(abs(self._val))
@@ -434,7 +424,7 @@ class Float(Number):
             return False
         return self._val < 0
 
-    def approx(self) -> float | complex:
+    def _approx(self) -> float | complex:
         return self._val
 
     def totex(self) -> str:

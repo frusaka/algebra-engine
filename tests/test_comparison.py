@@ -133,16 +133,16 @@ def test_solve_quadratic():
     assert solve(
         Comparison(parser.parse("(a-4)^2 "), Var("c") ** 2), Var("a")
     ) == Comparison("a", SolutionSet({4 - Var("c"), 4 + Var("c")}), CompRel.IN)
-    # assert solve(Comparison(parser.parse("ay^2 + by + c"), Const(0)), y) == Comparison(
-    #     y,
-    #     SolutionSet(
-    #         {
-    #             parser.parse("(-b + (b^2 - 4ac)^0.5)/2a"),
-    #             parser.parse("(-b - (b^2 - 4ac)^0.5)/2a"),
-    #         }
-    #     ),
-    #     CompRel.IN,
-    # )
+    assert solve(Comparison(parser.parse("ay^2 + by + c"), Const(0)), y) == Comparison(
+        y,
+        SolutionSet(
+            {
+                parser.parse("(-b + (b^2 - 4ac)^0.5)/2a"),
+                parser.parse("(-b - (b^2 - 4ac)^0.5)/2a"),
+            }
+        ),
+        CompRel.IN,
+    )
 
 
 def test_solve_inequalities():
@@ -196,7 +196,9 @@ def test_solve_edge():
     # Extraneous solutions
     assert parser.parse("2x - x^0.5 = 6").right == 4
     # Requiring numeric approximation verification
-    assert parser.parse("sqrt(2x + 3) + sqrt(x-1) = 4").right == 44 - 24 * Const(3) ** 0.5
+    assert (
+        parser.parse("sqrt(2x + 3) + sqrt(x-1) = 4").right == 44 - 24 * Const(3) ** 0.5
+    )
 
     # Infinite Solutions
     assert parser.parse("solve(0x = 0, x)").right == INF

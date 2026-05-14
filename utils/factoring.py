@@ -179,8 +179,11 @@ def cancel_factors(a: Add, b: Node) -> Node:
     fac = gcd(a, b)
     if fac == 1:
         return a * b**-1
-
-    return long_division(a, fac)[0] / long_division(b, fac)[0]
+    if fac.__class__ is not nodes.Add:
+        return (a / fac) / (b / fac)
+    return nodes.Mul(
+        long_division(a, fac)[0], long_division(b, fac)[0] ** -1, distr_const=True
+    )
 
 
 @lru_cache

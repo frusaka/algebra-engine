@@ -1,9 +1,11 @@
 from typing import Iterable
 
 import math
+import random
 from itertools import product
 
 from datatypes.base import Node
+from datatypes.const import Const
 import utils.steps as steps
 from utils.steps import Step
 from .utils import domain_restriction, get_vars
@@ -39,7 +41,13 @@ def merge_intervals(intervals: list[Interval]) -> list[Interval]:
 
         if not (
             n_start < c_end
-            or (math.isclose(n_start, c_end) and not (n.open[0] or c.open[1]))
+            or (
+                math.isclose(n_start, c_end)
+                and (
+                    not (n.open[0] or c.open[1])
+                    or (isinstance(n.start, Float) and isinstance(c.end, Float))
+                )
+            )
         ):
             if c.start == c.end:
                 merged.append(SolutionSet([c.start]))
@@ -72,7 +80,7 @@ def split_domain_by_roots(
     domain: Interval, roots: list[Node], open: bool
 ) -> list[Interval]:
 
-    roots = [i for i in roots if i * 0.999 in domain]
+    roots = [i for i in roots if i in domain]
     if not roots:
         return [domain]
     res = []
@@ -95,16 +103,26 @@ def test_intervals(
         for interval in intervals:
             a, b = interval.start, interval.end
             if a is b is None:
-                a = -10000
-                b = 5
+                a = Const(random.randrange(-100, 100))
+                b = Const(random.randrange(a.numerator, a.numerator + 100))
             if a is None:
-                a = b - 100
+                a = b - random.randrange(1, 100)
             if b is None:
-                b = a + 100
-            if res := try_subs_interval(org, interval, {var: Float((a + b) / 2)}):
-                valid.append(interval)
-            if verbose:
-                steps.register(res)
+                b = a + random.randrange(1, 100)
+            a, b = a._approx(), b._approx()
+            if b - a >= 2:
+                test_val = Const(random.randrange(int(a) + 1, int(b)))
+            else:
+                test_val = Float(
+                    random.uniform(a if not interval.open[0] else a + (b - a) * 0.1, b)
+                )
+            try:
+                if res := org.subs({var: test_val}).is_close():
+                    valid.append(interval)
+                if verbose:
+                    steps.register(res, reason=f"Testing {interval}")
+            except:
+                continue
     valid = merge_intervals(valid)
     if not valid:
         res = SolutionSet()
@@ -114,10 +132,12 @@ def test_intervals(
         res = IntervalUnion(valid)
     if verbose:
         if len(inner) == 1:
-            steps.register(inner.pop(), reason="Testing interval")
+            steps.register(inner.pop())
         else:
             steps.register(
-                Step("STATE", None, reason="Testing intervals", children=inner)
+                Step(
+                    "VERIFY", intervals, res, reason="Testing intervals", children=inner
+                )
             )
     return res
 
@@ -145,16 +165,6 @@ def interpolate_roots(
     return test_intervals(intervals, org, var, verbose)
 
 
-@steps.tracked("VERIFY")
-def try_subs_interval(org: Comparison, interval, mapping: dict[Var, Node]) -> bool:
-    try:
-        v = org.subs(mapping)
-        steps.register(v)
-        return v.is_close()
-    except:
-        return False
-
-
 def intersect_domains(domains: Iterable[Iterable[Interval]]) -> list[Interval]:
     res = []
     for vals in product(*domains):
@@ -170,39 +180,33 @@ def intersect_domains(domains: Iterable[Iterable[Interval]]) -> list[Interval]:
 
 
 @steps.tracked("domain", "Evaluate domain")
-def evaluate_domain(var: Var, org: Comparison) -> Interval | IntervalUnion:
+def evaluate_domain(org: Comparison, var: Var) -> Interval | IntervalUnion:
     restr = domain_restriction(org.left, var) + domain_restriction(org.right, var)
     if not restr:
         return INF
 
-    res = []
+    intervals = []
 
     for idx, eqn in enumerate(restr, 1):
-        with steps.scoped(inner := []):
-            ans = eqn.solve_for(var)
+        ans = solve(eqn, var)
         if steps.verbose():
             if len(restr) > 1:
-                steps.register(
-                    Step("STATE", ans, reason=f"Branch {idx}", children=inner)
-                )
+                steps.register(ans, reason=f"Branch {idx}")
             else:
-                [steps.register(i) for i in inner]
-        if ans.__class__ is not System:
-            ans = [ans]
-        res.append((eqn, ans))
-
-    intervals = []
-    for org, ans in res:
-        res = interpolate_roots(var, org, {i.right for i in ans}, INF, False)
-        if not isinstance(res, IntervalUnion):
-            res = (res,)
-        intervals.append(res)
+                steps.register(ans)
+        ans = ans.right
+        if not hasattr(ans, "__iter__"):
+            ans = (ans,)
+        intervals.append(ans)
     res = intersect_domains(intervals)
     if len(res) == 1:
         res = res.pop()
     else:
         res = IntervalUnion(res)
     return res
+
+
+evaluate_domain.check_changed(lambda res, _: res is not INF)
 
 
 def validate_roots(roots: Iterable[Node]) -> set[Node]:
@@ -220,10 +224,10 @@ def validate_solution(
             steps.register(v)
             if not v:
                 if not (v := v.is_close()):
-                    # raise AssertionError("Solution does not satisfy the equation")
                     res = False
                 steps.register(v)
         except:
+            # raise
             res = False
     if verbose:
         steps.register(Step("VERIFY", sol, res, children=inner))
@@ -243,7 +247,7 @@ def verify_systems(
 
 def solve_ineq(var, ineq: Comparison):
     # First evaluate Domain
-    domain = evaluate_domain(var, ineq)
+    domain = evaluate_domain(ineq, var)
     steps.register(domain)
 
     # Second find roots
@@ -314,16 +318,16 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
             with steps.scoped(inner := []):
                 for k, v in res:
                     out.append(fin(k, v))
+            out = System(out) if len(out) > 1 else out[0]
             steps.register(
                 Step(
-                    "STATE",
+                    "VERIFY",
                     (i[1] for i in res),
-                    "",
+                    out,
                     reason=f"Verifying solutions",
                     children=inner,
                 )
             )
-            return System(out) if len(out) > 1 else out[0]
         else:
             var = var[0]
             if src.rel is not CompRel.EQ:
@@ -336,6 +340,8 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     s = "s" * isinstance(res, System)
 
     with steps.scoped(inner := []):
-        res = fin(var, res)
-    steps.register(Step("STATE", None, reason=f"Verifying solution{s}", children=inner))
-    return res
+        out = fin(var, res)
+    steps.register(
+        Step("VERIFY", res, out, reason=f"Verifying solution{s}", children=inner)
+    )
+    return out

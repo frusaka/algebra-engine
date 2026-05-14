@@ -59,7 +59,7 @@ def roots_cubic(f):
     w2 = (-1 - Const(3) ** 0.5 * 1j) / 2
     s = [(-q / 2 + Δ**0.5) ** Const(1, 3)]
     s.extend(s[0] * i for i in (w, w2))
-    return {(s - p / (3 * s) - a / 3) for s in s}
+    return {(s - p / (3 * s) - a / 3).expand().factor() for s in s}
 
 
 def roots(f: list[Node]):
@@ -222,43 +222,23 @@ def domain_restriction(node, var: Var) -> tuple[Comparison]:
     from .comparison import Comparison, CompRel
 
     system = []
-    seen = {}
-    tmp = {}
+    seen = set()
 
-    def vars():
-        alphabet = [chr(i) for i in range(ord("a"), ord("z") + 1)]
-        start_index = alphabet.index(var.lower())
-        i = 0
-        while True:
-            yield Var(alphabet[(start_index + i + 1) % 26])
-            i += 1
-
-    def visit(node, register):
+    def visit(node):
         if node in seen:
-            return seen[node]
+            return
+        seen.add(node)
         if node.__class__ is Pow and var in node:
-            sub = visit(node.base, 0)
-
             r = not node.exp.denominator % 2
             f = node.exp.numerator < 0
 
             if f or r:
-                if register:
-                    rel = ("GE", "GT")[f] if r else "NE"
-                    system.append(Comparison(sub, Const(0), getattr(CompRel, rel)))
-                v = next(letters)
-                tmp[v] = sub**node.exp
-                seen[node] = v
-            else:
-                seen[node] = sub**node.exp
-            return seen[node]
+                rel = ("GE", "GT")[f] if r else "NE"
+                system.append(Comparison(node.base, Const(0), getattr(CompRel, rel)))
         elif isinstance(node, (Add, Mul)):
-            return node.from_terms(visit(t, register) for t in node.args)
-        seen[node] = node
-        return node
+            [visit(t) for t in node.args]
 
-    letters = vars()
-    visit(node, 1)
+    visit(node)
     return tuple(system)
 
 

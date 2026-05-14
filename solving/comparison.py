@@ -84,6 +84,8 @@ class Comparison:
     rel: CompRel = CompRel.EQ
 
     def __post_init__(self):
+        if steps.verbose() or id(self) in steps.step._steps:
+            return
         steps.register(
             Step(
                 self.rel.name,
@@ -98,7 +100,7 @@ class Comparison:
     def __repr__(self) -> str:
         return "{0} {2} {1}".format(self.left, self.right, self.rel)
 
-    # @steps.tracked("approximate")
+    @steps.tracked("approximate")
     def is_close(self, threshold: float = 1e-7) -> bool:
         v = (self.left - self.right).approx()
         if self.rel is not CompRel.EQ:
@@ -107,7 +109,7 @@ class Comparison:
             res = abs(v) <= threshold
         if not isinstance(self.left - self.right, Number):
             steps.register(v)
-        steps.register(Step(self.rel.name, (v, 0), res))
+        # steps.register(Step(self.rel.name, (v, 0), res))
         return res
 
     def solve_for(self, value: Var) -> Comparison:
@@ -200,7 +202,7 @@ class Comparison:
             value = -value
             lhs, rhs = self.left + value, self.right + value
         res = Comparison(copy(lhs), copy(rhs), self.rel)
-        step = Step("HIDDEN", None, res, reason=title, changed=res != self)
+        step = Step("HIDDEN", self, res, reason=title, changed=res != self)
         with steps.scoped(step.children):
             steps.register(lhs)
             steps.register(rhs)
@@ -225,7 +227,7 @@ class Comparison:
             copy(rhs),
             self.rel,
         )
-        step = Step("HIDDEN", None, res, reason=title, changed=res != self)
+        step = Step("HIDDEN", self, res, reason=title, changed=res != self)
         with steps.scoped(step.children):
             steps.register(lhs)
             steps.register(rhs)
@@ -241,7 +243,7 @@ class Comparison:
             res = System(res) if len(res) > 1 else res[0]
             if not steps.verbose():
                 return res
-            step = Step("HIDDEN", None, res, reason="Take the root of both sides")
+            step = Step("HIDDEN", self, res, reason="Take the root of both sides")
             with steps.scoped(step.children):
                 steps.register(Step("SQRT", (self.left, value.denominator), lhs))
                 steps.register(Step("SQRT", (self.right, value.denominator), rhs))
@@ -250,7 +252,7 @@ class Comparison:
 
         rhs = self.right**value
         res = Comparison(copy(lhs), copy(rhs), self.rel)
-        step = Step("HIDDEN", None, res, reason="Raise both sides", changed=res != self)
+        step = Step("HIDDEN", self, res, reason="Raise both sides", changed=res != self)
         with steps.scoped(step.children):
             steps.register(lhs)
             steps.register(rhs)
@@ -327,7 +329,7 @@ class Comparison:
 
     @steps.tracked()
     def subs(self, mapping: dict[Node]) -> Comparison:
-        left, right = self.left.subs(mapping), self.right.subs(mapping)
+        left, right = self.left.subs(mapping=mapping), self.right.subs(mapping=mapping)
         steps.register(left, reason="Substitute lhs")
         steps.register(right, reason="Substitute rhs")
         return Comparison(left, right, self.rel)

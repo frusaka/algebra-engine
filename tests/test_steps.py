@@ -94,7 +94,7 @@ def test_keeps_substeps(expr):
     assert hist is not None
     assert hist.children
     for n in walk(hist):
-        assert n.result is not None or n.type.name == "STATE"
+        assert n.result is not None
 
 
 def test_simplifying_steps():

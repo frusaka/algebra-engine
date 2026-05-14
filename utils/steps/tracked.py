@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import copy
 import inspect
+from wrapt import ObjectProxy
 from functools import update_wrapper
 from typing import Any, Callable, TypeVar, ParamSpec, Generic
 
@@ -24,7 +25,7 @@ def scoped(scope: list):
 
 
 def register(
-    step: steps.Step | Any, scoped=True, reason=None, deduplicate=True, scope=None
+    step: steps.Step | Any, scoped=True, reason=None, scope=None, changed_only=True
 ) -> None:
     if not steps._verbose or scoped and _curr_hist.get() is None:
         return
@@ -41,12 +42,12 @@ def register(
 
     ctx = scope if scope is not None else _curr_hist.get()
     if scoped and ctx is not None:
-        if step.changed or step.children:
+        if not changed_only or (step.changed or step.children):
             ctx.append(step)
             if step.result is not None:
                 step.force_keep()
         # To be revised
-        if deduplicate and (idx := id(step.result)) in steps._steps:
+        if (idx := id(step.result)) in steps._steps:
             steps._steps.pop(idx)
     else:
         steps._steps[id(step.result)] = step
@@ -79,26 +80,30 @@ class Tracked(Generic[P, R]):
         with scoped(history := []):
             try:
                 result = self.func(*args, **kwargs)
-                if steps._steps.get(id(result)):
+                if steps._steps.get(id(result)) and not any(
+                    arg is result for arg in args
+                ):
                     register(result)
             except Exception as e:
-                step = steps.Step(self.id, args, e, self.label, history)
-                steps._steps[id(e)] = step
+                steps._steps[id(e)] = steps.Step(self.id, args, e, self.label, history)
                 if scope is not None:
                     register(e, scope=scope)
                 raise
-        if len(args) == 1 and result == args[0]:
+        if len(args) == 1 and type(result) is type(args[0]) and result == args[0]:
             return args[0]
-        result = copy(result)
-        steps._steps[id(result)] = steps.Step(
+        # if not keep:  # or steps._steps.get(id(result)):
+        final = copy(result)
+        if final is result:
+            final = ObjectProxy(final)
+        steps._steps[id(final)] = steps.Step(
             self.id,
             args,
-            result,
+            final,
             self.label,
             history,
             changed=self._is_simplified(result, args),
         )
-        return result
+        return final
 
     # __call__ = lru_cache(maxsize=1 << 40)(__call__)
 

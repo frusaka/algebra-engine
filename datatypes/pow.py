@@ -58,13 +58,6 @@ class Pow(Node):
         def __init__(self, base: Node, exp: Node) -> None:
             pass
 
-    def __copy__(self) -> Pow:
-        cls = type(self)
-        obj = super(Pow, cls).__new__(cls)
-        object.__setattr__(obj, "base", self.base)
-        object.__setattr__(obj, "exp", self.exp)
-        return obj
-
     def __repr__(self) -> str:
         base = str(self.base)
         if (

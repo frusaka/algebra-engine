@@ -3,7 +3,6 @@ from rich import print
 from utils import steps
 from parsing import parser
 
-from parsing.lexer import Lexer
 
 print("[bold magenta]Algebra Engine[/bold magenta]")
 print(
@@ -16,8 +15,8 @@ steps.set_verbosity(True)
 while True:
     print("[bold purple]>>>[/bold purple]", end=" ")
     try:
-        inp = parser.Parser(Lexer(input("")).tokenize()).parse()
-        print(steps.explain(inp, maxdepth=None))
+        inp = parser.parse(input(""))
+        print(steps.explain(inp, maxdepth=1, adaptive=True))
     except Exception as e:
         # raise e
         print(steps.explain(e))

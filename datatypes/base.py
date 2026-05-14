@@ -7,7 +7,6 @@ from abc import ABC, abstractmethod
 from functools import partial, reduce
 import operator
 import utils
-from utils.steps import Step
 from utils import steps
 
 from . import nodes
@@ -20,6 +19,13 @@ if TYPE_CHECKING:
 
 
 class Node:
+    def __copy__(self):
+        cls = type(self)
+        obj = object.__new__(cls)
+        for s in cls.__slots__:
+            object.__setattr__(obj, s, getattr(self, s))
+        return obj
+
     @steps.tracked("ADD")
     def __add__(self, other) -> Node:
         if not isinstance(other, Node):
@@ -133,13 +139,13 @@ class Node:
         if isinstance(self, nodes.Number):
             return self
         if (v := mapping.get(self, None)) is not None:
-            return copy(v)
+            return v
         if type(self) is nodes.Var:
             return self
         if type(self) is nodes.Pow:
-            return self.base.subs(mapping) ** self.exp.subs(mapping)
+            return self.base.subs(mapping=mapping) ** self.exp.subs(mapping=mapping)
 
-        args = [i.subs(mapping) for i in self]
+        args = [i.subs(mapping=mapping) for i in self]
         op = Node.__add__ if type(self) is nodes.Add else Node.__mul__
         return reduce(op, args)
         steps.register(res)
@@ -162,9 +168,10 @@ class Node:
         return str(self)
 
 
-@dataclass(frozen=True, init=False, slots=True)
+@dataclass(frozen=True, init=False)
 class Collection(ABC, Node):
     args: tuple[Node]
+    __slots__ = ("args", "_hash")
 
     @utils.lru_cache
     def __new__(cls, *args: Node, **kwargs) -> Node:
@@ -179,13 +186,6 @@ class Collection(ABC, Node):
 
     def __iter__(self):
         return iter(self.args)
-
-    def __copy__(self):
-        cls = type(self)
-        obj = super(Collection, cls).__new__(cls)
-        object.__setattr__(obj, "args", self.args)
-        object.__setattr__(obj, "_hash", self._hash)
-        return obj
 
     @classmethod
     def from_terms(cls, args: Iterable[Node], modify=True, **kwargs) -> Node:

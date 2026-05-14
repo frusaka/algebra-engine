@@ -10,3 +10,4 @@
 9. Create a toggle for groebner basis, implement solving by elimination
 10. Add support for exponential equations
 [sqrt(x+y)+sqrt(x-y)=6, x^2-y^2=80]
+sqrt(sqrt(3x-sqrt(2x-5)+5sqrt(3x+7)))/(2x-9)-3x+21>0
