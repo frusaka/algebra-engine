@@ -2,7 +2,7 @@ from math import isclose
 
 import pytest
 
-from datatypes.nodes import *
+from datatypes.expr import *
 from solving.comparison import Comparison, CompRel
 
 from solving.solutions import IntervalUnion, SolutionSet

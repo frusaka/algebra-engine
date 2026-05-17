@@ -9,8 +9,8 @@ import utils.steps as steps
 from .groebner import buchberger
 
 
-from datatypes.base import Node, Collection
-from datatypes.nodes import *
+from datatypes.base import Expr, Collection
+from datatypes.expr import *
 
 if TYPE_CHECKING:
     from solving.comparison import Comparison
@@ -33,7 +33,7 @@ def nth_roots(vals, n):
     return vals
 
 
-def quadratic_roots(f: tuple[Node]) -> tuple[Node] | None:
+def quadratic_roots(f: tuple[Expr]) -> tuple[Expr] | None:
     """
     Find the roots of `val` given that it is a quadratic Polynomial,
     return its roots
@@ -62,7 +62,7 @@ def roots_cubic(f):
     return {(s - p / (3 * s) - a / 3).expand().factor() for s in s}
 
 
-def roots(f: list[Node]):
+def roots(f: list[Expr]):
     from numpy import roots
 
     d = len(f) - 1
@@ -157,7 +157,7 @@ def eliminate_radicals(expr, *value):
 
 
 @utils.lru_cache
-def difficulty_weight(term: Node, var: Var) -> float:
+def difficulty_weight(term: Expr, var: Var) -> float:
     if isinstance(term, Number):
         return (0, 0, 0.01 + term.is_neg() * 0.01)
 

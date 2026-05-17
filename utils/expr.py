@@ -1,7 +1,7 @@
 def __getattr__(name: str):
-    from datatypes import nodes
+    from datatypes import expr
 
-    return getattr(nodes, name)
+    return getattr(expr, name)
 
 
 __all__ = ["Var", "Const", "Complex", "Float", "Add", "Mul", "Pow"]

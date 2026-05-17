@@ -4,7 +4,7 @@ import math
 import random
 from itertools import product
 
-from datatypes.base import Node
+from datatypes.base import Expr
 from datatypes.const import Const
 import utils.steps as steps
 from utils.steps import Step
@@ -15,10 +15,10 @@ from .solutions import IntervalUnion, SolutionSet
 from .system import System
 from .comparison import Comparison, CompRel
 
-from datatypes.nodes import Pow, Var, Float
+from datatypes.expr import Pow, Var, Float
 
 
-def to_float(val: Node | None, scale: int = -1) -> float:
+def to_float(val: Expr | None, scale: int = -1) -> float:
     if val is None:
         return float("inf") * scale
     return val.approx()
@@ -77,7 +77,7 @@ def merge_intervals(intervals: list[Interval]) -> list[Interval]:
 
 
 def split_domain_by_roots(
-    domain: Interval, roots: list[Node], open: bool
+    domain: Interval, roots: list[Expr], open: bool
 ) -> list[Interval]:
 
     roots = [i for i in roots if i in domain]
@@ -145,7 +145,7 @@ def test_intervals(
 def interpolate_roots(
     var: Var,
     org: Comparison,
-    roots: Iterable[Node],
+    roots: Iterable[Expr],
     domain: Interval | IntervalUnion,
     verbose=True,
 ):
@@ -209,7 +209,7 @@ def evaluate_domain(org: Comparison, var: Var) -> Interval | IntervalUnion:
 evaluate_domain.check_changed(lambda res, _: res is not INF)
 
 
-def validate_roots(roots: Iterable[Node]) -> set[Node]:
+def validate_roots(roots: Iterable[Expr]) -> set[Expr]:
     return set(i for i in roots if not i.approx().imag)
 
 

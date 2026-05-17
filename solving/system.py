@@ -5,7 +5,7 @@ from itertools import chain
 from typing import Iterable
 
 
-from datatypes.base import Node
+from datatypes.base import Expr
 import utils.steps as steps
 from utils.steps import Step
 
@@ -201,7 +201,7 @@ class System(frozenset):
         return res
 
     @steps.tracked()
-    def subs(self, mapping: dict[Node]):
+    def subs(self, mapping: dict[Expr]):
         res = [i.subs(mapping) for i in self]
         [steps.register(i) for i in res]
         if len(res) == 1:

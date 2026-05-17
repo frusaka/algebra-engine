@@ -1,6 +1,6 @@
 from datatypes.mul import Mul
 from utils import factor
-from datatypes.nodes import Var, Const
+from datatypes.expr import Var, Const
 
 x = Var("x")
 y = Var("y")

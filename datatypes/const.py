@@ -6,7 +6,7 @@ import sys
 import math
 
 
-from .base import Node
+from .base import Expr
 
 from dataclasses import FrozenInstanceError
 from functools import lru_cache
@@ -39,7 +39,7 @@ def _hash_algorithm(numerator, denominator):
     return -2 if result == -1 else result
 
 
-class Number(Node):
+class Number(Expr):
     def __setattr__(self, name, value):
         raise FrozenInstanceError(f"cannot assign to field '{name}'")
 
@@ -321,7 +321,7 @@ class Float(Number):
 
     # @utils.lru_cache
     def __new__(cls, value: float | complex) -> Float:
-        if isinstance(value, Node):
+        if isinstance(value, Expr):
             value = value._approx()
         if abs(value.imag) <= 1e-10:
             value = value.real

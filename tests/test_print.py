@@ -1,5 +1,5 @@
 import pytest
-from datatypes.nodes import Const, Var
+from datatypes.expr import Const, Var
 from parsing import parser
 from solving.comparison import CompRel, Comparison
 

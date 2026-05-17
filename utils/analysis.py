@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable, ParamSpec, TypeVar
 
 from functools import lru_cache as cache
-from . import nodes
+from . import expr
 
 if TYPE_CHECKING:
-    from datatypes.base import Node
+    from datatypes.base import Expr
     from datatypes.var import Var
 
 
-def mult_key(v: Node, exp=False):
+def mult_key(v: Expr, exp=False):
     match v.__class__.__name__:
         case "Const" | "Float":
             if exp:
@@ -19,17 +19,17 @@ def mult_key(v: Node, exp=False):
         case "Pow":
             # Must revisit
             if exp:
-                if isinstance(v.base, nodes.Number) and isinstance(v.exp, nodes.Number):
-                    return nodes.Const, (v.base, v.exp)
+                if isinstance(v.base, expr.Number) and isinstance(v.exp, expr.Number):
+                    return expr.Const, (v.base, v.exp)
 
                 return v.base, v.exp
             return v.base
     if exp:
-        return v, nodes.Const(1)
+        return v, expr.Const(1)
     return v
 
 
-def get_vars(node: Node) -> set[Var]:
+def get_vars(node: Expr) -> set[Var]:
     """
     Get the immedieate variables from an expression.
     Only goes up to depth 1:
@@ -38,9 +38,9 @@ def get_vars(node: Node) -> set[Var]:
 
     return set(
         mult_key(v)
-        for i in nodes.Add.flatten(node)
-        for v in nodes.Mul.flatten(i)
-        if mult_key(v).__class__ is nodes.Var
+        for i in expr.Add.flatten(node)
+        for v in expr.Mul.flatten(i)
+        if mult_key(v).__class__ is expr.Var
     )
 
 

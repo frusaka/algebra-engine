@@ -8,23 +8,23 @@ from collections import defaultdict
 
 from utils import steps
 
-from .base import Node, Collection
-from . import nodes
+from .base import Expr, Collection
+from . import expr
 import utils
 
 
 @utils.lru_cache
-def order_key(node: Node) -> tuple:
+def order_key(node: Expr) -> tuple:
     # Format: (Exponent, Type, *Value)
-    if isinstance(node, nodes.Number):
-        if node.__class__ is nodes.Float:
+    if isinstance(node, expr.Number):
+        if node.__class__ is expr.Float:
             return (0, 0, 0, str(node._val))
         if node.numerator.imag:
             return (0, 0, 0, str(node))
         return (0, 0, node)
-    if node.__class__ is nodes.Var:
+    if node.__class__ is expr.Var:
         return (1, 4, ord("z") * len(node) - sum(map(ord, node)))
-    if node.__class__ is nodes.Pow:
+    if node.__class__ is expr.Pow:
         deg = order_key(node.exp)
         deg = deg[2] if deg[1] == 0 and deg[2] else 1
         return (
@@ -34,21 +34,21 @@ def order_key(node: Node) -> tuple:
             order_key(node.base),
         )
     order = tuple(map(order_key, node.args))
-    if node.__class__ is nodes.Mul:
+    if node.__class__ is expr.Mul:
         if len(order) == 2 and order[0][1] == 0:
             return (*order[1], order[0][1:])
         return (sum(i[0] for i in order), 2, order[::-1])
     return (max(i[0] for i in order), 1, order)
 
 
-def ordered_terms(args: Iterable[Node]) -> list[Node]:
+def ordered_terms(args: Iterable[Expr]) -> list[Expr]:
     return sorted(args, key=order_key, reverse=True)
 
 
 class Add(Collection):
     if TYPE_CHECKING:
 
-        def __init__(self, *args: Node, rationalize=True): ...
+        def __init__(self, *args: Expr, rationalize=True): ...
 
     @utils.lru_cache
     def __repr__(self) -> str:
@@ -67,25 +67,25 @@ class Add(Collection):
         return res
 
     @staticmethod
-    def sort_terms(args) -> list[Node]:
+    def sort_terms(args) -> list[Expr]:
         return ordered_terms(args)
 
     @classmethod
-    def merge(cls, args, rationalize=True) -> list[Node]:
+    def merge(cls, args, rationalize=True) -> list[Expr]:
         def form(k, v):
             if k is None:
                 return v
-            return nodes.Mul(k, v)
+            return expr.Mul(k, v)
 
         def calculate(den, n, d):
             return den.divide(d).multiply(n)
-            if den.__class__ is nodes.Add and all(
+            if den.__class__ is expr.Add and all(
                 map(utils.is_polynomial, (den, n, d))
             ):
                 return den.multiply(n).divide(d)
             return den * n / d
 
-        groups = defaultdict(nodes.Const)
+        groups = defaultdict(expr.Const)
         frac = False
         for term in args:
             coef, val = term.canonical()
@@ -97,7 +97,7 @@ class Add(Collection):
 
         if not rationalize or not frac or len(groups) <= 1:
             return ordered_terms(itertools.starmap(form, groups.items())) or [
-                nodes.Const(0)
+                expr.Const(0)
             ]
 
         nums, dens = zip(
@@ -113,7 +113,7 @@ class Add(Collection):
 
         den = utils.lcm(*dens, light=False)
         num = reduce(
-            Node.__add__, (calculate(den, n, dens[idx]) for idx, n in enumerate(nums))
+            Expr.__add__, (calculate(den, n, dens[idx]) for idx, n in enumerate(nums))
         )
         return list(Add.flatten(num / den))
 
@@ -122,12 +122,12 @@ class Add(Collection):
         n, d = c.as_ratio()
         return (a.multiply(n), d)
 
-    def _expand(self) -> Node:
+    def _expand(self) -> Expr:
         return Add.from_terms(node._expand() for node in self)
 
-    def cancel_gcd(self, normalize=True) -> tuple[Node, Add]:
+    def cancel_gcd(self, normalize=True) -> tuple[Expr, Add]:
         n = [i.canonical()[0] for i in self]
-        if any(i.__class__ is nodes.Float for i in n):
+        if any(i.__class__ is expr.Float for i in n):
             den = 1
         else:
             den = math.lcm(*(i.denominator for i in n))
@@ -146,26 +146,26 @@ class Add(Collection):
         return gcd / den, self.multiply(gcd**-1)
 
     @steps.tracked("DIV")
-    def divide(self, b: Add) -> Node:
+    def divide(self, b: Add) -> Expr:
         if self == b:
-            return nodes.Const(1)
+            return expr.Const(1)
         if b == 1:
             return self
         return utils.cancel_factors(self, b)
 
-    divide.check_changed(Node.__mul__._is_simplified)
+    divide.check_changed(Expr.__mul__._is_simplified)
 
     @steps.tracked("MUL", label="Distribute")
-    def multiply(self, b: Node) -> Add:
+    def multiply(self, b: Expr) -> Add:
         if b == 1:
             return self
         if b == 0:
             return b
-        if b.__class__ is nodes.Add:
+        if b.__class__ is expr.Add:
             return Add.from_terms(i * j for i in self for j in b)
         return Add.from_terms(i * b for i in self)
 
-    multiply.check_changed(Node.__mul__._is_simplified)
+    multiply.check_changed(Expr.__mul__._is_simplified)
 
     def totex(self):
         res = ""

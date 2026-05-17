@@ -3,7 +3,7 @@ import types
 from typing import Generator, Iterable, get_origin, get_args, Union
 
 from solving.comparison import Comparison, CompRel
-from datatypes.base import Node
+from datatypes.base import Expr
 from solving.system import System
 from parsing import operators
 from .tokens import FUNCTIONS, Token, TokenType
@@ -60,31 +60,29 @@ def validate(func, *args, call=True):
         )
         for k, v in sig.parameters.items()
     ).join("()")
-    sig_str = sig_str.replace("Node", "Term").replace("node", "term")
+
     try:
         bound = sig.bind(*args)
     except TypeError as e:
-        raise SyntaxError(f"{sig_str} {e}".replace("node", "term"))
+        raise SyntaxError(f"{sig_str} {e}")
     bound.apply_defaults()
     for name, value in bound.arguments.items():
         param = sig.parameters[name]
         expected = param.annotation
-        exp = format_type(expected).replace("Node", "Term")
+        exp = format_type(expected)
 
         if expected is inspect._empty:
             continue
         if param.kind == inspect.Parameter.VAR_POSITIONAL:
             for item in value:
                 if not check_type(item, expected):
-                    got = item.__class__.__name__ if item is not Node else "Term"
                     raise TypeError(
                         f"Argument mismatch: {sig_str} arguments '{name}' must be of type"
-                        f"{exp}, got {got}"
+                        f"{exp}, got {item.__class__.__name__}"
                     )
         elif not check_type(value, expected):
-            got = value.__class__.__name__ if value is not Node else "Term"
             raise TypeError(
-                f"Argument mismatch: {sig_str} argument '{name}' must be of type {exp}, got {got}"
+                f"Argument mismatch: {sig_str} argument '{name}' must be of type {exp}, got {value.__class__.__name__}"
             )
     if call:
         return func(*args)
@@ -251,7 +249,7 @@ class Parser:
         right = self._parse()
         return validate(func, left, right)
 
-    def parse(self, autosolve: bool = True) -> Node | Comparison | System | None:
+    def parse(self, autosolve: bool = True) -> Expr | Comparison | System | None:
         self.advance()
         op = self.curr
         res = self._parse()
@@ -269,9 +267,9 @@ class Parser:
         return res
 
 
-def parse(expr: str, autosolve: bool = True) -> Node:
+def parse(expr: str, autosolve: bool = True) -> Expr:
     return Parser(Lexer(expr).tokenize()).parse(autosolve)
 
 
-def AST(expr: str) -> tuple[Node]:
+def AST(expr: str) -> tuple[Expr]:
     return tuple(Parser(Lexer(expr).tokenize()).tokens)

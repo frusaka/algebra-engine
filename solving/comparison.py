@@ -9,9 +9,8 @@ from enum import Enum
 from .solutions import *
 from .system import System
 
-# from datatypes import nodes
-from datatypes.base import Collection, Node
-from datatypes.nodes import *
+from datatypes.base import Collection, Expr
+from datatypes.expr import *
 from utils.steps import Step
 import utils.steps as steps
 
@@ -44,7 +43,7 @@ def simple_isolate_radical(comp, value):
         t, k = rad
         if comp.left.__class__ is Add:
             comp -= Add(*set(comp.left.args) - {t})
-            steps.register(comp)
+            steps.register(comp, reason="Move non-radicals to rhs")
         comp **= k
         rad = None
         idx = 1
@@ -79,8 +78,8 @@ class CompRel(Enum):
 
 @dataclass(frozen=True, slots=True, weakref_slot=True)
 class Comparison:
-    left: Node
-    right: Node
+    left: Expr
+    right: Expr
     rel: CompRel = CompRel.EQ
 
     def __post_init__(self):
@@ -191,7 +190,7 @@ class Comparison:
     def __contains__(self, value: Var) -> bool:
         return value in self.left or value in self.right
 
-    def __sub__(self, value: Node) -> Comparison:
+    def __sub__(self, value: Expr) -> Comparison:
         if not steps.verbose():
             return Comparison(self.left - value, self.right - value, self.rel)
         if not value.canonical()[0].is_neg():
@@ -209,7 +208,7 @@ class Comparison:
         steps.register(step, False)
         return res
 
-    def __truediv__(self, value: Node) -> Comparison:
+    def __truediv__(self, value: Expr) -> Comparison:
         lhs = Mul(*set(Mul.flatten(self.left)) ^ set(Mul.flatten(value)))
         if not steps.verbose():
             return Comparison(lhs, self.right / value, self.rel)
@@ -317,7 +316,7 @@ class Comparison:
         steps.register(value)
         return Comparison(value, Const(), self.rel)
 
-    def reverse_sign(self, value: Node) -> CompRel:
+    def reverse_sign(self, value: Expr) -> CompRel:
         # Can safely flip sign based on coefficient:
         # solving.core.solve() will gracefully handle any mishaps
         if self.rel in {CompRel.EQ, CompRel.NE}:
@@ -328,7 +327,7 @@ class Comparison:
         return self.rel
 
     @steps.tracked()
-    def subs(self, mapping: dict[Node]) -> Comparison:
+    def subs(self, mapping: dict[Expr]) -> Comparison:
         left, right = self.left.subs(mapping=mapping), self.right.subs(mapping=mapping)
         steps.register(left, reason="Substitute lhs")
         steps.register(right, reason="Substitute rhs")

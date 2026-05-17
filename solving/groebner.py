@@ -1,7 +1,7 @@
 from __future__ import annotations
 import itertools
 
-from datatypes.base import Node
+from datatypes.base import Expr
 
 from datatypes import *
 import utils
@@ -53,7 +53,7 @@ def reduce(f, G, vars):
     return r.as_ratio()[0]
 
 
-def buchberger(G: list[Add], vars: list[Var]) -> list[Add | Node]:
+def buchberger(G: list[Add], vars: list[Var]) -> list[Add | Expr]:
     # print(G)
     G = [g.expand().as_ratio()[0] for g in G]  # G.copy()
     pairs = list(itertools.combinations(G, 2))

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Iterable
 import re
 
 if TYPE_CHECKING:
-    from datatypes.nodes import Const
+    from datatypes.expr import Const
     from solving.comparison import Comparison
 
 

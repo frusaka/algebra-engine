@@ -1,7 +1,7 @@
-from .base import Node
+from .base import Expr
 
 
-class Var(Node, str):
+class Var(Expr, str):
     def __repr__(self):
         return str(self)
 

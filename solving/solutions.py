@@ -1,5 +1,5 @@
 from itertools import zip_longest
-from datatypes.base import Node
+from datatypes.base import Expr
 from .interval import Interval
 
 
@@ -35,7 +35,7 @@ class IntervalUnion(tuple):
         return "\\cup".join(i.totex() for i in self)
 
     def __contains__(self, other):
-        if isinstance(other, Node):
+        if isinstance(other, Expr):
             return any(other in interval for interval in self)
 
         elif isinstance(other, Interval):

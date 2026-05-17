@@ -1,4 +1,4 @@
-from datatypes.nodes import Const
+from datatypes.expr import Const
 from utils import simplify_radical
 from parsing import parser
 

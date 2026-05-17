@@ -1,6 +1,6 @@
 import pytest
 from parsing import Lexer, Token, TokenType
-from datatypes.nodes import Const, Var
+from datatypes.expr import Const, Var
 
 
 def test_unknown():

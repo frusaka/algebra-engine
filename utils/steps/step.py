@@ -201,6 +201,7 @@ class Step:
         self.reason = reason
         self.changed = changed
         self._args = tuple(self.args)
+        self._collapsed = False
 
     def __copy__(self):
         return Step(
@@ -225,6 +226,8 @@ class Step:
     def __str__(self) -> str:
         if type(self.type) is not str:
             return self.type.tostr(*self.args)
+        # if self.type == "subs":
+        #     return str(self.result)
         if len(self.args) == 1:
             return self.type + str(self.args[0]).join("()")
         return self.type + ", ".join(map(str, self.args)).join("()")
@@ -232,7 +235,9 @@ class Step:
     def header(self):
         if self.type is OPSpecials.STATE:
             return str(self)
-        return str(self) + " ⟶ " + str(self.result)
+        if isinstance(self.result, Exception):
+            return str(self) + " --> " + repr(self.result)
+        return str(self) + " --> " + str(self.result)
 
     def totex(self) -> str:
         if type(self.type) is not str:
@@ -246,44 +251,35 @@ class Step:
             return self.totex()
         return self.totex() + "\\longrightarrow " + tex(self.result)
 
-    def __rich_console__(self, console: Console, *_) -> Iterator[Text | Panel]:
-        PANEL_COLORS = ["khaki1", "medium_purple2", "light_sky_blue1"]
+    def __rich__(self) -> Text | Panel:
+        PANEL_COLORS = ["#F0E68C", "#9370DB", "#87CEFA"]
 
         def rich(step: Step, depth, index):
-            width = console.width - 3 - depth * 4
             idx = str(index) + ". " if index else ""
             lpad = bool(depth) + 1
             label = step.reason + ": " if step.reason else ""
             if not step.children and not isinstance(step.result, Exception):
-                res = Text.from_ansi(f"{idx}{label}{step.header()}")
-                res.pad_left(lpad)
-                if depth:
-                    res.truncate(width, overflow="ellipsis")
-                return res.markup
+                return Text.from_ansi(f"{idx}{label}{step.header()}").markup
             p = len(step.children) > 1
             lpad *= not len(step.children) or not bool(index) or not depth
-            title = idx + label
+            org_title = title = "[bold]" + idx + label + "[/bold]"
             if step.result is not None:
-                title += str(step)
+                title += Text.from_ansi(str(step)).markup
             final = ""
             border = PANEL_COLORS[depth % len(PANEL_COLORS)]
             if isinstance(step.result, bool):
-                border = "bold " + ["red", "green"][step.result]
+                border = ["red", "green"][step.result]
             if step.result is not None:
                 if isinstance(step.result, Exception):
                     if not step.children:
-                        final = colorize_ansi(f"Error: {repr(step.result)}", "#d7170b")
-                    border = "bold red"
+                        final = f"[bold red]Error:[/bold red] {repr(step.result)}"
+                    border = "red"
                 elif step.result is not step.children[-1].result:
-                    final = f"Result: {step.result}"
-            title, final = Text.from_ansi(title), Text.from_ansi(final)
-            if depth:
-                title.pad_left(lpad)
-                title.truncate(width, overflow="ellipsis")
-                if final:
-                    final.pad_left(lpad + 2)
-                    final.truncate(width, overflow="ellipsis")
-            title, final = title.markup, final.markup
+                    final = f"[bold]Result:[/bold] {step.result}"
+            title, final = (
+                Text.from_markup(title).markup,
+                Text.from_markup(final).markup,
+            )
             res = Group(
                 title,
                 Padding(
@@ -297,6 +293,8 @@ class Step:
                 ),
                 final,
             )
+            res.step_header = org_title + Text.from_ansi(step.header()).markup
+            res.collapsed = step._collapsed
             if not final:
                 res.renderables.pop()
             # return res
@@ -304,7 +302,7 @@ class Step:
                 return Panel(res, border_style=border, expand=False, highlight=True)
             return res
 
-        return iter((rich(self, 0, 0),))
+        return rich(self, 0, 0)
 
     def toJSON(self):
         def json(step: Step):
@@ -367,7 +365,7 @@ def _explain(expr) -> Step | Any:
         _steps.pop(id(v.result))
 
     res.children.extend(op.children)
-    if len(res.children) > len(op.children) and not op.children:
+    if len(res.children) > len(op.children) and op.changed:
         op.children = []
         res.children.append(op)
     if not res.changed and not res.children:
@@ -376,18 +374,19 @@ def _explain(expr) -> Step | Any:
 
 
 def explain(
-    expr, default=True, maxdepth: int = None, adaptive=True
+    expr, default=True, maxdepth: int | None = 2, adaptive=True
 ) -> Step | None | Any:
     if not (res := _explain(expr)):
         return expr if default else None
     if maxdepth is None:
         return res
 
-    from datatypes.nodes import Node
+    from datatypes.expr import Expr
     from solving.core import Comparison, Interval, IntervalUnion, System
 
+    # To be revised
     def priority(val):
-        if isinstance(val, Node):
+        if isinstance(val, Expr):
             return 1
         if isinstance(val, (System, Comparison, Interval, IntervalUnion)):
             return 2
@@ -398,15 +397,14 @@ def explain(
         return 5
 
     def dfs(step: Step, depth):
-        step = copy(step)
         if not step.children:
             return step
         if depth == 0 and (
             not adaptive or priority(step.children[0]._args[0]) < priority(res._args[0])
         ):
-            step.children = []
+            step._collapsed = True
             return step
-        step.children = [dfs(i, max(0, depth - 1)) for i in step.children]
+        [dfs(i, max(0, depth - 1)) for i in step.children]
         return step
 
     return dfs(res, maxdepth)

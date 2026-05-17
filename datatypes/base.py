@@ -9,7 +9,7 @@ import operator
 import utils
 from utils import steps
 
-from . import nodes
+from . import expr
 
 
 from typing import TYPE_CHECKING, Generator, Iterable
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from .const import Const, Float
 
 
-class Node:
+class Expr:
     def __copy__(self):
         cls = type(self)
         obj = object.__new__(cls)
@@ -27,126 +27,126 @@ class Node:
         return obj
 
     @steps.tracked("ADD")
-    def __add__(self, other) -> Node:
-        if not isinstance(other, Node):
-            other = nodes.Const(other)
-        return nodes.Add(self, other)
+    def __add__(self, other) -> Expr:
+        if not isinstance(other, Expr):
+            other = expr.Const(other)
+        return expr.Add(self, other)
 
     @__add__.check_changed
     def _add_changed(result, args):
         return not any(n == 0 for n in args) and (
-            not isinstance(result, nodes.Add)
+            not isinstance(result, expr.Add)
             or len(result.args)
-            < len(tuple(itertools.chain(*map(nodes.Add.flatten, args))))
+            < len(tuple(itertools.chain(*map(expr.Add.flatten, args))))
         )
 
-    def __radd__(self, other) -> Node:
-        return nodes.Const(other) + self
+    def __radd__(self, other) -> Expr:
+        return expr.Const(other) + self
 
     @steps.tracked("SUB")
-    def __sub__(self, other) -> Node:
-        if not isinstance(other, Node):
-            other = nodes.Const(other)
-        return nodes.Add(self, nodes.Mul(other, nodes.Const(-1), distr_const=True))
+    def __sub__(self, other) -> Expr:
+        if not isinstance(other, Expr):
+            other = expr.Const(other)
+        return expr.Add(self, expr.Mul(other, expr.Const(-1), distr_const=True))
 
     __sub__.check_changed(_add_changed)
 
-    def __rsub__(self, other) -> Node:
-        return nodes.Const(other) - self
+    def __rsub__(self, other) -> Expr:
+        return expr.Const(other) - self
 
     @steps.tracked("MUL")
-    def __mul__(self, other: Node) -> Node:
-        if not isinstance(other, Node):
-            other = nodes.Const(other)
-        return nodes.Mul(self, other)
+    def __mul__(self, other: Expr) -> Expr:
+        if not isinstance(other, Expr):
+            other = expr.Const(other)
+        return expr.Mul(self, other)
 
     @__mul__.check_changed
     def _mul_changed(result, args):
         return not any(n == 1 for n in args) and (
-            not isinstance(result, nodes.Mul)
+            not isinstance(result, expr.Mul)
             or len(result.args)
-            < len(list(itertools.chain(*map(nodes.Mul.flatten, args))))
+            < len(list(itertools.chain(*map(expr.Mul.flatten, args))))
         )
 
-    def __rmul__(self, other) -> Node:
+    def __rmul__(self, other) -> Expr:
         return self * other
 
     @steps.tracked("DIV")
-    def __truediv__(self, other: Node) -> Node:
-        if not isinstance(other, Node):
-            other = nodes.Const(other)
+    def __truediv__(self, other: Expr) -> Expr:
+        if not isinstance(other, Expr):
+            other = expr.Const(other)
         if other == 0:
             raise ZeroDivisionError(f"{self} / {other}")
-        return nodes.Mul(self, nodes.Pow(other, nodes.Const(-1)))
+        return expr.Mul(self, expr.Pow(other, expr.Const(-1)))
 
     __truediv__.check_changed(_mul_changed)
 
     def __rtruediv__(self, other):
-        return nodes.Const(other) / self
+        return expr.Const(other) / self
 
     @steps.tracked("POW")
-    def __pow__(self, other: Node) -> Node:
-        if not isinstance(other, Node):
-            other = nodes.Const(other)
-        return nodes.Pow(self, other)
+    def __pow__(self, other: Expr) -> Expr:
+        if not isinstance(other, Expr):
+            other = expr.Const(other)
+        return expr.Pow(self, other)
 
     @__pow__.check_changed
     def _(result, args) -> bool:
         return (
             args[0] not in (0, 1)
             and args[1] != 0
-            and (result.__class__ is not nodes.Pow or (result.base, result.exp) != args)
+            and (result.__class__ is not expr.Pow or (result.base, result.exp) != args)
         )
 
-    def __rpow__(self, other) -> Node:
-        return nodes.Const(other) ** self
+    def __rpow__(self, other) -> Expr:
+        return expr.Const(other) ** self
 
-    def __neg__(self) -> Node:
+    def __neg__(self) -> Expr:
         return self * -1
 
-    def __pos__(self) -> Node:
+    def __pos__(self) -> Expr:
         return self
 
-    def __contains__(self, value: Node) -> bool:
+    def __contains__(self, value: Expr) -> bool:
         return value in str(self)
 
-    def multiply(self, other: Node) -> Node:
-        if other.__class__ is nodes.Add:
+    def multiply(self, other: Expr) -> Expr:
+        if other.__class__ is expr.Add:
             return other.multiply(self)
         return self * other
 
-    def divide(self, other: Node) -> Node:
+    def divide(self, other: Expr) -> Expr:
         return self * other**-1
 
-    def factor(self) -> Node:
+    def factor(self) -> Expr:
         return utils.factor(self)
 
     def _expand(self):
         return self
 
     @steps.tracked()
-    def expand(self) -> Node:
+    def expand(self) -> Expr:
         return self._expand()._expand()
 
-    def canonical(self) -> tuple[Const, Node]:
-        return nodes.Const(1), self
+    def canonical(self) -> tuple[Const, Expr]:
+        return expr.Const(1), self
 
-    def as_ratio(self) -> tuple[Node]:
-        return (self, nodes.Const(1))
+    def as_ratio(self) -> tuple[Expr]:
+        return (self, expr.Const(1))
 
     @steps.tracked()
-    def subs(self, mapping: dict[Node]) -> Node:
-        if isinstance(self, nodes.Number):
+    def subs(self, mapping: dict[Expr]) -> Expr:
+        if isinstance(self, expr.Number):
             return self
         if (v := mapping.get(self, None)) is not None:
             return v
-        if type(self) is nodes.Var:
+        if type(self) is expr.Var:
             return self
-        if type(self) is nodes.Pow:
+        if type(self) is expr.Pow:
             return self.base.subs(mapping=mapping) ** self.exp.subs(mapping=mapping)
 
         args = [i.subs(mapping=mapping) for i in self]
-        op = Node.__add__ if type(self) is nodes.Add else Node.__mul__
+        op = Expr.__add__ if type(self) is expr.Add else Expr.__mul__
         return reduce(op, args)
         steps.register(res)
         return res
@@ -162,24 +162,24 @@ class Node:
 
     @steps.tracked("approximate")
     def approx(self) -> Float:
-        return nodes.Float(self._approx())
+        return expr.Float(self._approx())
 
     def totex(self) -> str:
         return str(self)
 
 
 @dataclass(frozen=True, init=False)
-class Collection(ABC, Node):
-    args: tuple[Node]
+class Collection(ABC, Expr):
+    args: tuple[Expr]
     __slots__ = ("args", "_hash")
 
     @utils.lru_cache
-    def __new__(cls, *args: Node, **kwargs) -> Node:
+    def __new__(cls, *args: Expr, **kwargs) -> Expr:
         return cls.from_terms(args, **kwargs)
 
     if TYPE_CHECKING:
 
-        def __init__(self, *args: Node, **kwargs): ...
+        def __init__(self, *args: Expr, **kwargs): ...
 
     def __hash__(self) -> int:
         return self._hash
@@ -188,7 +188,7 @@ class Collection(ABC, Node):
         return iter(self.args)
 
     @classmethod
-    def from_terms(cls, args: Iterable[Node], modify=True, **kwargs) -> Node:
+    def from_terms(cls, args: Iterable[Expr], modify=True, **kwargs) -> Expr:
         # args = itertools.chain(*map(cls.flatten, args))
         if modify:
             args = cls.merge(
@@ -210,10 +210,10 @@ class Collection(ABC, Node):
         return obj
 
     @classmethod
-    def flatten(cls, node: Node, factor=True) -> Generator[Node, None, None]:
+    def flatten(cls, node: Expr, factor=True) -> Generator[Expr, None, None]:
         if node.__class__ is cls:
             yield from node.args
-        elif factor and cls is nodes.Mul and node.__class__ is nodes.Add:
+        elif factor and cls is expr.Mul and node.__class__ is expr.Add:
             c, v = node.cancel_gcd()
             if c != 1:
                 yield from cls.flatten(c)
@@ -223,12 +223,12 @@ class Collection(ABC, Node):
 
     @classmethod
     @abstractmethod
-    def merge(cls, args: Iterable[Node]) -> list[Node]:
+    def merge(cls, args: Iterable[Expr]) -> list[Expr]:
         pass
 
     @staticmethod
     @abstractmethod
-    def sort_terms(args: Iterable[Node]) -> list[Node]:
+    def sort_terms(args: Iterable[Expr]) -> list[Expr]:
         pass
 
     def _approx(self) -> float | complex:
@@ -238,4 +238,4 @@ class Collection(ABC, Node):
         )
 
 
-__all__ = ["Node", "Collection"]
+__all__ = ["Expr", "Collection"]

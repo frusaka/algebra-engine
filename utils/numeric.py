@@ -4,16 +4,16 @@ from typing import TYPE_CHECKING
 
 from math import gcd
 from collections import defaultdict
-from . import nodes
+from . import expr
 
 if TYPE_CHECKING:
-    from datatypes.nodes import *
+    from datatypes.expr import *
 
 
 def primes(n: Const) -> dict[Const, int]:
     """Get the prime factorization as a dictionary {prime:exponent}"""
     if n.denominator != 1:
-        res = primes(nodes.Const(n.numerator))
+        res = primes(expr.Const(n.numerator))
         den = primes(n.denominator)
         for p, exp in den.items():
             res[p] = -exp
@@ -21,19 +21,19 @@ def primes(n: Const) -> dict[Const, int]:
     if n.numerator.imag:
         if not n.numerator.real:
             return {
-                nodes.Const(1j): 1,
-                **primes(nodes.Const(n.numerator.imag, n.denominator)),
+                expr.Const(1j): 1,
+                **primes(expr.Const(n.numerator.imag, n.denominator)),
             }
 
         if (g := gcd(n.numerator.real, n.numerator.imag)) > 1:
             return {
-                nodes.Const(n.numerator / g): 1,
-                **primes(nodes.Const(g, n.denominator)),
+                expr.Const(n.numerator / g): 1,
+                **primes(expr.Const(g, n.denominator)),
             }
         return {n: 1}
     n = n.numerator
     if abs(n) > 1 << 40:
-        return {nodes.Const(n): 1}
+        return {expr.Const(n): 1}
     was_neg = False
     i = 2
     if n < 0:
@@ -43,13 +43,13 @@ def primes(n: Const) -> dict[Const, int]:
     factors = defaultdict(int)
     while i * i <= n:
         while n % i == 0:
-            factors[nodes.Const(i)] += 1
+            factors[expr.Const(i)] += 1
             n //= i
         i += 1
     if was_neg:
-        factors[nodes.Const(-1)] = 1
+        factors[expr.Const(-1)] = 1
     if n > 1:
-        factors[nodes.Const(n)] += 1
+        factors[expr.Const(n)] += 1
     return factors
 
 
@@ -62,7 +62,7 @@ def simplify_radical(n: Const, root: int = 2) -> tuple[Const]:
     # E.g: 27^(1/6) => (3^3)^(1/6) => 3^(3*1/6) => 3^(1/2)
     cd = gcd(root, *factors.values())
 
-    v = c = nodes.Const(1)
+    v = c = expr.Const(1)
     for prime, exp in factors.items():
         whole, remainder = divmod(exp // cd, root // cd)
         b = prime**remainder
@@ -76,7 +76,7 @@ def simplify_radical(n: Const, root: int = 2) -> tuple[Const]:
                 continue
         v *= b
 
-    return c, v, nodes.Const(1, root // cd)
+    return c, v, expr.Const(1, root // cd)
 
 
 __all__ = ["primes", "simplify_radical"]

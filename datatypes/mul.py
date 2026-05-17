@@ -3,8 +3,8 @@ import itertools
 import math
 from typing import TYPE_CHECKING, Iterable
 
-from . import nodes
-from .base import Node, Collection
+from . import expr
+from .base import Expr, Collection
 from .add import order_key as standard_key
 from functools import reduce
 from collections import defaultdict
@@ -13,7 +13,7 @@ import utils
 
 
 def form(k, v):
-    if k is nodes.Const:
+    if k is expr.Const:
         k, v = v
     if not v:
         return
@@ -21,25 +21,25 @@ def form(k, v):
         if v == 1:
             return
         return v
-    return nodes.Pow(k, v)
+    return expr.Pow(k, v)
 
 
 def gr_mul(vals):
-    pows = defaultdict(lambda: nodes.Const(1))
-    for i in sorted(vals, key=lambda t: utils.mult_key(t).__class__ is nodes.Add):
-        if i.__class__ is nodes.Pow:
+    pows = defaultdict(lambda: expr.Const(1))
+    for i in sorted(vals, key=lambda t: utils.mult_key(t).__class__ is expr.Add):
+        if i.__class__ is expr.Pow:
             k, v = i.exp, i.base
         else:
-            k, v = nodes.Const(1), i
+            k, v = expr.Const(1), i
         pows[k] = v.multiply(pows[k])
     return sorted(
-        (nodes.Pow(v, k) for k, v in pows.items()),
-        key=lambda t: t.__class__ is not nodes.Add,
+        (expr.Pow(v, k) for k, v in pows.items()),
+        key=lambda t: t.__class__ is not expr.Add,
     )
 
 
-def combine_numeric_radicals(groups: dict, v: tuple[Node]):
-    k = nodes.Const
+def combine_numeric_radicals(groups: dict, v: tuple[Expr]):
+    k = expr.Const
     if k not in groups:
         groups[k] = v
         return
@@ -56,14 +56,14 @@ def combine_numeric_radicals(groups: dict, v: tuple[Node]):
         groups[k] = v, exp
 
 
-def _str(n: Node):
+def _str(n: Expr):
     res = str(n)
-    if isinstance(n, nodes.Add) or (isinstance(n, nodes.Pow) and res[0].isdigit()):
+    if isinstance(n, expr.Add) or (isinstance(n, expr.Pow) and res[0].isdigit()):
         res = res.join("()")
     return res
 
 
-def _tex(n: Node):
+def _tex(n: Expr):
     res = n.totex()
     if isinstance(n, Collection):
         return res.join("()")
@@ -71,36 +71,36 @@ def _tex(n: Node):
 
 
 @utils.lru_cache
-def order_key(node: Node) -> tuple:
+def order_key(node: Expr) -> tuple:
     # Format: (a, b, *c)
     # a = Type priority: Numbers, then Variables, then Power and so on
     # b = Exponent  weight (not degree)
     #     This is so that Pow first inherits the priorty of the base
     #     e.g x(y + 5)(x + 2)^2 is prefered over x(x + 2)^2(y + 5)
     # *c = Extra type-specific weight
-    if isinstance(node, nodes.Number):
-        if node.__class__ is nodes.Float:
+    if isinstance(node, expr.Number):
+        if node.__class__ is expr.Float:
             return (0, 0, 0, str(node._val))
         if node.numerator.imag:
             return (0, 0, 0, str(node))
         return (0, 0, node)
-    if node.__class__ is nodes.Var:
+    if node.__class__ is expr.Var:
         return (1, 1, str(node))
-    if node.__class__ is nodes.Pow:
+    if node.__class__ is expr.Pow:
         return (order_key(node.base)[0], 2, order_key(node.exp), order_key(node.base))
-    if node.__class__ is nodes.Mul:
+    if node.__class__ is expr.Mul:
         return (3, 1, tuple(map(order_key, node.args))[::-1])
     return (4, 1, standard_key(node))
 
 
-def ordered_terms(args: Iterable[Node]) -> list[Node]:
+def ordered_terms(args: Iterable[Expr]) -> list[Expr]:
     return sorted(args, key=order_key)
 
 
 class Mul(Collection):
     if TYPE_CHECKING:
 
-        def __init__(self, *args: Node, distr_const=True): ...
+        def __init__(self, *args: Expr, distr_const=True): ...
 
     @utils.lru_cache
     def __repr__(self) -> str:
@@ -124,7 +124,7 @@ class Mul(Collection):
             return num
         return "/".join((num, den))
 
-    def as_ratio(self) -> tuple[Node]:
+    def as_ratio(self) -> tuple[Expr]:
         return tuple(
             map(
                 lambda vals: Mul.from_terms(vals, distr_const=False),
@@ -133,19 +133,19 @@ class Mul(Collection):
         )
 
     @staticmethod
-    def sort_terms(args) -> list[Node]:
+    def sort_terms(args) -> list[Expr]:
         return ordered_terms(args)
 
     @classmethod
-    def merge(cls, args: Iterable[Node], distr_const=True) -> list[Node]:
-        res = defaultdict(nodes.Const)
+    def merge(cls, args: Iterable[Expr], distr_const=True) -> list[Expr]:
+        res = defaultdict(expr.Const)
         for k, v in (utils.mult_key(n, True) for n in args):
             if k is None:
                 if v == 0:
                     return [v]
                 res[k] = v.mul(res.get(k, 1))
                 continue
-            if k is nodes.Const:
+            if k is expr.Const:
                 combine_numeric_radicals(res, v)
             else:
                 res[k] += v
@@ -155,24 +155,24 @@ class Mul(Collection):
         if (
             distr_const
             and len(res) == 2
-            and set(map(type, res)) == {nodes.Add, nodes.Const}
+            and set(map(type, res)) == {expr.Add, expr.Const}
         ):
             return [res.pop().multiply(res.pop())]
-        return res or [nodes.Const(1)]
+        return res or [expr.Const(1)]
 
-    def _expand(self) -> Node:
+    def _expand(self) -> Expr:
         num, den = self.as_ratio()
-        num = reduce(Node.multiply, (num._expand() for num in Mul.flatten(num)))
-        den = reduce(Node.multiply, (den._expand() for den in Mul.flatten(den)))
+        num = reduce(Expr.multiply, (num._expand() for num in Mul.flatten(num)))
+        den = reduce(Expr.multiply, (den._expand() for den in Mul.flatten(den)))
         if den == 1:
             return num
-        if den.__class__ is nodes.Add:
+        if den.__class__ is expr.Add:
             return num.divide(den)
         return num.multiply(den**-1)
 
-    def canonical(self) -> tuple[Node, Node]:
-        if not isinstance(self.args[0], nodes.Number):
-            return (nodes.Const(1), self)
+    def canonical(self) -> tuple[Expr, Expr]:
+        if not isinstance(self.args[0], expr.Number):
+            return (expr.Const(1), self)
         if len(self.args) == 2:
             return self.args
         return self.args[0], Mul.from_terms(self.args[1:], 0)

@@ -3,4 +3,4 @@ from .var import Var
 from .add import Add
 from .mul import Mul
 from .pow import Pow
-from .base import Node
+from .base import Expr

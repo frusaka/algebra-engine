@@ -1,5 +1,5 @@
 import pytest
-from datatypes.nodes import *
+from datatypes.expr import *
 from parsing import parser
 from collections import Counter
 

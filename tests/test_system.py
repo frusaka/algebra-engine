@@ -1,4 +1,4 @@
-from datatypes.nodes import *
+from datatypes.expr import *
 from solving.core import solve
 from solving.system import System
 from solving.comparison import Comparison, CompRel
