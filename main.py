@@ -1,13 +1,16 @@
 from parsing import parser
+from parsing.lexer import FUNCTIONS
 from utils import steps
+
+import re
 
 from rich.text import Text
 from rich.panel import Panel
 from rich.console import Group
 from rich.padding import Padding
 from textual import on, work
-from textual.widgets import Input, Header, Footer, Static, Collapsible, Label
-from textual.containers import Vertical, Horizontal, VerticalScroll
+from textual.widgets import Input, Header, Footer, Static, Collapsible
+from textual.containers import VerticalScroll
 from textual.app import App
 from textual.validation import Validator
 from rich.highlighter import ReprHighlighter
@@ -57,6 +60,28 @@ def determine(val):
 highlighter = ReprHighlighter()
 
 
+from textual.app import App, ComposeResult
+from textual.widgets import Input
+from textual.suggester import Suggester
+
+
+class ExprSuggester(Suggester):
+    async def get_suggestion(self, value: str):
+        if not value:
+            return
+        match = re.search(r"([a-zA-Z_]+)$", value)
+
+        if not match:
+            return None
+
+        last = match.group(1)
+
+        for fn in FUNCTIONS:
+            if fn.lower().startswith(last):
+                start = match.start(1)
+                return value[:start] + fn.lower()
+
+
 class ExprValidator(Validator):
     def validate(self, value: str):
         if not value:
@@ -65,13 +90,17 @@ class ExprValidator(Validator):
             parser.AST(value)
             return self.success()
         except Exception as e:
-            return self.failure(e.args[0])
+            res = Text(e.args[0])
+            highlighter.highlight(res)
+            return self.failure(
+                f"[bold red]{type(e).__name__}:[/bold red] " + e.args[0]
+            )
 
 
 class AlgebraEngine(App):
     BINDINGS = [("shift+delete", "clear_history", "Clear History")]
 
-    def compose(self):
+    def compose(self) -> ComposeResult:
         with Header():
             title = Static("[bold magenta]Algebra Engine[/bold magenta]", expand=True)
             title.styles.text_align = "center"
@@ -82,14 +111,16 @@ class AlgebraEngine(App):
             Input(
                 placeholder="Enter math here",
                 id="input",
+                highlighter=highlighter,
                 validators=[ExprValidator()],
-                # validate_on="submitted",
+                suggester=ExprSuggester(),
+                validate_on=["submitted"],
             ),
         )
         yield Footer()
 
     def on_mount(self):
-        self.query_one("#input", Input).focus()
+        self.query_one(Input).focus()
 
     @work(thread=True)
     def evaluate(self, expr: str):
@@ -104,14 +135,15 @@ class AlgebraEngine(App):
 
     @on(Input.Submitted)
     def on_input_submitted(self, event: Input.Submitted):
-        # Updating the UI to show the reasons why validation failed
         if not event.value:
             return
         if not event.validation_result.is_valid:
-            event.input.action_notify(
+            event.input.tooltip = event.validation_result.failure_descriptions[0]
+            self.action_notify(
                 event.validation_result.failure_descriptions[0], severity="error"
             )
             return
+        event.input.tooltip = None
         self.evaluate(event.value).run()
 
     def add_step(self, step, input: str):
@@ -119,13 +151,6 @@ class AlgebraEngine(App):
         history.mount(determine(step))
 
         history.scroll_end()
-
-    @on(Input.Changed)
-    def show_validation(self, event: Input.Changed):
-        if not event.validation_result.is_valid:
-            event.input.tooltip = event.validation_result.failure_descriptions[0]
-        else:
-            event.input.tooltip = None
 
     @on(Collapsible.Expanded)
     def toggle_expanded(self, event: Collapsible.Expanded):
@@ -143,5 +168,4 @@ class AlgebraEngine(App):
 if __name__ == "__main__":
     steps.set_verbosity(True)
     ae = AlgebraEngine()
-    ae.theme = "dracula"
     ae.run()

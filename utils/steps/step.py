@@ -235,8 +235,6 @@ class Step:
     def header(self):
         if self.type is OPSpecials.STATE:
             return str(self)
-        if isinstance(self.result, Exception):
-            return str(self) + " --> " + repr(self.result)
         return str(self) + " --> " + str(self.result)
 
     def totex(self) -> str:
@@ -265,14 +263,15 @@ class Step:
             org_title = title = "[bold]" + idx + label + "[/bold]"
             if step.result is not None:
                 title += Text.from_ansi(str(step)).markup
-            final = ""
+            true_final = final = ""
             border = PANEL_COLORS[depth % len(PANEL_COLORS)]
             if isinstance(step.result, bool):
                 border = ["red", "green"][step.result]
             if step.result is not None:
                 if isinstance(step.result, Exception):
+                    true_final = f"[bold red]{type(step.result).__name__}:[/bold red] {step.result}"
                     if not step.children:
-                        final = f"[bold red]Error:[/bold red] {repr(step.result)}"
+                        final = true_final
                     border = "red"
                 elif step.result is not step.children[-1].result:
                     final = f"[bold]Result:[/bold] {step.result}"
@@ -293,8 +292,14 @@ class Step:
                 ),
                 final,
             )
-            res.step_header = org_title + Text.from_ansi(step.header()).markup
+            res.step_header = (
+                (org_title + Text.from_ansi(step.header()).markup)
+                if not isinstance(step.result, Exception)
+                else " --> ".join((title, true_final))
+            )
             res.collapsed = step._collapsed
+            if not step.children:
+                return res.step_header
             if not final:
                 res.renderables.pop()
             # return res

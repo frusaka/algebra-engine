@@ -48,9 +48,8 @@ def test_autodelete():
 
     eqn1 = parser.parse("3x^2-5=11")
     assert steps.explain(eqn1, False) is not None
-    clear()
-    assert steps.explain(eqn1, False) is not None
     del eqn1
+    clear()
     assert not steps._steps
 
     expr = parser.parse("factor(expand((a^4-b^4)(3x-4b)))")

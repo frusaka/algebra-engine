@@ -242,16 +242,16 @@ def rational_roots(coeffs: tuple[Expr]) -> tuple[tuple[Expr]]:
 
 
 @steps.tracked()
-def factor(node: Expr) -> Expr:
-    if node.__class__ is expr.Mul:
-        return reduce(expr.Expr.__mul__, map(factor, node.args))
-    if node.__class__ is expr.Pow:
-        return factor(node.base) ** factor(node.exp)
-    if node.__class__ is not expr.Add:
-        return node
+def factor(value: Expr) -> Expr:
+    if value.__class__ is expr.Mul:
+        return reduce(expr.Expr.__mul__, map(factor, value.args))
+    if value.__class__ is expr.Pow:
+        return factor(value.base) ** factor(value.exp)
+    if value.__class__ is not expr.Add:
+        return value
 
-    if not is_polynomial(node):
-        return expr.Mul.from_terms([node], distr_const=False)
+    if not is_polynomial(value):
+        return expr.Mul.from_terms([value], distr_const=False)
 
     seen = {}
     vars_dict = {}
@@ -348,7 +348,7 @@ def factor(node: Expr) -> Expr:
         seen[coeffs] = seen[temp] = res
         return seen[coeffs]
 
-    c, node = node.cancel_gcd()
+    c, node = value.cancel_gcd()
     node = node.expand()
     return expr.Mul.from_terms(
         [pick_best(node, get_vars(node), True) or node, c],

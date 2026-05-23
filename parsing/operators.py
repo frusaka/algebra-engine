@@ -9,6 +9,14 @@ from solving.core import solve
 from utils import lcm, gcd, factor
 
 
+class Equation(Comparison):
+    pass
+
+
+class Inequality(Comparison):
+    pass
+
+
 def add(a: Expr, b: Expr) -> Expr:
     return a + b
 
@@ -41,32 +49,37 @@ def neg(a: Expr) -> Expr:
     return -a
 
 
-def eq(a: Expr, b: Expr) -> Comparison:
+def eq(a: Expr, b: Expr) -> Equation:
     return Comparison(a, b)
 
 
-def gt(a: Expr, b: Expr) -> Comparison:
+def gt(a: Expr, b: Expr) -> Inequality:
     return Comparison(a, b, CompRel.GT)
 
 
-def lt(a: Expr, b: Expr) -> Comparison:
+def lt(a: Expr, b: Expr) -> Inequality:
     return Comparison(a, b, CompRel.LT)
 
 
-def le(a: Expr, b: Expr) -> Comparison:
+def le(a: Expr, b: Expr) -> Inequality:
     return Comparison(a, b, CompRel.LE)
 
 
-def ge(a: Expr, b: Expr) -> Comparison:
+def ge(a: Expr, b: Expr) -> Inequality:
     return Comparison(a, b, CompRel.GE)
 
 
-def subs(a: Expr | Comparison | System, *eqns: Comparison):
+def system(*args: Equation) -> System:
+    return System(args)
+
+
+# To be fixed
+def subs(a: Expr, *eqns: Equation) -> Expr:
     """Substitute all occurances of `var` with the provided value"""
-    return a.subs(dict((eqn.left, eqn.right) for eqn in eqns))  # .expand()
+    return a.subs(dict((eqn.left, eqn.right) for eqn in eqns))
 
 
-def approx(a: Expr) -> float | complex:
+def approx(a: Expr) -> Float:
     return a.approx()
 
 
