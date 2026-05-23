@@ -13,19 +13,13 @@ It was initially built as a side project to test my understanding of Algebra II 
 - [x] Expansion and Factoring (numeric and symbolic, univariates & multivariates alike)
 - [x] Solving linear and polynomial systems
 - [x] Solving equations and inequalities with domain analysis
-- [x] Verbose equation transformation steps with Custom pretty-printer (`LaTeX` + `HTML` or python rich library in terminal)
+- [x] Verbose transformation steps with pretty-printer
 
 ## Examples
 
-<img style="display: block; margin : 5px;" src="examples/ae-poly-solve.png" alt="Equation example" width="400"/> 
-<img style="display: block; margin : 5px;" src="examples/ae-sys-solve.png" alt="Systems of equations example" width="400"/>
-
-<img style="display: block; margin : 5px;" src="examples/ae-expr.png" alt="Expressions example" width="400"/>
-
-### Terminal REPL
-
-<img style="display: block; margin : 5px;" src="examples/ae-default-terminal.png" alt="Terminal REPL example" width="350"/>  
-<img style="display: block; margin : 5px;" src="examples/ae-ineq-terminal.png" alt="Terminal REPL example" width="280"/>
+<img style="display: block; margin : 5px;" src="examples/ae-expr.svg" alt="Expressions example" width="800"/>
+<img style="display: block; margin : 5px;" src="examples/ae-ineq-solve.svg" alt="Equation example"width="500"/> 
+<img style="display: block; margin : 5px;" src="examples/ae-sys-solve.svg" alt="Systems of equations example" width="500"/>
 
 ## 🚀 Getting Started
 
@@ -42,29 +36,17 @@ If you want to run it from source, follow these steps:
 
 2. 📦 Install dependencies:  
    Ensure that you have [Python 3.10](https://www.python.org/downloads/) or higher installed. Then, create a virtual environment and install the dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
-3. 🎨 Build the frontend assets:  
-   Ensure that you have [Node.js](https://nodejs.org) and npm installed to build the frontend assets. Then, run the following commands:
+
+3. ▶️ Try it:
+
    ```bash
-   cd web
-   npm install
-   npm run build
-   cd ..
+   python main.py
+
    ```
-   If you change the React frontend code, rebuild the frontend assets by running `npm run build` in the `web` directory before starting the GUI.
-4. ▶️ Try it:
-   - 💻 REPL
-     ```bash
-     python terminal.py
-     ```
-   - 🖥️ Or start the GUI
-
-     ```bash
-     python main.py
-
-     ```
 
 ## 🐍 Running Python Code
 

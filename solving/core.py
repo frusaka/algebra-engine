@@ -1,21 +1,24 @@
 from typing import Iterable
 
 import math
+import random
 from itertools import product
 
-from datatypes.base import Node
+from datatypes.base import Expr
+from datatypes.const import Const
+import utils.steps as steps
+from utils.steps import Step
 from .utils import domain_restriction, get_vars
 
 from .interval import Interval, INF
 from .solutions import IntervalUnion, SolutionSet
 from .system import System
 from .comparison import Comparison, CompRel
-from .eval_trace import *
 
-from datatypes.nodes import Pow, Var, Float
+from datatypes.expr import Pow, Var, Float
 
 
-def to_float(val: Node | None, scale: int = -1) -> float:
+def to_float(val: Expr | None, scale: int = -1) -> float:
     if val is None:
         return float("inf") * scale
     return val.approx()
@@ -38,7 +41,13 @@ def merge_intervals(intervals: list[Interval]) -> list[Interval]:
 
         if not (
             n_start < c_end
-            or (math.isclose(n_start, c_end) and not (n.open[0] or c.open[1]))
+            or (
+                math.isclose(n_start, c_end)
+                and (
+                    not (n.open[0] or c.open[1])
+                    or (isinstance(n.start, Float) and isinstance(c.end, Float))
+                )
+            )
         ):
             if c.start == c.end:
                 merged.append(SolutionSet([c.start]))
@@ -68,10 +77,10 @@ def merge_intervals(intervals: list[Interval]) -> list[Interval]:
 
 
 def split_domain_by_roots(
-    domain: Interval, roots: list[Node], open: bool
+    domain: Interval, roots: list[Expr], open: bool
 ) -> list[Interval]:
 
-    roots = [i for i in roots if i * 0.999 in domain]
+    roots = [i for i in roots if i in domain]
     if not roots:
         return [domain]
     res = []
@@ -89,34 +98,54 @@ def test_intervals(
     var: Var,
     verbose: bool = True,
 ):
-    if verbose:
-        s = "s" * (bool(len(intervals) - 1))
-        ETSteps.register(ETTextNode(f"Testing interval{s}", "#0d80f2"))
-
     valid = []
-    for interval in intervals:
-        a, b = interval.start, interval.end
-        if a is b is None:
-            a = -10000
-            b = 5
-        if a is None:
-            a = b - 100
-        if b is None:
-            b = a + 100
-        if try_subs_interval(org, interval, {var: Float((a + b) / 2)}, verbose):
-            valid.append(interval)
+    with steps.scoped(inner := []):
+        for interval in intervals:
+            a, b = interval.start, interval.end
+            if a is b is None:
+                a = Const(random.randrange(-100, 100))
+                b = Const(random.randrange(a.numerator, a.numerator + 100))
+            if a is None:
+                a = b - random.randrange(1, 100)
+            if b is None:
+                b = a + random.randrange(1, 100)
+            a, b = a._approx(), b._approx()
+            if b - a >= 2:
+                test_val = Const(random.randrange(int(a) + 1, int(b)))
+            else:
+                test_val = Float(
+                    random.uniform(a if not interval.open[0] else a + (b - a) * 0.1, b)
+                )
+            try:
+                if res := org.subs({var: test_val}).is_close():
+                    valid.append(interval)
+                if verbose:
+                    steps.register(res, reason=f"Testing {interval}")
+            except:
+                continue
     valid = merge_intervals(valid)
     if not valid:
-        return SolutionSet()
-    if len(valid) == 1:
-        return valid.pop()
-    return IntervalUnion(valid)
+        res = SolutionSet()
+    elif len(valid) == 1:
+        res = valid.pop()
+    else:
+        res = IntervalUnion(valid)
+    if verbose:
+        if len(inner) == 1:
+            steps.register(inner.pop())
+        else:
+            steps.register(
+                Step(
+                    "VERIFY", intervals, res, reason="Testing intervals", children=inner
+                )
+            )
+    return res
 
 
 def interpolate_roots(
     var: Var,
     org: Comparison,
-    roots: Iterable[Node],
+    roots: Iterable[Expr],
     domain: Interval | IntervalUnion,
     verbose=True,
 ):
@@ -136,18 +165,6 @@ def interpolate_roots(
     return test_intervals(intervals, org, var, verbose)
 
 
-def try_subs_interval(
-    org: Comparison, interval, mapping: dict[Var, Node], verbose: bool = True
-) -> bool:
-    try:
-        res = org.subs(mapping).is_close()
-    except:
-        res = False
-    if verbose:
-        ETSteps.register(ETVerifyNode(interval, res))
-    return res
-
-
 def intersect_domains(domains: Iterable[Iterable[Interval]]) -> list[Interval]:
     res = []
     for vals in product(*domains):
@@ -162,67 +179,58 @@ def intersect_domains(domains: Iterable[Iterable[Interval]]) -> list[Interval]:
     return res
 
 
-def evaluate_domain(var: Var, org: Comparison) -> Interval | IntervalUnion:
+@steps.tracked("domain", "Evaluate domain")
+def evaluate_domain(org: Comparison, var: Var) -> Interval | IntervalUnion:
     restr = domain_restriction(org.left, var) + domain_restriction(org.right, var)
-    with ETSteps.branching(1) as br:
-        next(br)
-        ETSteps.register(ETTextNode("Evaluating domain"))
-        if not restr:
-            ETSteps.register(ETNode(Comparison(var, INF, CompRel.IN)))
-            return INF
-        res = []
-        with ETSteps.branching(len(restr)) as br:
-            for idx, eqn in zip(br, restr):
-                ETSteps.register(ETTextNode(f"Branch {idx+1}"))
-                ans = eqn.solve_for(var)
-                if ans.__class__ is not System:
-                    ans = [ans]
-                res.append((eqn, ans))
-        # Unnesting single domain restriction
-        if len(restr) == 1:
-            ETSteps.data[-1][1:] = ETSteps.data[-1][1][1:]
-        intervals = []
-        for org, ans in res:
-            res = interpolate_roots(var, org, {i.right for i in ans}, INF, False)
-            if not isinstance(res, IntervalUnion):
-                res = (res,)
-            intervals.append(res)
-        res = intersect_domains(intervals)
-        if len(res) == 1:
-            res = res.pop()
-        else:
-            res = IntervalUnion(res)
-        ETSteps.register(ETNode(Comparison(var, res, CompRel.IN)))
+    if not restr:
+        return INF
+
+    intervals = []
+
+    for idx, eqn in enumerate(restr, 1):
+        ans = solve(eqn, var)
+        if steps.verbose():
+            if len(restr) > 1:
+                steps.register(ans, reason=f"Branch {idx}")
+            else:
+                steps.register(ans)
+        ans = ans.right
+        if not hasattr(ans, "__iter__"):
+            ans = (ans,)
+        intervals.append(ans)
+    res = intersect_domains(intervals)
+    if len(res) == 1:
+        res = res.pop()
+    else:
+        res = IntervalUnion(res)
     return res
 
 
-def validate_roots(roots: Iterable[Node]) -> set[Node]:
-    try:
-        return set(i for i in roots if not i.approx().imag)
-    except AttributeError:
-        raise ValueError("roots contain variables")
+evaluate_domain.check_changed(lambda res, _: res is not INF)
+
+
+def validate_roots(roots: Iterable[Expr]) -> set[Expr]:
+    return set(i for i in roots if not i.approx().imag)
 
 
 def validate_solution(
     org: System | Comparison, sol: System | Comparison, mapping: dict, verbose=True
 ) -> bool:
-    res = 1
-    try:
-        if not (
-            v := (
-                org.normalize().subs(mapping).expand() if mapping else sol.normalize()
-            )
-        ):
-            if v.is_close():
-                res = 2
-            else:
-                res = 0
-    except:
-        res = 0
+    res = True
+    inner = []
+    with steps.scoped(inner):
+        try:
+            v = org.subs(mapping).expand() if mapping else sol
+            steps.register(v)
+            if not v:
+                if not (v := v.is_close()):
+                    res = False
+                steps.register(v)
+        except:
+            # raise
+            res = False
     if verbose:
-        ETSteps.register(
-            ETVerifyNode(sol if sol.__class__ is Comparison else ETBranchNode(sol), res)
-        )
+        steps.register(Step("VERIFY", sol, res, children=inner))
     return res
 
 
@@ -239,14 +247,23 @@ def verify_systems(
 
 def solve_ineq(var, ineq: Comparison):
     # First evaluate Domain
-    domain = evaluate_domain(var, ineq)
+    domain = evaluate_domain(ineq, var)
+    steps.register(domain)
 
     # Second find roots
-    with ETSteps.branching(1) as br:
-        next(br)
-        ETSteps.register(ETTextNode("Finding Roots"))
-        res = Comparison(ineq.left, ineq.right).solve_for(var)
-
+    with steps.scoped(inner := []):
+        org = Comparison(ineq.left, ineq.right)
+        res = org.solve_for(var)
+    steps.register(
+        Step(
+            "SOLVE",
+            (org, var),
+            res if type(res) is Comparison else SolutionSet(res),
+            reason="Find Roots",
+            children=inner,
+            force_keep=True,
+        )
+    )
     if isinstance(res, Comparison):
         if res.left != var:
             roots = []
@@ -259,9 +276,8 @@ def solve_ineq(var, ineq: Comparison):
     return Comparison(var, interpolate_roots(var, ineq, roots, domain), CompRel.IN)
 
 
+@steps.tracked("solve")
 def solve(src: Comparison | System, *var: Var) -> Comparison | System:
-    Comparison.solve_for.cache_clear()
-    ETSteps.clear()
     if not var:
         var = tuple(sorted(get_vars(src)))
     if not var:
@@ -292,18 +308,28 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     var = tuple(Var(i) if not isinstance(i, Var) else i for i in var)
     if src.__class__ is Comparison:
         if len(var) > 1:
-            ETSteps.register(ETTextNode("Solving for " + str(var)[1:-1]))
-            ETSteps.register(ETNode(src))
             res = []
-            with ETSteps.branching(len(var)) as br:
-                for _, v in zip(br, var):
-                    ETSteps.register(ETTextNode(f"Solve for {v}"))
+            for v in var:
+                with steps.scoped(inner := []):
                     res.append((v, src.solve_for(v)))
-            ETSteps.register(ETTextNode(f"Verifying solutions", "#0d80f2"))
-            return System(fin(k, v) for k, v in res)
+                steps.register(Step("SOLVE", (src, v), res[-1][-1], children=inner))
+            # [register(i[1]) for i in res]
+            out = []
+            with steps.scoped(inner := []):
+                for k, v in res:
+                    out.append(fin(k, v))
+            out = System(out) if len(out) > 1 else out[0]
+            steps.register(
+                Step(
+                    "VERIFY",
+                    (i[1] for i in res),
+                    out,
+                    reason=f"Verifying solutions",
+                    children=inner,
+                )
+            )
         else:
             var = var[0]
-            ETSteps.register(ETTextNode(f"Solving for {var}"))
             if src.rel is not CompRel.EQ:
                 return solve_ineq(var, src)
             res = src.solve_for(var)
@@ -312,6 +338,10 @@ def solve(src: Comparison | System, *var: Var) -> Comparison | System:
     else:
         res = src.solve_for(var)
     s = "s" * isinstance(res, System)
-    ETSteps.register(ETTextNode(f"Verifying solution{s}", "#0d80f2"))
 
-    return fin(var, res)
+    with steps.scoped(inner := []):
+        out = fin(var, res)
+    steps.register(
+        Step("VERIFY", res, out, reason=f"Verifying solution{s}", children=inner)
+    )
+    return out

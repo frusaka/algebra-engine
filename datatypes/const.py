@@ -1,10 +1,12 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING, Any
+import functools
+import utils
 import sys
 import math
-from typing import TYPE_CHECKING, Any
 
 
-from .base import Node
+from .base import Expr
 
 from dataclasses import FrozenInstanceError
 from functools import lru_cache
@@ -14,7 +16,7 @@ _PyHASH_INF = sys.hash_info.inf
 _HASH_IMAG = 1000003
 
 
-@lru_cache(maxsize=1 << 14)
+@functools.lru_cache(maxsize=1 << 14)
 def _hash_algorithm(numerator, denominator):
     if numerator.imag:
         # Python's hash(c) = hash(real) + HASH_IMAG * hash(imag)
@@ -37,7 +39,7 @@ def _hash_algorithm(numerator, denominator):
     return -2 if result == -1 else result
 
 
-class Number(Node):
+class Number(Expr):
     def __setattr__(self, name, value):
         raise FrozenInstanceError(f"cannot assign to field '{name}'")
 
@@ -51,7 +53,7 @@ class Number(Node):
 class Complex:
     __slots__ = ("real", "imag")
 
-    @lru_cache(maxsize=500)
+    @utils.lru_cache
     def __new__(cls, real: int = 0, imag: int = 0) -> Complex | complex | float | int:
         if int(real) != real or int(imag) != imag:
             if not imag:
@@ -161,9 +163,12 @@ class Const(Number):
     The `denominator` attribute is always a positive integer.
     """
 
-    __slots__ = ("numerator", "denominator")
+    __slots__ = (
+        "numerator",
+        "denominator",
+    )
 
-    @lru_cache(maxsize=500)
+    @utils.lru_cache
     def __new__(cls, numerator: int | Complex = 0, denominator: int = 1) -> Const:
         if denominator == 0:
             raise ZeroDivisionError(f"{numerator}/{denominator}")
@@ -200,7 +205,7 @@ class Const(Number):
             self, numerator: int | complex | str = 0, denominator: int = 1
         ): ...
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return _hash_algorithm(self.numerator, self.denominator)
 
     def __float__(self) -> float:
@@ -220,7 +225,7 @@ class Const(Number):
             else f"{self.numerator}/{self.denominator}"
         )
 
-    def __floor__(a):
+    def __floor__(a) -> int:
         return a.numerator // a.denominator
 
     def __floordiv__(a, b: Const) -> int:
@@ -238,7 +243,7 @@ class Const(Number):
             return False
         return self.numerator < 0
 
-    def approx(self) -> float | complex:
+    def _approx(self) -> float | complex:
         return self.numerator / self.denominator
 
     def add(self, value: Const) -> Const:
@@ -301,7 +306,7 @@ class Const(Number):
     def __le__(a, b: Const) -> bool:
         return a.numerator * b.denominator <= a.denominator * b.numerator
 
-    def totex(self):
+    def totex(self) -> str:
         n, *d = str(self).split("/")
         n = n.replace("i", "\\mathrm{i}")
         if not d:
@@ -314,10 +319,10 @@ class Const(Number):
 class Float(Number):
     __slots__ = ("_val",)
 
-    @lru_cache
+    # @utils.lru_cache
     def __new__(cls, value: float | complex) -> Float:
-        if isinstance(value, Node):
-            value = value.approx()
+        if isinstance(value, Expr):
+            value = value._approx()
         if abs(value.imag) <= 1e-10:
             value = value.real
         # c = Const(value)
@@ -329,7 +334,18 @@ class Float(Number):
 
         def __init__(self, value: float | complex): ...
 
-    def __repr__(self):
+    @property
+    def real(self):
+        return self._val.real
+
+    @property
+    def imag(self):
+        return self._val.imag
+
+    def __round__(self, ndigits=None):
+        return Float(round(self._val, ndigits))
+
+    def __repr__(self) -> str:
         # return repr(self._val)
         if not self._val.imag:
             return repr(round(self._val, 4))
@@ -337,44 +353,44 @@ class Float(Number):
             complex(round(self._val.real, 4), round(self._val.imag, 4))
         ).replace("j", "i")
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._val)
 
-    def __abs__(self):
+    def __abs__(self) -> Float:
         return Float(abs(self._val))
 
-    def __float__(self):
+    def __float__(self) -> float:
         return float(self._val)
 
-    def __complex__(self):
+    def __complex__(self) -> complex:
         return complex(self._val)
 
     def __eq__(a, b: Any) -> bool:
-        if not isinstance(b, (Const, int, Float)):
+        if not isinstance(b, (Const, int, Float, float)):
             return False
-        if not isinstance(b, Float):
-            b = Float(b)
-        return a._val == b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val == b
 
     def __gt__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val > b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val > b
 
     def __ge__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val >= b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val >= b
 
     def __lt__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val < b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val < b
 
     def __le__(a, b: Number) -> bool:
-        if not b.__class__ is Float:
-            b = Float(b)
-        return a._val <= b._val
+        if isinstance(b, Float):
+            b = b._val
+        return a._val <= b
 
     def add(self, value: Number) -> Float:
         if not isinstance(value, Float):
@@ -403,15 +419,15 @@ class Float(Number):
             value = Float(value)
         return Float(self._val**value._val)
 
-    def is_neg(self):
+    def is_neg(self) -> bool:
         if self._val.imag:
             return False
         return self._val < 0
 
-    def approx(self) -> float | complex:
+    def _approx(self) -> float | complex:
         return self._val
 
-    def totex(self):
+    def totex(self) -> str:
         return str(self).replace("i", "\\mathrm{i}")
 
 

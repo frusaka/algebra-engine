@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from .eval_trace import *
 
-from datatypes.base import Node
+from datatypes.base import Expr
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class Interval:
     """A prettifier for inequality solutions"""
 
-    start: Node | None
-    end: Node | None
+    start: Expr | None
+    end: Expr | None
     open: tuple[bool]
 
     def __repr__(self) -> str:
@@ -25,7 +24,7 @@ class Interval:
             end = "∞)"
         return ", ".join((start, end))
 
-    def __contains__(self, other: Node) -> bool:
+    def __contains__(self, other: Expr) -> bool:
         left = self.start.approx() if self.start is not None else float("-inf")
         right = self.end.approx() if self.end is not None else float("inf")
         other = other.approx()

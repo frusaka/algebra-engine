@@ -9,7 +9,7 @@ SYMBOLS = {
     "ADD": "+",
     "SUB": "-",
     "MUL": "*",
-    "TRUEDIV": "/",
+    "DIV": "/",
     "POW": "^",
     "SQRT": "√",
     "APPROX": "~",

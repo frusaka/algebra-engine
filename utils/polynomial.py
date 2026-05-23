@@ -3,17 +3,15 @@ from __future__ import annotations
 from itertools import accumulate
 import math
 from typing import TYPE_CHECKING, Sequence
-from functools import lru_cache
-
-from datatypes import nodes
-from .analysis import order_key
+from .analysis import lru_cache
+from . import expr
 
 if TYPE_CHECKING:
-    from datatypes.base import Node
-    from datatypes.nodes import *
+    from datatypes.base import Expr
+    from datatypes.expr import *
 
 
-def is_polynomial(node: Node) -> bool:
+def is_polynomial(node: Expr) -> bool:
     """Checks whether a node is a valid term to be considered or be inside a Polynomial"""
     match node.__class__.__name__:
         case "Const" | "Var":
@@ -22,7 +20,7 @@ def is_polynomial(node: Node) -> bool:
             return all(map(is_polynomial, node.args))
         case "Pow":
             return (
-                node.exp.__class__ is nodes.Const
+                node.exp.__class__ is expr.Const
                 and not (
                     node.exp.denominator != 1
                     or node.exp.numerator.imag
@@ -34,7 +32,7 @@ def is_polynomial(node: Node) -> bool:
 
 
 @lru_cache
-def degree(node: Node, var=None) -> int | None:
+def degree(node: Expr, var=None) -> int | None:
     match node.__class__.__name__:
         case "Const" | "Float":
             return 0
@@ -47,9 +45,10 @@ def degree(node: Node, var=None) -> int | None:
             if not res:
                 return res
             if (
-                node.exp.__class__ is not nodes.Const
-                or node.exp < 0
+                node.exp.__class__ is not expr.Const
                 or node.exp.denominator != 1
+                or node.exp.numerator.imag
+                or node.exp < 0
             ):
                 return
             return res * node.exp.numerator
@@ -60,32 +59,31 @@ def degree(node: Node, var=None) -> int | None:
     raise TypeError("Unsupported type for degree", node, type(node))
 
 
-def leading(node: Node) -> Node:
-    if node.__class__ is nodes.Add:
-        return max(node, key=order_key)
+def leading(node: Expr) -> Expr:
+    if node.__class__ is expr.Add:
+        return node.args[0]
     return node
 
 
-def leading_options(node: Add) -> Node:
-    lead = leading(node)
-    return (i for i in node.args if degree(i) == degree(lead))
+def leading_options(node: Add) -> Expr:
+    return (i for i in node.args if degree(i) == degree(node.args[0]))
 
 
-def hasremainder(node: Node):
+def hasremainder(node: Expr):
     # return type(node.as_ratio()[1]) is not nodes.Const
-    if node.__class__ is nodes.Pow:
+    if node.__class__ is expr.Pow:
         return node.exp.canonical()[0].is_neg()
-    if node.__class__ is not nodes.Mul:
+    if node.__class__ is not expr.Mul:
         return False
     for i in node.args:
-        if i.__class__ is not nodes.Pow:
+        if i.__class__ is not expr.Pow:
             continue
         if i.exp.canonical()[0].is_neg():
             return True
     return False
 
 
-def long_division(a: Add, b: Node) -> tuple[Node, Node]:
+def long_division(a: Add, b: Expr) -> tuple[Expr, Expr]:
     """
     Backend long division algorithm. `a` must have a higher degree than `b`.
     Returns Q -> Quotient, r -> remainder
@@ -93,7 +91,7 @@ def long_division(a: Add, b: Node) -> tuple[Node, Node]:
 
     org, q = a, []
     leading_b = leading(b)
-    while a.__class__ is nodes.Add and degree(a) >= degree(b):
+    while a.__class__ is expr.Add and degree(a) >= degree(b):
         for leading_a in leading_options(a):
             if not hasremainder(fac := (leading_a / leading_b)):
                 break
@@ -102,15 +100,15 @@ def long_division(a: Add, b: Node) -> tuple[Node, Node]:
                 q = []
                 a = org
             break
-        a += b.multiply(-fac)
+        a -= b.multiply(fac)
         q.append(fac)
     # if type(a) is nodes.Const and a != 0:
     #     q = [i / a for i in q]
     #     a -= a
-    return nodes.Add(*q), a
+    return expr.Add(*q), a
 
 
-def synthetic_divide(coeffs: Sequence[Node], r: Node) -> tuple[list[Node], Node]:
+def synthetic_divide(coeffs: Sequence[Expr], r: Expr) -> tuple[list[Expr], Expr]:
     """Divide poly by (x - r): returns (quotient_coeffs, remainder)"""
     q = list(accumulate(coeffs, lambda acc, x: acc * r + x))
     return q[:-1], q[-1]  # last is remainder
@@ -128,18 +126,20 @@ def poly_divide(dividend, divisor):
     dividend = list(dividend)
     divisor = list(divisor)
 
-    quotient = [0] * (deg_dividend - deg_divisor + 1)
+    quotient = [expr.Const(0)] * (deg_dividend - deg_divisor + 1)
     remainder = dividend[:]
     for i in range(len(quotient)):
         lead_coeff = remainder[i] / divisor[0]
-        if hasremainder(lead_coeff):
-            raise ValueError("Expected list of coefficients")
         quotient[i] = lead_coeff
-
         # Subtract lead_coeff * (divisor shifted)
-
         for j in range(len(divisor)):
-            remainder[i + j] -= lead_coeff * divisor[j]
+            k = expr.Add(remainder[i + j], -lead_coeff * divisor[j], rationalize=False)
+            if k.__class__ is expr.Add:
+                break
+            remainder[i + j] = k
+        else:
+            continue
+        break
     # Trim leading zeroes
     while remainder and remainder[0] == 0:
         remainder.pop(0)
@@ -148,7 +148,7 @@ def poly_divide(dividend, divisor):
 
 
 @lru_cache
-def derivative(poly: tuple[Node]) -> tuple[Node]:
+def derivative(poly: tuple[Expr]) -> tuple[Expr]:
     m = len(poly) - 1
     return tuple((m - n) * poly[n] for n in range(m))
 
@@ -160,7 +160,6 @@ def square_free(poly: tuple[Const]) -> tuple:
 
     prime = derivative(poly)
     g = poly_gcd(poly, prime)
-
     if len(g) == 1:
         return normalize(poly)
 
@@ -170,14 +169,17 @@ def square_free(poly: tuple[Const]) -> tuple:
 
 
 def normalize(a):
+    from .factoring import gcd
+
     # Normalizing the gcd
-    if (d := math.lcm(*(i.denominator for i in a if i))) != 1:
+    if (d := math.lcm(*(i.canonical()[0].denominator for i in a if i))) != 1:
         a = [i * d for i in a]
-    g = -1 if a[0].is_neg() else 1
-    g *= math.gcd(*(i.numerator for i in a if i and not i.approx().imag))
+    g = -1 if a[0].canonical()[0].is_neg() else 1
+    g *= gcd(*(i for i in a if i))
+    # g *= math.gcd(*(i.numerator for i in a if i and not i.approx().imag))
     if g != 1:
         a = [i / g for i in a]
-    a, c = tuple(a), nodes.Const(g, d)
+    a, c = tuple(a), g / d  # nodes.Const(g, d)
     if c != 1:
         return a, (c,)
     return (a,)

@@ -1,5 +1,5 @@
 import pytest
-from datatypes.nodes import Add, Mul, Const, Var
+from datatypes.expr import Add, Mul, Const, Var
 
 
 def test_const_equality_and_hash():

@@ -1,5 +1,5 @@
 import pytest
-from datatypes.nodes import Const, Var, Mul, Add
+from datatypes.expr import Const, Var, Mul, Add
 from collections import Counter
 
 x = Var("x")

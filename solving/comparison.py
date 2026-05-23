@@ -1,66 +1,21 @@
 from __future__ import annotations
 
-
+from copy import copy
 import math
 import operator
 from dataclasses import dataclass
-from functools import lru_cache
 from enum import Enum
 
 from .solutions import *
 from .system import System
-from .eval_trace import *
 
-# from datatypes import nodes
-from datatypes.base import Collection, Node
-from datatypes.nodes import *
+from datatypes.base import Collection, Expr
+from datatypes.expr import *
+from utils.steps import Step
+import utils.steps as steps
 
 import utils
-from .utils import difficulty_weight, nth_roots, roots, compute_grobner
-
-
-def rewrite_radicals(expr, value):
-
-    system = []
-    counter = []
-    cache = {}
-
-    def vars():
-        i = 0
-        while True:
-            yield Var(f"r{i}")
-            i += 1
-
-    def visit(node):
-        if node in cache:
-            return cache[node]
-
-        if node.__class__ is Pow and value in node:
-            sub = visit(node.base) ** node.exp.numerator
-            if node.exp.denominator != 1:
-                var = next(vars)
-                cache[node] = var
-                counter.append(var)
-                system.append(Comparison(var**node.exp.denominator, sub))
-                return var
-            cache[node] = sub
-            return sub
-
-        elif isinstance(node, Collection):
-            return node.from_terms(map(visit, node.args))
-        return node
-
-    vars = vars()
-    final_expr = visit(expr)
-    if not system:
-        return
-
-    def key(t):
-        v = difficulty_weight(t.left, value)
-        return (bool(v[1]), *v)
-
-    system.append(Comparison(final_expr, Const(0)))
-    return min(compute_grobner(system, counter + [value], False), key=key)
+from .utils import nth_roots, roots, eliminate_radicals
 
 
 def simple_isolate_radical(comp, value):
@@ -84,15 +39,15 @@ def simple_isolate_radical(comp, value):
         if not rad:
             break
         if idx:
-            ETSteps.register(ETNode(comp))
+            steps.register(comp)
         t, k = rad
         if comp.left.__class__ is Add:
-            comp -= Add(*comp.left.args - {t})
-            ETSteps.register(ETNode(comp))
+            comp -= Add(*set(comp.left.args) - {t})
+            steps.register(comp, reason="Move non-radicals to rhs")
         comp **= k
         rad = None
         idx = 1
-    return comp, idx
+    return comp
 
 
 class CompRel(Enum):
@@ -121,122 +76,187 @@ class CompRel(Enum):
         return align + utils.SYMBOLS.get(self.name)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class Comparison:
-    left: Node
-    right: Node
+    left: Expr
+    right: Expr
     rel: CompRel = CompRel.EQ
+
+    def __post_init__(self):
+        if steps.verbose() or id(self) in steps.step._steps:
+            return
+        steps.register(
+            Step(
+                self.rel.name,
+                (self.left, self.right),
+                self,
+                reason="Simplify",
+                changed=False,
+            ),
+            False,
+        )
 
     def __repr__(self) -> str:
         return "{0} {2} {1}".format(self.left, self.right, self.rel)
 
+    @steps.tracked("approximate")
     def is_close(self, threshold: float = 1e-7) -> bool:
         v = (self.left - self.right).approx()
         if self.rel is not CompRel.EQ:
-            return bool(Comparison(v, 0, self.rel))
-        return abs(v) <= threshold
+            res = bool(Comparison(v, 0, self.rel))
+        else:
+            res = abs(v) <= threshold
+        if not isinstance(self.left - self.right, Number):
+            steps.register(v)
+        # steps.register(Step(self.rel.name, (v, 0), res))
+        return res
 
-    @lru_cache
     def solve_for(self, value: Var) -> Comparison:
-        ETSteps.register(ETNode(self))
-        # Rewrite the comparison to put the target variable on the left
-        if value in self.right and not value in self.left:
-            self = self.reverse()
-            ETSteps.register(ETNode(self))
-        # Moving target terms to the left
-        self = self.collect(value)
-        if value not in self:
-            return self
-        # Isolation by division
-        if self.left.__class__ is Mul:
-            remove = []
-            for t in self.left:
-                if (not value in t) or utils.hasremainder(t):
-                    remove.append(t)
-            if remove:
-                return (self / Mul(*remove)).solve_for(value)
-            # Zero Product Property
-            if self.right == 0:
-                return System(
-                    Comparison(lhs, self.right) for lhs in self.left
-                ).solve_for(value)
+        org = self
+        while True:
+            # If input expression was simplified, double steps.register
+            # if self is not org:
+            steps.register(self)
+            if self.__class__ is not Comparison:
+                return self.solve_for(value)
+            # Rewrite the comparison to put the target variable on the left
+            if value in self.right and not value in self.left:
+                self = self.reverse()  # .solve_for(value)
+                continue
+            # Moving target terms to the left
+            res = self.collect(value)
+            if value not in res:
+                return res
+            if res != self:
+                self = res
+                continue
+            # Isolation by division
+            if self.left.__class__ is Mul:
+                remove = []
+                for t in self.left:
+                    if (not value in t) or utils.hasremainder(t):
+                        remove.append(t)
+                if remove:
+                    self = self / Mul(*remove, distr_const=True)  # .solve_for(value)
+                    continue
+                # Zero Product Property
+                if self.right == 0:
+                    res = self.zpp()
+                    steps.register(res)
+                    return res.solve_for(value)
 
-        res = self.handle_exponents(value)
-        if res != self:
-            return res.solve_for(value)
-
-        if res.left == value and value not in res.right:
-            return res
-        self = res
-        # Move undesired terms to the rhs
-        if (
-            self.left.__class__ is Add
-            and len(
-                set(
-                    utils.degree(i, value) for i in Add.flatten(self.left) if value in i
+            res = self.handle_exponents(value)
+            if res != self:
+                self = res
+                continue
+            if res.left == value and value not in res.right:
+                return res
+            self = res
+            # Move undesired terms to the rhs
+            if (
+                self.left.__class__ is Add
+                and len(
+                    set(
+                        utils.degree(i, value)
+                        for i in Add.flatten(self.left)
+                        if value in i
+                    )
                 )
-            )
-            == 1
-        ):
-            if remove := [i for i in self.left if value not in i]:
-                return (self - Add.from_terms(remove)).solve_for(value)
-            # Try simplifying or expanding
-            for t in (self.left.simplify(), self.left.expand()):
-                if t != self.left:
-                    return Comparison(t, self.right, self.rel).solve_for(value)
-        # Normalize
-        if self.right:
-            self -= self.right
-            ETSteps.register(ETNode(self))
+                == 1
+            ):
+                if remove := [i for i in self.left if value not in i]:
+                    self = self - Add.from_terms(remove)  # .solve_for(value)
+                    continue
+                # Try simplifying or expanding
+                if (eqn := self.factor(True)) != self:
+                    self = eqn
+                    continue
 
-        if (eqn := self.expand()) != self:
-            return eqn.solve_for(value)
-        if (eqn := self.try_factor()) is not None:
-            return eqn.solve_for(value)
-
-        return self.get_roots(value)
+            # Normalize
+            if self.right:
+                self -= self.right
+                steps.register(self)
+            if (eqn := self.expand()) != self:
+                self = eqn
+                continue
+            if (eqn := self.factor()) != self:
+                self = eqn
+                continue
+            if (eqn := self.get_roots(value)) != self:
+                self = eqn
+                continue
+            break
 
     def __contains__(self, value: Var) -> bool:
         return value in self.left or value in self.right
 
-    def __sub__(self, value: Node) -> Comparison:
-        pad = len(str(self.left)) + 1
+    def __sub__(self, value: Expr) -> Comparison:
+        if not steps.verbose():
+            return Comparison(self.left - value, self.right - value, self.rel)
         if not value.canonical()[0].is_neg():
-            ETSteps.register(ETOperatorNode(ETOperatorType.SUB, value, pad))
+            title = "Subtract from both sides"
+            lhs, rhs = self.left - value, self.right - value
         else:
-            ETSteps.register(ETOperatorNode(ETOperatorType.ADD, -value, pad))
-        return Comparison(self.left - value, self.right - value, self.rel)
+            title = "Add to both sides"
+            value = -value
+            lhs, rhs = self.left + value, self.right + value
+        res = Comparison(copy(lhs), copy(rhs), self.rel)
+        step = Step("HIDDEN", self, res, reason=title, changed=res != self)
+        with steps.scoped(step.children):
+            steps.register(lhs)
+            steps.register(rhs)
+        steps.register(step, False)
+        return res
 
-    def __truediv__(self, value: Node) -> Comparison:
-        pad = len(str(self.left)) + 1
+    def __truediv__(self, value: Expr) -> Comparison:
+        lhs = Mul(*set(Mul.flatten(self.left)) ^ set(Mul.flatten(value)))
+        if not steps.verbose():
+            return Comparison(lhs, self.right / value, self.rel)
         if value.as_ratio()[1] == 1:
-            ETSteps.register(ETOperatorNode(ETOperatorType.DIV, value, pad))
+            title = "Divide both sides"
+            lhs, rhs = self.left / value, self.right / value
         else:
-            ETSteps.register(ETOperatorNode(ETOperatorType.TIMES, value**-1, pad))
-        # Used set expression to cancel Floating-Point factors
-        return Comparison(
-            Mul(*self.left.args ^ set(Mul.flatten(value))),
-            self.right / value,
-            self.reverse_sign(value),
+            title = "Multiply both sides"
+            value = Pow(value, Const(-1))
+            lhs, rhs = self.left * value, self.right * value
+        if type(lhs) is Mul and lhs.args[0] == 1:
+            lhs = Mul(*lhs.args[1:])
+        res = Comparison(
+            Mul(*set(Mul.flatten(self.left)) ^ set(Mul.flatten(value))),
+            copy(rhs),
+            self.rel,
         )
+        step = Step("HIDDEN", self, res, reason=title, changed=res != self)
+        with steps.scoped(step.children):
+            steps.register(lhs)
+            steps.register(rhs)
+        steps.register(step, False)
+        return res
 
     def __pow__(self, value: Const) -> Comparison:
-        pad = len(str(self.left)) + 1
-        if value.denominator != 1 and value.numerator == 1:
-            ETSteps.register(
-                ETOperatorNode(ETOperatorType.SQRT, value.denominator, pad)
-            )
-        else:
-            ETSteps.register(ETOperatorNode(ETOperatorType.POW, value, pad))
         lhs = self.left**value
         if value.denominator > 1:
             rhs = nth_roots({self.right}, value.denominator)
-            if len(rhs) > 1:
-                return System(Comparison(lhs, r) for r in rhs)
-            rhs = rhs.pop()
-        else:
-            rhs = self.right**value
-        return Comparison(lhs, rhs, self.rel)
+            res = [Comparison(copy(lhs), r) for r in rhs]
+            rhs = SolutionSet(rhs) if len(rhs) > 1 else rhs.pop()
+            res = System(res) if len(res) > 1 else res[0]
+            if not steps.verbose():
+                return res
+            step = Step("HIDDEN", self, res, reason="Take the root of both sides")
+            with steps.scoped(step.children):
+                steps.register(Step("SQRT", (self.left, value.denominator), lhs))
+                steps.register(Step("SQRT", (self.right, value.denominator), rhs))
+            steps.register(step, False)
+            return res
+
+        rhs = self.right**value
+        res = Comparison(copy(lhs), copy(rhs), self.rel)
+        step = Step("HIDDEN", self, res, reason="Raise both sides", changed=res != self)
+        with steps.scoped(step.children):
+            steps.register(lhs)
+            steps.register(rhs)
+        steps.register(step, False)
+        return res
 
     def __bool__(self) -> bool:
         return getattr(operator, self.rel.name.lower())(self.left, self.right)
@@ -248,16 +268,15 @@ class Comparison:
                 remove.append(t)
         if remove:
             self -= Add.from_terms(remove, 0)
-            ETSteps.register(ETNode(self))
+            steps.register(self, False, f"Move {value}'s to lhs")
         return self
 
     def handle_exponents(self, value: Var) -> Comparison:
-        self, changed = simple_isolate_radical(self, value)
-        rad = rewrite_radicals(self.left - self.right, value)
+        self = simple_isolate_radical(self, value)
+        rad = eliminate_radicals(self.left - self.right, value)
         if rad is not None:
-            if changed:
-                ETSteps.register(ETNode(self))
-            return rad
+            # steps.register(rad, False, "Eliminate radicals")
+            return Comparison(rad, Const(0), self.rel)
         if (
             exp := math.gcd(
                 *(
@@ -267,42 +286,39 @@ class Comparison:
                 )
             )
         ) > 1 and value not in self.right:
-            if changed:
-                ETSteps.register(ETNode(self))
             return self ** Const(1, exp)
         return self
 
-    def try_factor(self) -> Comparison | None:
-        if (
-            utils.is_polynomial(self.left)
-            and (f := (self.left).simplify()).__class__ is not Add
-        ):
-            # ETSteps.register(ETTextNode("Simplified Expression"))
-            return Comparison(f, Const(0), self.rel)
-
+    @steps.tracked("roots", "Find roots")
     def get_roots(self, value: Var) -> Comparison | System:
         f = utils.extract(self.left.expand(), value)
         Z = roots(f)
 
         if len(Z) == 1:
             r = Comparison(value, Z.pop())
-            ETSteps.register(ETNode(r))
         else:
             r = System(Comparison(value, root) for root in Z)
-            ETSteps.register(ETBranchNode(r))
         return r
 
+    @steps.tracked("zpp", "Zero Product Property")
+    def zpp(self):
+        return System(Comparison(lhs, self.right) for lhs in self.left)
+
+    @steps.tracked("flip", "Flip")
     def reverse(self) -> Comparison:
         """Write the comparison in reverse"""
         return Comparison(self.right, self.left, self.rel.reverse())
 
+    @steps.tracked("normalize", "Normalize")
     def normalize(self) -> Comparison:
         """Put all terms on the lhs"""
-        return Comparison(self.left - self.right, Const(), self.rel)
+        value = self.left - self.right
+        steps.register(value)
+        return Comparison(value, Const(), self.rel)
 
-    def reverse_sign(self, value: Node) -> CompRel:
+    def reverse_sign(self, value: Expr) -> CompRel:
         # Can safely flip sign based on coefficient:
-        # operators.solve() will gracefully handle any mishaps
+        # solving.core.solve() will gracefully handle any mishaps
         if self.rel in {CompRel.EQ, CompRel.NE}:
             return self.rel
         value = value.canonical()[0]
@@ -310,14 +326,32 @@ class Comparison:
             return self.rel.reverse()
         return self.rel
 
-    def subs(self, mapping: dict) -> Comparison:
-        return Comparison(self.left.subs(mapping), self.right.subs(mapping), self.rel)
+    @steps.tracked()
+    def subs(self, mapping: dict[Expr]) -> Comparison:
+        left, right = self.left.subs(mapping=mapping), self.right.subs(mapping=mapping)
+        steps.register(left, reason="Substitute lhs")
+        steps.register(right, reason="Substitute rhs")
+        return Comparison(left, right, self.rel)
 
-    def simplify(self):
-        return Comparison(self.left.simplify(), self.right.simplify(), self.rel)
+    @subs.check_changed
+    def _(result, args):
+        return result != args[0]
 
+    @steps.tracked()
+    def factor(self, left_only=False):
+        left, right = self.left.factor(), self.right
+        steps.register(left, reason="Factor lhs")
+        if not left_only:
+            right = right.factor()
+            steps.register(right, reason="Factor rhs")
+        return Comparison(left, right, self.rel)
+
+    @steps.tracked()
     def expand(self):
-        return Comparison(self.left.expand(), self.right.expand(), self.rel)
+        left, right = self.left.expand(), self.right.expand()
+        steps.register(left, reason="Expand lhs")
+        steps.register(right, reason="Expand rhs")
+        return Comparison(left, right, self.rel)
 
     def totex(self, align: bool = False) -> str:
         left, rel, right = self.left, self.rel, self.right

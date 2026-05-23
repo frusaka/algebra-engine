@@ -2,95 +2,132 @@ import inspect
 import types
 from typing import Generator, Iterable, get_origin, get_args, Union
 
-from solving.comparison import Comparison, CompRel
-from datatypes.base import Node
+from solving.comparison import Comparison
+from datatypes.base import Expr
 from solving.system import System
 from parsing import operators
 from .tokens import FUNCTIONS, Token, TokenType
 from .lexer import Lexer
 from utils.constants import SYMBOLS
 
-_eval = eval
 
+class Function:
+    def __init__(self, func: str, *args):
+        self.func = func
+        self.args = args
+        self.return_type = inspect.signature(getattr(operators, func)).return_annotation
+        if isinstance(self.return_type, str):
+            self.return_type = eval(self.return_type)
+        self.validate()
 
-def validate(func, *args, call=True):
-    def check_type(value, expected):
-        origin = get_origin(expected)
-        # Plain type
-        if origin is None:
-            if isinstance(expected, str):
-                return isinstance(value, _eval(expected))
-            return isinstance(value, expected)
+    def __repr__(self):
+        return f'Function("{self.func}", {",".join(map(repr, self.args))})'
 
-        # Union (typing.Union or | syntax)
-        if origin is Union or origin is types.UnionType:
-            return any(check_type(value, t) for t in get_args(expected))
+    def __hash__(self):
+        return hash((type(self), self.func, self.args))
 
-        return True
+    def __eq__(self, value):
+        if type(value) is not type(self):
+            return False
+        return (self.func, self.args) == (value.func, value.args)
 
-    def format_type(t):
-        if t is None:
-            return "None"
-
-        origin = get_origin(t)
-
-        # Simple types (int, Var, etc.)
-        if origin is None:
-            if hasattr(t, "__name__"):
-                return t.__name__
-            return str(t).replace("<class '", "").replace("'>", "")
-
-        # Handle Union (Union[...] or | syntax)
-        if origin is Union or origin is types.UnionType:
-            return " | ".join(format_type(arg) for arg in get_args(t))
-
-        # Handle generics like list[int], dict[str, int]
-        args = ", ".join(format_type(arg) for arg in get_args(t))
-
-        if hasattr(origin, "__name__"):
-            return f"{origin.__name__}[{args}]"
-
-        return str(t)
-
-    sig = inspect.signature(func)
-    args = tuple(i if i is not TokenType.NaN else None for i in args if i is not None)
-    sig_str = func.__name__ + ", ".join(
-        (
-            (k if not v.kind == inspect.Parameter.VAR_POSITIONAL else "*" + k)
-            + ": "
-            + format_type(v.annotation)
-        )
-        for k, v in sig.parameters.items()
-    ).join("()")
-    sig_str = sig_str.replace("Node", "Term").replace("node", "term")
-    try:
-        bound = sig.bind(*args)
-    except TypeError as e:
-        raise SyntaxError(f"{sig_str} {e}".replace("node", "term"))
-    bound.apply_defaults()
-    for name, value in bound.arguments.items():
-        param = sig.parameters[name]
-        expected = param.annotation
-        exp = format_type(expected).replace("Node", "Term")
-
-        if expected is inspect._empty:
-            continue
-        if param.kind == inspect.Parameter.VAR_POSITIONAL:
-            for item in value:
-                if not check_type(item, expected):
-                    got = item.__class__.__name__ if item is not Node else "Term"
-                    raise TypeError(
-                        f"Argument mismatch: {sig_str} arguments '{name}' must be of type"
-                        f"{exp}, got {got}"
-                    )
-        elif not check_type(value, expected):
-            got = value.__class__.__name__ if value is not Node else "Term"
-            raise TypeError(
-                f"Argument mismatch: {sig_str} argument '{name}' must be of type {exp}, got {got}"
+    def __call__(self):
+        return getattr(operators, self.func)(
+            *(
+                (
+                    (arg if arg is not TokenType.NaN else None)
+                    if arg.__class__ is not self.__class__
+                    else arg()
+                )
+                for arg in self.args
             )
-    if call:
-        return func(*args)
-    return True
+        )
+
+    def validate(self):
+        def check_type(value, expected):
+            origin = get_origin(expected)
+            # Plain type
+            if origin is None:
+                if isinstance(expected, str):
+                    return issubclass(value, eval(expected))
+                return issubclass(value, expected)
+
+            # Union (typing.Union or | syntax)
+            if origin is Union or origin is types.UnionType:
+                return any(check_type(value, t) for t in get_args(expected))
+
+            return True
+
+        def format_type(t):
+            if t is None:
+                return "None"
+
+            origin = get_origin(t)
+
+            # Simple types (int, Var, etc.)
+            if origin is None:
+                if hasattr(t, "__name__"):
+                    return t.__name__
+                return str(t).replace("<class '", "").replace("'>", "")
+
+            # Handle Union (Union[...] or | syntax)
+            if origin is Union or origin is types.UnionType:
+                return " | ".join(format_type(arg) for arg in get_args(t))
+
+            # Handle generics like list[int], dict[str, int]
+            args = ", ".join(format_type(arg) for arg in get_args(t))
+
+            if hasattr(origin, "__name__"):
+                return f"{origin.__name__}[{args}]"
+
+            return str(t)
+
+        sig = inspect.signature(getattr(operators, self.func))
+        sig_str = self.func + ", ".join(
+            (
+                (k if not v.kind == inspect.Parameter.VAR_POSITIONAL else "*" + k)
+                + ": "
+                + format_type(v.annotation)
+            )
+            for k, v in sig.parameters.items()
+        ).join("()")
+        args = []
+        for arg in self.args:
+            if arg is None:
+                continue
+            if arg is TokenType.NaN:
+                args.append(type(None))
+            elif isinstance(arg, Function):
+                args.append(arg.return_type)
+            else:
+                args.append(type(arg))
+
+        try:
+            bound = sig.bind(*args)
+        except TypeError as e:
+            raise SyntaxError(f"{sig_str} {e}")
+        if sig.parameters and not any(args):
+            raise SyntaxError(f"{sig_str} needs atleast one value")
+        bound.apply_defaults()
+        for name, value in bound.arguments.items():
+            param = sig.parameters[name]
+            expected = param.annotation
+            exp = format_type(expected)
+
+            if expected is inspect._empty:
+                continue
+            if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                for item in value:
+                    if not check_type(item, expected):
+                        raise TypeError(
+                            f"Argument mismatch: {sig_str} arguments '{name}' must be of type "
+                            f"{exp}, got {item.__name__}"
+                        )
+            elif not check_type(value, expected):
+                raise TypeError(
+                    f"Argument mismatch: {sig_str} argument '{name}' must be of type {exp}, got {value.__name__}"
+                )
+        return True
 
 
 class Parser:
@@ -99,6 +136,7 @@ class Parser:
     def __init__(self, tokens: Iterable[Token]) -> None:
         self.tokens = reversed(list(self.postfix(tokens)))
         self.empty = not tokens
+        self.advance()
 
     def advance(self) -> None:
         try:
@@ -193,42 +231,19 @@ class Parser:
             f"closing parenthesis '{opening}' does not match opening parenthesis '{closing}'"
         )
 
-    @staticmethod
-    def brack_error() -> None:
-        raise SyntaxError("unmatched brackets")
-
-    @staticmethod
-    def operand_error(oper) -> None:
-        raise TypeError(
-            f"unsupported: '{SYMBOLS.get(oper.name)}' for non-term expressions"
-        )
-
     def generate_iterable(self) -> Generator:
         oper = self.curr
         i = 1
         while self.curr and self.curr is TokenType.COMMA:
             self.advance()
             i += 1
-        seen = set()
         for j in range(i):
             if self.curr is None:
                 self.operator_error(oper)
             val = self._parse()
-            seen.add(val)
             yield val
             if j + 1 < i:
                 self.advance()
-
-    def generate_system(self, vals: Iterable) -> Generator[Comparison, None, None]:
-        error_msg = "system expects unique equations only"
-        if not hasattr(vals, "__iter__"):
-            raise ValueError(error_msg)
-        seen = set()
-        for i in vals:
-            if i.__class__ is not Comparison or i.rel is not CompRel.EQ or i in seen:
-                raise ValueError(error_msg)
-            seen.add(i)
-            yield i
 
     def _parse(self):
         if self.curr is None:
@@ -236,25 +251,24 @@ class Parser:
         if not isinstance(self.curr, TokenType) or self.curr is TokenType.NaN:
             return self.curr
         if self.curr is TokenType.COMMA:
-            return tuple(self.generate_iterable())
+            return self.generate_iterable()
         oper = self.curr
         self.advance()
         left = self._parse()
-        if oper is TokenType.LBRACK:
-            return operators.System(self.generate_system(left))
-        func = getattr(operators, oper.name.lower())
+        func = oper.name.lower()
         if oper.is_unary():
-            if isinstance(left, tuple):
-                return validate(func, *left)
+            if oper is TokenType.LBRACK:
+                func = "system"
+            if inspect.isgenerator(left):
+                return Function(func, *left)
             if oper is TokenType.SQRT:
-                return validate(func, TokenType.NaN, left)
-            return validate(func, left)
+                return Function(func, TokenType.NaN, left)
+            return Function(func, left)
         self.advance()
         right = self._parse()
-        return validate(func, left, right)
+        return Function(func, left, right)
 
-    def parse(self, autosolve: bool = True) -> Node | Comparison | System | None:
-        self.advance()
+    def parse(self, autosolve: bool = True) -> Expr | Comparison | System | None:
         op = self.curr
         res = self._parse()
         self.advance()
@@ -262,6 +276,8 @@ class Parser:
             raise SyntaxError("Malformed expression")
         if res is None and not self.empty:
             raise SyntaxError("Empty Expression")
+        if isinstance(res, Function):
+            res = res()
         if (
             isinstance(res, (System, Comparison))
             and autosolve
@@ -271,9 +287,9 @@ class Parser:
         return res
 
 
-def eval(expr: str, autosolve: bool = True) -> Node:
+def parse(expr: str, autosolve: bool = True) -> Expr:
     return Parser(Lexer(expr).tokenize()).parse(autosolve)
 
 
-def AST(expr: str) -> tuple[Node]:
-    return tuple(Parser(Lexer(expr).tokenize()).tokens)
+def AST(expr: str):
+    return Parser(Lexer(expr).tokenize())._parse()

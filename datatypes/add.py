@@ -1,20 +1,59 @@
 from __future__ import annotations
+from functools import reduce
+from typing import Iterable, TYPE_CHECKING
 
 import math
 import itertools
 from collections import defaultdict
-from functools import lru_cache
 
-from .base import Node, Collection
-from . import nodes
+from utils import steps
+
+from .base import Expr, Collection
+from . import expr
 import utils
 
 
+@utils.lru_cache
+def order_key(node: Expr) -> tuple:
+    # Format: (Exponent, Type, *Value)
+    if isinstance(node, expr.Number):
+        if node.__class__ is expr.Float:
+            return (0, 0, 0, str(node._val))
+        if node.numerator.imag:
+            return (0, 0, 0, str(node))
+        return (0, 0, node)
+    if node.__class__ is expr.Var:
+        return (1, 4, ord("z") * len(node) - sum(map(ord, node)))
+    if node.__class__ is expr.Pow:
+        deg = order_key(node.exp)
+        deg = deg[2] if deg[1] == 0 and deg[2] else 1
+        return (
+            deg * order_key(node.base)[0],
+            3,
+            order_key(node.exp),
+            order_key(node.base),
+        )
+    order = tuple(map(order_key, node.args))
+    if node.__class__ is expr.Mul:
+        if len(order) == 2 and order[0][1] == 0:
+            return (*order[1], order[0][1:])
+        return (sum(i[0] for i in order), 2, order[::-1])
+    return (max(i[0] for i in order), 1, order)
+
+
+def ordered_terms(args: Iterable[Expr]) -> list[Expr]:
+    return sorted(args, key=order_key, reverse=True)
+
+
 class Add(Collection):
-    @lru_cache
+    if TYPE_CHECKING:
+
+        def __init__(self, *args: Expr, rationalize=True): ...
+
+    @utils.lru_cache
     def __repr__(self) -> str:
         res = ""
-        for i in utils.ordered_terms(self.args):
+        for i in self.args:
             v = repr(i)
             if not res:
                 res = v
@@ -27,23 +66,26 @@ class Add(Collection):
             res += op + v
         return res
 
+    @staticmethod
+    def sort_terms(args) -> list[Expr]:
+        return ordered_terms(args)
+
     @classmethod
-    def merge(cls, args, rationalize=True) -> list[Node]:
+    def merge(cls, args, rationalize=True) -> list[Expr]:
         def form(k, v):
             if k is None:
                 return v
-            return nodes.Mul(k, v)
+            return expr.Mul(k, v)
 
-        def calculate(k, v):
-            if k is None:
-                return den * v
-            if den.__class__ is nodes.Add and utils.is_polynomial(den):
-                n, d = k.as_ratio()
-                if utils.is_polynomial(n) and utils.is_polynomial(d):
-                    return utils.cancel_factors(den.multiply(v * n), d)
-            return nodes.Mul(den, v, k)
+        def calculate(den, n, d):
+            return den.divide(d).multiply(n)
+            if den.__class__ is expr.Add and all(
+                map(utils.is_polynomial, (den, n, d))
+            ):
+                return den.multiply(n).divide(d)
+            return den * n / d
 
-        groups = defaultdict(nodes.Const)
+        groups = defaultdict(expr.Const)
         frac = False
         for term in args:
             coef, val = term.canonical()
@@ -53,38 +95,46 @@ class Add(Collection):
             if groups[val] == 0:
                 groups.pop(val)
 
-        if not rationalize or not frac or len(groups) == 1:
-            return list(itertools.starmap(form, groups.items())) or [nodes.Const(0)]
+        if not rationalize or not frac or len(groups) <= 1:
+            return ordered_terms(itertools.starmap(form, groups.items())) or [
+                expr.Const(0)
+            ]
 
-        # Get the LCM
-        den = nodes.Const(1)
-        for k in groups:
-            if k is None:
-                den *= groups[k].denominator
-                continue
-            den = utils.lcm(den, k.as_ratio()[1])
-        # Combine
-        num = Add.from_terms(calculate(k, v) for k, v in groups.items())  # .expand()
-        # return list(Add.flatten(num.simplify() / den.simplify()))
+        nums, dens = zip(
+            *(
+                (
+                    (k.as_ratio()[0] * v, k.as_ratio()[1])
+                    if k is not None
+                    else groups[k].as_ratio()
+                )
+                for k, v in groups.items()
+            )
+        )
+
+        den = utils.lcm(*dens, light=False)
+        num = reduce(
+            Expr.__add__, (calculate(den, n, dens[idx]) for idx, n in enumerate(nums))
+        )
         return list(Add.flatten(num / den))
 
     def as_ratio(self):
         c, a = self.cancel_gcd()
         n, d = c.as_ratio()
-        return (a.multiply(n), nodes.Const(d))
+        return (a.multiply(n), d)
 
-    def simplify(self) -> Node:
-        return utils.factor(self.expand())
+    def _expand(self) -> Expr:
+        return Add.from_terms(node._expand() for node in self)
 
-    def expand(self) -> Node:
-        return Add.from_terms(node.expand() for node in self)
-
-    def cancel_gcd(self, normalize=True) -> tuple[Node, Add]:
-        den = math.lcm(*(i.canonical()[0].denominator for i in self))
+    def cancel_gcd(self, normalize=True) -> tuple[Expr, Add]:
+        n = [i.canonical()[0] for i in self]
+        if any(i.__class__ is expr.Float for i in n):
+            den = 1
+        else:
+            den = math.lcm(*(i.denominator for i in n))
         if (
             # normalize and
             utils.is_polynomial(self)
-            and utils.leading(self).canonical()[0].is_neg()
+            and self.args[0].canonical()[0].is_neg()
         ):
             den *= -1
         if den != 1:
@@ -93,40 +143,33 @@ class Add(Collection):
 
         if gcd == den == 1:
             return gcd, self
-        # if isinstance(gcd, nodes.Add):
-        #     g = dict(itertools.chain(*map(utils.flatten_factors, gcd.cancel_gcd())))
-        # else:
-        #     g = dict(utils.flatten_factors(gcd))
-
-        # return gcd / den, Add.from_terms(
-        #     nodes.Mul.from_terms(
-        #         k ** (v - g.get(k, 0)) for k, v in utils.flatten_factors(n)
-        #     )
-        #     for n in self
-        # )
         return gcd / den, self.multiply(gcd**-1)
 
-    def divide(self, b: Add) -> Node:
+    @steps.tracked("DIV")
+    def divide(self, b: Add) -> Expr:
         if self == b:
-            return nodes.Const(1)
-        if not (
-            utils.is_polynomial(self) and utils.is_polynomial(b) and b.__class__ is Add
-        ):
-            # return self.multiply(b**-1)
-            return nodes.Mul(self, b**-1)
+            return expr.Const(1)
+        if b == 1:
+            return self
         return utils.cancel_factors(self, b)
 
-    def multiply(self, b: Node) -> Add:
-        if b.__class__ is nodes.Add:
+    divide.check_changed(Expr.__mul__._is_simplified)
+
+    @steps.tracked("MUL", label="Distribute")
+    def multiply(self, b: Expr) -> Add:
+        if b == 1:
+            return self
+        if b == 0:
+            return b
+        if b.__class__ is expr.Add:
             return Add.from_terms(i * j for i in self for j in b)
         return Add.from_terms(i * b for i in self)
 
-    def canonical(self) -> tuple[Node, Add]:
-        return nodes.Const(1), self
+    multiply.check_changed(Expr.__mul__._is_simplified)
 
     def totex(self):
         res = ""
-        for term in utils.ordered_terms(self):
+        for term in self:
             rep = term.totex()
             if res:
                 if str(term.canonical()[0]).startswith("-"):

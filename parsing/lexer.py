@@ -4,7 +4,7 @@ from pylatexenc.latexwalker import *
 from fractions import Fraction
 from typing import Generator
 from parsing.tokens import Token, TokenType, FUNCTIONS
-from datatypes.nodes import Const, Var
+from datatypes.expr import Const, Var
 
 
 class Lexer:

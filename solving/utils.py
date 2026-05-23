@@ -1,13 +1,16 @@
 from __future__ import annotations
-import math
 from typing import Iterable, Sequence, TYPE_CHECKING
-from functools import lru_cache, reduce
+import math
+import functools
+
+import utils
+import utils.steps as steps
 
 from .groebner import buchberger
 
 
-from datatypes.base import Node
-from datatypes.nodes import *
+from datatypes.base import Expr, Collection
+from datatypes.expr import *
 
 if TYPE_CHECKING:
     from solving.comparison import Comparison
@@ -30,7 +33,7 @@ def nth_roots(vals, n):
     return vals
 
 
-def quadratic_roots(f: tuple[Node]) -> tuple[Node] | None:
+def quadratic_roots(f: tuple[Expr]) -> tuple[Expr] | None:
     """
     Find the roots of `val` given that it is a quadratic Polynomial,
     return its roots
@@ -56,10 +59,10 @@ def roots_cubic(f):
     w2 = (-1 - Const(3) ** 0.5 * 1j) / 2
     s = [(-q / 2 + Δ**0.5) ** Const(1, 3)]
     s.extend(s[0] * i for i in (w, w2))
-    return {(s - p / (3 * s) - a / 3) for s in s}
+    return {(s - p / (3 * s) - a / 3).expand().factor() for s in s}
 
 
-def roots(f: list[Node]):
+def roots(f: list[Expr]):
     from numpy import roots
 
     d = len(f) - 1
@@ -88,10 +91,11 @@ def get_vars(expr):
     if expr.__class__.__name__ == "Comparison":
         return get_vars(expr.left).union(get_vars(expr.right))
     if hasattr(expr, "__iter__"):
-        return reduce(lambda a, b: a.union(b), map(get_vars, expr))
+        return functools.reduce(set.union, map(get_vars, expr))
     return set()
 
 
+@steps.tracked("groebner")
 def compute_grobner(
     eqns: Iterable[Comparison], vars: list[Var], sort_vars=True
 ) -> set[Comparison]:
@@ -101,12 +105,59 @@ def compute_grobner(
         eqns = arrange_eqns(eqns, vars)
         eqns = sorted(eqns, key=eqns.get)
         vars.reverse()
-    G = buchberger([eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns], vars)
-    return [Comparison(t, Const(0)) for t in G]
+    exprs = [eqn.normalize().left.as_ratio()[0].expand() for eqn in eqns]
+    G = buchberger([eliminate_radicals(expr, *vars) or expr for expr in exprs], vars)
+    [steps.register(g) for g in G]
+    return {Comparison(t, Const(0)) for t in G}
 
 
-@lru_cache
-def difficulty_weight(term: Node, var: Var) -> float:
+def eliminate_radicals(expr, *value):
+
+    system = []
+    counter = []
+    cache = {}
+
+    def vars():
+        i = 0
+        while True:
+            yield Var(f"r" + utils.subscript(i))
+            i += 1
+
+    def visit(node):
+        if node in cache:
+            return cache[node]
+
+        if node.__class__ is Pow and any(v in node for v in value):
+            sub = visit(node.base) ** node.exp.numerator
+            if node.exp.denominator != 1:
+                var = next(vars)
+                cache[node] = var
+                counter.append(var)
+                system.append(var**node.exp.denominator - sub)
+                return var
+            cache[node] = sub
+            return sub
+
+        elif isinstance(node, Collection):
+            return node.from_terms(map(visit, node.args))
+        return node
+
+    vars = vars()
+    final_expr = visit(expr)
+    if not system:
+        return
+    system.append(final_expr)
+    return next(
+        (
+            expr
+            for expr in buchberger(system, counter + [value])
+            if not any(v in expr for v in counter)
+        )
+    )
+
+
+@utils.lru_cache
+def difficulty_weight(term: Expr, var: Var) -> float:
     if isinstance(term, Number):
         return (0, 0, 0.01 + term.is_neg() * 0.01)
 
@@ -171,43 +222,23 @@ def domain_restriction(node, var: Var) -> tuple[Comparison]:
     from .comparison import Comparison, CompRel
 
     system = []
-    seen = {}
-    tmp = {}
+    seen = set()
 
-    def vars():
-        alphabet = [chr(i) for i in range(ord("a"), ord("z") + 1)]
-        start_index = alphabet.index(var.lower())
-        i = 0
-        while True:
-            yield Var(alphabet[(start_index + i + 1) % 26])
-            i += 1
-
-    def visit(node, register):
+    def visit(node):
         if node in seen:
-            return seen[node]
+            return
+        seen.add(node)
         if node.__class__ is Pow and var in node:
-            sub = visit(node.base, 0)
-
             r = not node.exp.denominator % 2
             f = node.exp.numerator < 0
 
             if f or r:
-                if register:
-                    rel = ("GE", "GT")[f] if r else "NE"
-                    system.append(Comparison(sub, Const(0), getattr(CompRel, rel)))
-                v = next(letters)
-                tmp[v] = sub**node.exp
-                seen[node] = v
-            else:
-                seen[node] = sub**node.exp
-            return seen[node]
+                rel = ("GE", "GT")[f] if r else "NE"
+                system.append(Comparison(node.base, Const(0), getattr(CompRel, rel)))
         elif isinstance(node, (Add, Mul)):
-            return node.from_terms(visit(t, register) for t in node.args)
-        seen[node] = node
-        return node
+            [visit(t) for t in node.args]
 
-    letters = vars()
-    visit(node, 1)
+    visit(node)
     return tuple(system)
 
 
@@ -217,5 +248,6 @@ __all__ = [
     "arrange_eqn",
     "domain_restriction",
     "difficulty_weight",
+    "eliminate_radicals",
     "roots",
 ]

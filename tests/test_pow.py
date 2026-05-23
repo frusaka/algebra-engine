@@ -1,5 +1,5 @@
 import pytest
-from datatypes.nodes import Const, Var, Add, Mul, Pow
+from datatypes.expr import Const, Var, Add, Mul, Pow
 
 # Test will require avoiding circluar verification
 # Currently, all the nodes perform evaluation at construction.

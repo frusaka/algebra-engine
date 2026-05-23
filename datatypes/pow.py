@@ -1,38 +1,40 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 import itertools
-from functools import lru_cache, reduce
+import functools
 from typing import TYPE_CHECKING
 
 import utils
 
-from . import nodes
-from .base import Collection, Node
+from . import expr
+from .base import Collection, Expr
 
 
 @dataclass(frozen=True, init=False, slots=True)
-class Pow(Node):
-    base: Node
-    exp: Node
+class Pow(Expr):
+    base: Expr
+    exp: Expr
 
-    @lru_cache
-    def __new__(cls, base: Node, exp: Node) -> Node:
+    @utils.lru_cache
+    def __new__(cls, base: Expr, exp: Expr) -> Expr:
         if base == 1:
             return base
         if base.__class__ is Pow:
             # May nullify constraints: √(x-2)^2 = |x-2|, not x-2
             base, exp = base.base, exp * base.exp
         if exp == 0:
-            return nodes.Const(1)
+            return expr.Const(1)
         if exp == 1:
             return base
         c = 1
-        if exp.__class__ is nodes.Const:
-            if base.__class__ is nodes.Mul:
-                return nodes.Mul.from_terms(
+        if exp.__class__ is expr.Const:
+            if base.__class__ is expr.Mul:
+                return expr.Mul.from_terms(
                     (t**exp for t in base.args), distr_const=True
                 )
-            if isinstance(base, nodes.Number):
-                if base.__class__ is nodes.Float:
+            if isinstance(base, expr.Number):
+                if base.__class__ is expr.Float:
                     return base.pow(exp)
                 if exp.denominator == 1:
                     return base.pow(exp.numerator)
@@ -41,30 +43,30 @@ class Pow(Node):
                 )
                 if base == 1 or exp == 1:
                     return c
-            elif base.__class__ is nodes.Add:
+            elif base.__class__ is expr.Add:
                 c, base = base.cancel_gcd(normalize=exp < 0)
                 c **= exp
         self = super(Pow, cls).__new__(cls)
         object.__setattr__(self, "base", base)
         object.__setattr__(self, "exp", exp)
         if c != 1:
-            return nodes.Mul(self, c)
+            return expr.Mul(self, c)
         return self
 
     if TYPE_CHECKING:
 
-        def __init__(self, base: Node, exp: Node) -> None:
+        def __init__(self, base: Expr, exp: Expr) -> None:
             pass
 
     def __repr__(self) -> str:
         base = str(self.base)
         if (
             isinstance(self.base, Collection)
-            or self.base.__class__ is nodes.Const
+            or self.base.__class__ is expr.Const
             and self.base.denominator > 1
         ):
             base = base.join("()")
-        if self.exp.__class__ is nodes.Const:
+        if self.exp.__class__ is expr.Const:
             p = utils.superscript(self.exp.numerator) if self.exp.numerator != 1 else ""
             base += p
             if self.exp.denominator != 1:
@@ -81,49 +83,38 @@ class Pow(Node):
             exp = exp.join("()")
         return f"{base}^{exp}"
 
-    def as_ratio(self) -> tuple[Node]:
+    def as_ratio(self) -> tuple[Expr]:
         if self.exp.canonical()[0].is_neg():
-            return (nodes.Const(1), Pow(self.base, -self.exp))
-        return (self, nodes.Const(1))
+            return (expr.Const(1), Pow(self.base, -self.exp))
+        return (self, expr.Const(1))
 
-    def simplify(self) -> Node:
-        return Pow(self.base.simplify(), self.exp.simplify())
+    def _simplify(self) -> Expr:
+        return Pow(self.base.factor(), self.exp.factor())
 
-    def expand(self):
+    def _expand(self) -> Expr:
         if self.exp.canonical()[0].is_neg():
-            return Pow(Pow(self.base, -self.exp).expand(), nodes.Const(-1))
-        base = self.base.expand()
-        exp = self.exp.expand()
+            return Pow(Pow(self.base, -self.exp)._expand(), expr.Const(-1))
+        base = self.base._expand()
+        exp = self.exp._expand()
         if (
-            base.__class__ is nodes.Add
-            and exp.__class__ is nodes.Const
+            base.__class__ is expr.Add
+            and exp.__class__ is expr.Const
             and not exp.numerator.imag
             and exp.numerator > 1
         ):
-            base = reduce(
-                lambda a, b: nodes.Add.from_terms(
-                    itertools.starmap(
-                        nodes.Mul,
-                        itertools.product(nodes.Add.flatten(a), nodes.Add.flatten(b)),
-                    )
-                ),
-                itertools.repeat(base, exp.numerator),
+            base = functools.reduce(
+                Expr.multiply, itertools.repeat(base, exp.numerator)
             )
             if exp.denominator == 1:
                 return base
-            exp = nodes.Const(1, exp.denominator)
+            exp = expr.Const(1, exp.denominator)
         return Pow(base, exp)
 
-    def subs(self, mapping):
-        if (res := mapping.get(self, None)) is not None:
-            return res
-        return Pow(self.base.subs(mapping), self.exp.subs(mapping))
-
-    def approx(self) -> float | complex:
-        v = self.base.approx()
-        e = self.exp.approx()
+    def _approx(self) -> float | complex:
+        v = self.base._approx()
+        e = self.exp._approx()
         if (
-            self.exp.__class__ is nodes.Const
+            self.exp.__class__ is expr.Const
             and self.exp.denominator % 2
             and self.exp.denominator > 1
             and not v.imag
@@ -132,10 +123,10 @@ class Pow(Node):
             return -abs(v) ** e
         return v**e
 
-    def totex(self):
+    def totex(self) -> str:
         from .mul import _tex
 
-        if not isinstance(self.exp, nodes.Const) or self.exp.denominator == 1:
+        if not isinstance(self.exp, expr.Const) or self.exp.denominator == 1:
             base = _tex(self.base).join("{}")
             exp = self.exp.totex().join("{}")
             return f"{base}^{exp}"

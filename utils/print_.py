@@ -1,9 +1,29 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
+
+import re
 
 if TYPE_CHECKING:
-    from datatypes.nodes import Const
+    from datatypes.expr import Const
     from solving.comparison import Comparison
+
+
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def strip_ansi(text):
+    res = ANSI_ESCAPE_RE.sub("", text)
+    return res
+
+
+def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def colorize_ansi(text: str, hex_color: str) -> str:
+    r, g, b = hex_to_rgb(hex_color)
+    return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
 
 
 def print_frac(frac: Const) -> str:
@@ -42,13 +62,26 @@ def superscript(n: int):
     return str(n).translate(str.maketrans("0123456789+-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻"))
 
 
-def print_system(equations: list[str]):
-    res = ["⎧ " + equations[0]]
+def subscript(n: int):
+    return str(n).translate(str.maketrans("0123456789+-", "₀₁₂₃₄₅₆₇₈₉₊₋"))
+
+
+def print_system(equations: Iterable[Comparison]) -> str:
+    equations = list(equations)
+    lpad = max(len(str(eqn.left)) for eqn in equations)
+    rpad = max(len(str(eqn.right)) for eqn in equations)
+    equations = [
+        " " * (lpad - len(str(eqn.left)))
+        + str(eqn)
+        + " " * (rpad - len(str(eqn.right)))
+        for eqn in sorted(equations, key=lambda eqn: str(eqn.left))
+    ]
+    res = "\n⎧ " + equations[0]
     for eq in equations[1:-1]:
-        res.append("⎪ " + eq)
+        res += "\n⎪ " + eq
     if len(equations) > 1:
-        res.append("⎩ " + equations[-1])
-    return "\n" + "\n".join(res)
+        res += "\n⎩ " + equations[-1]
+    return res
 
 
 def truncate(text, max_length=80):

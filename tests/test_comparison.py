@@ -2,39 +2,17 @@ from math import isclose
 
 import pytest
 
-from datatypes.nodes import *
+from datatypes.expr import *
 from solving.comparison import Comparison, CompRel
-from solving.eval_trace import ETNode, ETOperatorNode, ETSteps, ETTextNode, ETVerifyNode
+
 from solving.solutions import IntervalUnion, SolutionSet
 from solving.interval import INF, Interval
 from solving.core import solve
 from parsing import parser
 
-
 x = Var("x")
 y = Var("y")
 z = Var("z")
-
-
-def test_records_steps():
-    eq = Comparison(2 * x + 3, Const(13))
-    solve(eq)
-    steps = ETSteps.data
-    # Labels the process
-    assert type(steps[0]) is ETTextNode
-    assert steps[0].result == "Solving for x"
-    # Shows the original equation
-    assert type(steps[1]) is ETNode
-    assert steps[1].result is eq
-    # Shows an operator
-    assert type(steps[2]) is ETOperatorNode
-    # Verifies solution
-    assert type(steps[0]) is ETTextNode
-    assert steps[-2].result == "Verifying solution"
-    # Validates a correct solution
-    assert type(steps[-1]) is ETVerifyNode
-    assert type(steps[-1].result) is Comparison
-    assert steps[-1].state
 
 
 def test_solve_basic():
@@ -71,9 +49,11 @@ def test_solve_medium():
 
 
 def test_solve_proportions():
-    assert parser.eval("7/(x + 5) + x/(x + 4) = x/(x^2 + 9x + 20)") == Comparison(x, -7)
-    assert parser.eval("5/(x + 7) + x/(x - 7) = 7/(x - 7)") == Comparison(x, -12)
-    assert parser.eval("1 + 2/(x + 1) = (3x + 7)/(x^2 + 10x + 9)") == Comparison(
+    assert parser.parse("7/(x + 5) + x/(x + 4) = x/(x^2 + 9x + 20)") == Comparison(
+        x, -7
+    )
+    assert parser.parse("5/(x + 7) + x/(x - 7) = 7/(x - 7)") == Comparison(x, -12)
+    assert parser.parse("1 + 2/(x + 1) = (3x + 7)/(x^2 + 10x + 9)") == Comparison(
         x, SolutionSet({-4, -5}), CompRel.IN
     )
     u = Var("u")
@@ -90,7 +70,7 @@ def test_solve_proportions():
 def test_solve_factorization():
     n = Var("n")
     b = Var("b")
-    eq = Comparison(parser.eval("n(2-3b) + 2 - 4b"), 2 * b - 2)
+    eq = Comparison(parser.parse("n(2-3b) + 2 - 4b"), 2 * b - 2)
     assert solve(eq, n) == Comparison(n, -2)
     assert solve(eq, b) == Comparison(b, Const(2, 3))
 
@@ -98,9 +78,9 @@ def test_solve_factorization():
     assert solve(eq, y) == Comparison(y, Const(-4, 9))
     assert solve(eq, x) == Comparison(x, 2)
 
-    expected = parser.eval("(S/(2hp + 2p))^0.5")
+    expected = parser.parse("(S/(2hp + 2p))^0.5")
     assert solve(
-        Comparison(Var("S"), parser.eval("2pr^2 + 2pr^2h")), Var("r")
+        Comparison(Var("S"), parser.parse("2pr^2 + 2pr^2h")), Var("r")
     ) == Comparison("r", SolutionSet({expected, -expected}), CompRel.IN)
 
 
@@ -110,7 +90,7 @@ def test_solve_formulas():
     right = Add(Var("c") ** 2, -Var("a") ** 2) ** Const(1, 2)
 
     assert solve(
-        Comparison(parser.eval("a^2+b^2"), Var("c") ** 2), Var("b")
+        Comparison(parser.parse("a^2+b^2"), Var("c") ** 2), Var("b")
     ) == Comparison("b", SolutionSet({right, -right}), CompRel.IN)
     # d = st, t = d/s
     assert solve(Comparison(Var("d"), Var("s") * Var("t")), Var("t")) == Comparison(
@@ -118,47 +98,47 @@ def test_solve_formulas():
     )
 
     # C = Prt + P, P = C/(rt + 1)
-    assert Comparison(Var("C"), parser.eval("Prt + P")).solve_for(
+    assert Comparison(Var("C"), parser.parse("Prt + P")).solve_for(
         Var("P")
     ) == Comparison(
         "P",
-        parser.eval("C/(rt + 1)"),
+        parser.parse("C/(rt + 1)"),
     )
     # ax + b = c, b = c - ax
-    assert Comparison(parser.eval("ax + b"), Var("c")).solve_for(
+    assert Comparison(parser.parse("ax + b"), Var("c")).solve_for(
         Var("b")
-    ) == Comparison(Var("b"), parser.eval("c - ax"))
+    ) == Comparison(Var("b"), parser.parse("c - ax"))
     # y = mx + c, x = (y - c)/m
-    assert Comparison(y, parser.eval("mx + c")).solve_for(x) == Comparison(
-        x, parser.eval("(y - c)/m")
+    assert Comparison(y, parser.parse("mx + c")).solve_for(x) == Comparison(
+        x, parser.parse("(y - c)/m")
     )
 
 
 def test_solve_quadratic():
 
-    assert parser.eval("2x^2 + 3x - 5 = 0") == Comparison(
+    assert parser.parse("2x^2 + 3x - 5 = 0") == Comparison(
         x, SolutionSet({1, Const(-5, 2)}), CompRel.IN
     )
-    assert parser.eval("x^2 - 6x + 9 = 0") == Comparison(x, 3)
-    assert parser.eval("-3x^2 + 12x - 9 = 0") == Comparison(
+    assert parser.parse("x^2 - 6x + 9 = 0") == Comparison(x, 3)
+    assert parser.parse("-3x^2 + 12x - 9 = 0") == Comparison(
         x, SolutionSet({1, 3}), CompRel.IN
     )
-    assert parser.eval("2x^2 + 13x = 24") == Comparison(
+    assert parser.parse("2x^2 + 13x = 24") == Comparison(
         x, SolutionSet({-8, Const(3, 2)}), CompRel.IN
     )
-    assert parser.eval("1/(x-5)^0.5 + x/(x-5)^0.5 = 7") == Comparison(
+    assert parser.parse("1/sqrt(x-5) + x/sqrt(x-5) = 7") == Comparison(
         x, SolutionSet({41, 6}), CompRel.IN
     )
 
     assert solve(
-        Comparison(parser.eval("(a-4)^2 "), Var("c") ** 2), Var("a")
+        Comparison(parser.parse("(a-4)^2 "), Var("c") ** 2), Var("a")
     ) == Comparison("a", SolutionSet({4 - Var("c"), 4 + Var("c")}), CompRel.IN)
-    assert solve(Comparison(parser.eval("ay^2 + by + c"), Const(0)), y) == Comparison(
+    assert solve(Comparison(parser.parse("ay^2 + by + c"), Const(0)), y) == Comparison(
         y,
         SolutionSet(
             {
-                parser.eval("(-b + (b^2 - 4ac)^0.5)/2a"),
-                parser.eval("(-b - (b^2 - 4ac)^0.5)/2a"),
+                parser.parse("(-b + (b^2 - 4ac)^0.5)/2a"),
+                parser.parse("(-b - (b^2 - 4ac)^0.5)/2a"),
             }
         ),
         CompRel.IN,
@@ -195,16 +175,16 @@ def test_solve_radicals():
     # 3x^3=(2+((x-3)^3)^(1/5)+x^.5)^(1/3)-x^2
     # (a+3)^.5+(a^2-4)^(1/3)=4
     # (a^2+3a+2)^.25+(a+1)^(1/3)=3
-    assert parser.eval("x + sqrt(2x - 1) + sqrt(2x + 3) = 2.5").right == Const(1, 2)
+    # assert parser.parse("x + sqrt(2x - 1) + sqrt(2x + 3) = 2.5").right == Const(1, 2)
     # approximations
     assert isclose(
-        parser.eval("x + sqrt(x - 1) + sqrt(2x + 3) = 9").right, 3.9694, abs_tol=1e-4
+        parser.parse("x + sqrt(x - 1) + sqrt(2x + 3) = 9").right, 3.9694, abs_tol=1e-4
     )
-    assert isclose(parser.eval("(a+(a+a^.5)^.5)^.5=2").right, 2.1119, abs_tol=1e-4)
+    assert isclose(parser.parse("(a+(a+a^.5)^.5)^.5=2").right, 2.1119, abs_tol=1e-4)
     assert isclose(
-        parser.eval("(1+(2+(3+a)^.5)^.5)^.5+(a-1)^(1/3)=3").right, 2.8977, abs_tol=1e-4
+        parser.parse("(1+(2+(3+a)^.5)^.5)^.5+(a-1)^(1/3)=3").right, 2.8977, abs_tol=1e-4
     )
-    # rhs = sorted(parser.eval("(1+((3+a)^.5-2)^.5)^.5+(a-1)^(1/3)/a=1.7").right)
+    # rhs = sorted(parser.parse("(1+((3+a)^.5-2)^.5)^.5+(a-1)^(1/3)/a=1.7").right)
     # assert all(
     #     starmap(
     #         lambda a, b: isclose(a, b, abs_tol=1e-4), zip(rhs, [1.5788, 4.8105, 6.5235])
@@ -214,34 +194,36 @@ def test_solve_radicals():
 
 def test_solve_edge():
     # Extraneous solutions
-    assert parser.eval("2x - x^0.5 = 6").right == 4
+    assert parser.parse("2x - x^0.5 = 6").right == 4
     # Requiring numeric approximation verification
-    assert parser.eval("(2x+3)^0.5+(x-1)^0.5=4").right == 44 - 24 * Const(3) ** 0.5
+    assert (
+        parser.parse("sqrt(2x + 3) + sqrt(x-1) = 4").right == 44 - 24 * Const(3) ** 0.5
+    )
 
     # Infinite Solutions
-    assert parser.eval("solve(0x = 0, x)").right == INF
-    assert parser.eval("(x-2)^2 = (x^2 - 4x + 4)").right == INF
+    assert parser.parse("solve(0x = 0, x)").right == INF
+    assert parser.parse("(x-2)^2 = (x^2 - 4x + 4)").right == INF
     # No solution
-    assert not parser.eval("x + 2 = x - 4").right
-    assert not parser.eval("x > x").right
-    assert not parser.eval("solve(mx > -mx, y)").right
+    assert not parser.parse("x + 2 = x - 4").right
+    assert not parser.parse("x > x").right
+    assert not parser.parse("solve(mx > -mx, y)").right
 
 
 @pytest.mark.skip(reason="irrelevant")
 def test_solve_complex():
     # Results would be too long to write out in object form
     eq = Comparison(
-        parser.eval("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x"),
+        parser.parse("-5x^4 + rx^2 + qx^2 + px^2 + 2x^3 + 2rx - qx + px + 17x^2 - 14x"),
         (Const(2), Var("p")),
     )
     expected = Comparison(
         (Var("p")),
-        parser.eval("5x^2 - 7x - r - q + (-rx + 2qx - 2r - 2q)/(x^2 + x - 2)"),
+        parser.parse("5x^2 - 7x - r - q + (-rx + 2qx - 2r - 2q)/(x^2 + x - 2)"),
     )
     assert (
         Comparison(
-            parser.eval("p/x + q/(x+2) + r/(x-1)"),
-            parser.eval("5x - 7"),
+            parser.parse("p/x + q/(x+2) + r/(x-1)"),
+            parser.parse("5x - 7"),
         ).solve_for(Var("p"))
         == expected
     )

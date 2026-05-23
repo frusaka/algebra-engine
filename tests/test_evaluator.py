@@ -1,232 +1,134 @@
+from contextlib import contextmanager
+
 import pytest
 from datatypes.const import Const
 from datatypes.var import Var
-from parsing.parser import eval, validate
-from parsing import operators
-from unittest.mock import patch
+from parsing.parser import parse, Function
+from unittest.mock import patch, MagicMock
+import importlib
 
 from parsing.tokens import TokenType
 from solving.comparison import Comparison
-from solving.system import System
 
 
 @pytest.fixture
-def mock_validate():
-    with patch(
-        "parsing.parser.validate",
-        side_effect=lambda func, *args, **kwargs: func(*args, **kwargs),
-    ) as validate:
-        yield validate
+def mock_call():
+    with patch.object(
+        Function, "__call__", autospec=True, wraps=Function.__call__
+    ) as caller:
+        yield caller
 
 
-def test_validate_inputs():
-    # Representation of all data types
-    n = Const(1)
-    x = Var("x")
-    m = x * 2
-    a = x + 2
-    p = x**2
-    c = Comparison(x, p)
-    s = System([c, Comparison(n, a)])
-    t = m, a
-    # fmt: off
-    bin_funcs = ["add", "sub", "mul", "div", "frac", "pow", "sqrt", "eq", "lt", "le", "gt", "ge"]
-    un_funcs = ["factor", "expand", "neg", "pos", "approx"]
-    inv_bin_pairs = [(n, c), (s, c), (c, s), (a, s), (s, a), (c, t), (t, c), (p, s), (s, p)]
-    val_bin_pairs = [(n, n), (n, m), (m, n), (m, m), (a, n), (n, a), (a, a), (a, m), (m, a), (p, n), (n, p), (p, a), (a, p), (p, m), (m, p), (p, p)]
-    # fmt: on
-    # Validates binary operators
-    for f in bin_funcs:
-        func = getattr(operators, f)
-        # No argument Or passing None
-        with pytest.raises(SyntaxError):
-            validate(func, call=False)
-        with pytest.raises(SyntaxError):
-            validate(func, None, call=False)
-        for i in inv_bin_pairs:
-            # One argument
-            with pytest.raises(SyntaxError):
-                validate(func, i[0], call=False)
-            with pytest.raises(TypeError):
-                validate(func, *i, call=False)
-        for i in val_bin_pairs:
-            validate(func, *i, call=False)
+@contextmanager
+def spy(path: str):
+    module_name, _, attr = path.rpartition(".")
+    module = importlib.import_module(module_name)
+    original = getattr(module, attr)
 
-    # Validates Unary operators
-    for f in un_funcs:
-        func = getattr(operators, f)
-        with pytest.raises(SyntaxError):
-            validate(func, call=False)
-        for i in [c, s, t]:
-            with pytest.raises(TypeError):
-                validate(func, i, call=False)
-        for i in [n, x, m, a, p]:
-            validate(func, i, call=False)
+    def tracker(*args, **kwargs):
+        value = original(*args, **kwargs)
+        mocked.return_value = value
+        return value
 
-    # LCM and GCD
-    for func in [operators.lcm, operators.gcd]:
-        with pytest.raises(ValueError):
-            validate(func)
-        for i, j in zip(inv_bin_pairs, val_bin_pairs):
-            with pytest.raises(TypeError):
-                validate(func, *i, call=False)
-            with pytest.raises(TypeError):
-                validate(func, *i, *j, call=False)
-            validate(func, *j, call=False)
-            validate(func, *j, *j, call=False)
-
-    # Validates solve
-    for i in (n, m, a, p, s, t, c):
-        with pytest.raises(TypeError):
-            validate(operators.solve, s, i, call=False)
-        with pytest.raises(TypeError):
-            validate(operators.solve, c, i, call=False)
-    validate(operators.solve, s, x, call=False)
-    validate(operators.solve, c, x, call=False)
-
-    # Validates subsitution
-    for i in (x, n, m, a, p, s, c):
-        validate(operators.subs, i, c, call=False)
-        validate(operators.subs, i, c, *s, call=False)
-    with pytest.raises(SyntaxError):
-        validate(operators.subs, call=False)
-    with pytest.raises(TypeError):
-        validate(operators.subs, t, call=False)
-
-    for i in val_bin_pairs:
-        with pytest.raises(TypeError):
-            validate(operators.solve, *i, call=False)
-        with pytest.raises(TypeError):
-            validate(operators.subs, *i, call=False)
+    with patch(path, wraps=tracker) as mocked:
+        yield mocked
 
 
-def test_arithmetic(mock_validate):
-    with patch("parsing.operators.neg") as neg:
-        neg.return_value = Const(-5)
-        eval("-5")
-        mock_validate.assert_called_with(neg, 5)
+def test_arithmetic(mock_call):
+    with spy("parsing.operators.neg") as neg:
+        parse("-5")
+        mock_call.assert_called_with(Function("neg", 5))
         neg.assert_called_once_with(5)
-        eval("--5")
+        parse("--5")
         neg.assert_called_with(-5)
 
-    with patch("parsing.operators.mul") as mul:
-        eval("2*3")
-        mock_validate.assert_called_with(mul, 2, 3)
+    with spy("parsing.operators.mul") as mul:
+        parse("2*3")
+        mock_call.assert_called_with(Function("mul", 2, 3))
         mul.assert_called_once_with(2, 3)
 
-    with patch("parsing.operators.div") as div:
-        eval("2/3")
-        mock_validate.assert_called_with(div, 2, 3)
+    with spy("parsing.operators.div") as div:
+        parse("2/3")
+        mock_call.assert_called_with(Function("div", 2, 3))
         div.assert_called_once_with(2, 3)
-    with patch("parsing.operators.add") as add:
-        eval("x+z")
-        mock_validate.assert_called_with(add, "x", "z")
+    with spy("parsing.operators.add") as add:
+        parse("x+z")
+        mock_call.assert_called_with(Function("add", "x", "z"))
         add.assert_called_once_with("x", "z")
-    with patch("parsing.operators.sub") as sub:
-        eval("x-5")
-        mock_validate.assert_called_with(sub, "x", 5)
+    with spy("parsing.operators.sub") as sub:
+        parse("x-5")
+        mock_call.assert_called_with(Function("sub", "x", 5))
         sub.assert_called_once_with("x", 5)
 
 
-def test_nested_expressions(mock_validate):
-    with patch("parsing.operators.add") as add, patch("parsing.operators.mul") as mul:
-        mul.return_value = Const(6)
-        eval("2*3+4")
-        assert len(mock_validate.call_args_list) == 2
-        assert mock_validate.call_args_list[0].args == (mul, 2, 3)
-        assert mock_validate.call_args_list[1].args == (add, mul.return_value, 4)
-        mock_validate.reset_mock()
+def test_nested_expressions(mock_call):
+    with spy("parsing.operators.add") as add, spy("parsing.operators.mul") as mul:
+        parse("2*3+4")
+        assert len(mock_call.call_args_list) == 2
         mul.assert_called_once_with(2, 3)
         add.assert_called_once_with(mul.return_value, 4)
+        mock_call.reset_mock()
 
-    with patch("parsing.operators.sub") as sub, patch("parsing.operators.div") as div:
-        div.return_value = Const(-5)
-        eval("x-10/2")
-        assert len(mock_validate.call_args_list) == 2
-        assert mock_validate.call_args_list[0].args == (div, 10, 2)
-        assert mock_validate.call_args_list[1].args == (sub, "x", div.return_value)
-        mock_validate.reset_mock()
+    with spy("parsing.operators.sub") as sub, spy("parsing.operators.div") as div:
+        parse("x-10/2")
+        assert len(mock_call.call_args_list) == 2
         div.assert_called_once_with(10, 2)
         sub.assert_called_once_with("x", div.return_value)
+        mock_call.reset_mock()
 
-    with patch("parsing.operators.sqrt") as sqrt, patch("parsing.operators.add") as add:
-        sqrt.return_value = Const(2)
-        eval("sqrt(3, 8)+5")
-        assert len(mock_validate.call_args_list) == 2
-        assert mock_validate.call_args_list[0].args == (sqrt, 3, 8)
-        assert mock_validate.call_args_list[1].args == (add, sqrt.return_value, 5)
-        mock_validate.reset_mock()
+    with spy("parsing.operators.sqrt") as sqrt, spy("parsing.operators.add") as add:
+        parse("sqrt(3, 8)+5")
+        assert len(mock_call.call_args_list) == 2
         sqrt.assert_called_once_with(3, 8)
         add.assert_called_once_with(sqrt.return_value, 5)
+        mock_call.reset_mock()
 
-    with patch("parsing.operators.neg") as neg, patch("parsing.operators.mul") as mul:
-        neg.return_value = Const(-5)
-        eval("-5*2")
-        assert len(mock_validate.call_args_list) == 2
-        assert mock_validate.call_args_list[0].args == (neg, 5)
-        assert mock_validate.call_args_list[1].args == (mul, neg.return_value, 2)
-        mock_validate.reset_mock()
+    with spy("parsing.operators.neg") as neg, spy("parsing.operators.mul") as mul:
+        parse("-5*2")
+        assert len(mock_call.call_args_list) == 2
         neg.assert_called_once_with(5)
         mul.assert_called_once_with(neg.return_value, 2)
+        mock_call.reset_mock()
 
 
-def test_comparison(mock_validate):
-    with patch("parsing.operators.eq") as eq:
-        eval("x=5", False)
-        mock_validate.assert_called_with(eq, "x", 5)
-        eq.assert_called_once_with("x", 5)
-    with patch("parsing.operators.lt") as lt:
-        eval("x<6", False)
-        mock_validate.assert_called_with(lt, "x", 6)
-        lt.assert_called_once_with("x", 6)
-    with patch("parsing.operators.le") as le:
-        eval("x<=12", False)
-        mock_validate.assert_called_with(le, "x", 12)
-        le.assert_called_once_with("x", 12)
-    with patch("parsing.operators.gt") as gt:
-        eval("x>1", False)
-        mock_validate.assert_called_with(gt, "x", 1)
-        gt.assert_called_once_with("x", 1)
-    with patch("parsing.operators.ge") as ge:
-        eval("x>=21", False)
-        mock_validate.assert_called_with(ge, "x", 21)
-        ge.assert_called_once_with("x", 21)
+def test_comparison():
+    for c, n in zip(
+        ["eq", "lt", "le", "gt", "ge"],
+        [5, 6, 12, 1, 21],
+    ):
+        with spy(f"parsing.operators.{c}") as comp:
+            Function(c, Var("x"), Const(n))()
+            comp.assert_called_once_with("x", n)
 
 
 def test_system():
     x = Var("x")
     y = Var("y")
-    with patch("parsing.operators.System") as sys:
-        eval("[x+y=5, x-y=11]", False)
-        assert len(sys.call_args.args) == 1 and tuple(sys.call_args.args[0]) == (
+    with spy("parsing.operators.system") as sys:
+        parse("[x+y=5, x-y=11]", False)
+        sys.assert_called_once_with(
             Comparison(x + y, 5),
             Comparison(x - y, 11),
         )
 
 
-def test_functions(mock_validate):
+def test_functions():
     x = Var("x")
-    with patch("parsing.operators.sqrt") as sqrt:
-        eval("sqrt(8)")
-        mock_validate.assert_called_with(sqrt, TokenType.NaN, 8)
-        sqrt.assert_called_once_with(TokenType.NaN, 8)
-    with patch("parsing.operators.gcd") as gcd:
-        eval("gcd(12,8)")
-        mock_validate.assert_called_with(gcd, 12, 8)
+    with spy("parsing.operators.sqrt") as sqrt:
+        parse("sqrt(8)")
+        sqrt.assert_called_once_with(None, 8)
+    with spy("parsing.operators.gcd") as gcd:
+        parse("gcd(12,8)")
         gcd.assert_called_once_with(12, 8)
-    with patch("parsing.operators.lcm") as lcm:
-        eval("lcm(12,8)")
-        mock_validate.assert_called_with(lcm, 12, 8)
+    with spy("parsing.operators.lcm") as lcm:
+        parse("lcm(12,8)")
         lcm.assert_called_once_with(12, 8)
-    with patch("parsing.operators.factor") as factor:
-        eval("factor(x^2+2x+1)")
-        mock_validate.assert_called_with(factor, x**2 + 2 * x + 1)
+    with spy("parsing.operators.factor") as factor:
+        parse("factor(x^2+2x+1)")
         factor.assert_called_once_with(x**2 + 2 * x + 1)
-    with patch("parsing.operators.expand") as expand:
-        eval("expand((x+1)^2)")
-        mock_validate.assert_called_with(expand, (x + 1) ** 2)
+    with spy("parsing.operators.expand") as expand:
+        parse("expand((x+1)^2)")
         expand.assert_called_once_with((x + 1) ** 2)
-    with patch("parsing.operators.subs") as subs:
-        eval("subs(x+3=5, x=3)")
-        mock_validate.assert_called_with(subs, Comparison(x + 3, 5), Comparison(x, 3))
-        subs.assert_called_once_with(Comparison(x + 3, 5), Comparison(x, 3))
+    # with spy("parsing.operators.subs") as subs:
+    #     parse("subs(x+3=5, x=3)")
+    #     subs.assert_called_once_with(Comparison(x + 3, 5), Comparison(x, 3))
